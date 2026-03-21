@@ -1,0 +1,1326 @@
+import React, { useState, useEffect, useMemo } from "react";
+import { useTheme } from "../context/ThemeContext";
+import { useFont } from "../context/FontContext";
+import {
+  getAllDrivers, approveDriver, rejectDriver, updateDriver, toggleDriverStatus, deleteDriver, registerDriver
+} from "../apis/driver";
+import { getAllCarCategories } from "../apis/carCategory";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell,
+  LineChart, Line,
+  AreaChart, Area,
+  RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  ComposedChart, Scatter, ScatterChart,
+  RadialBarChart, RadialBar
+} from 'recharts';
+import {
+  FaTimes, FaEye, FaSyncAlt, FaEdit, FaPlus,
+  FaToggleOn, FaToggleOff, FaSearch, FaCar, FaCheckCircle,
+  FaTimesCircle, FaUserCircle, FaIdCard, FaBuilding, FaPhoneAlt, FaEnvelope,
+  FaMoneyBillWave, FaRoute, FaUsers, FaCouch, FaCircle, FaCalendarAlt, FaChevronLeft, FaChevronRight, FaStar, FaTrash,
+  FaBan, FaMapMarkerAlt, FaLandmark, FaPalette, FaHistory, FaGlobe, FaClock, FaFileInvoice,
+  FaChartPie, FaChartBar, FaChartLine, FaChartArea, FaDownload, FaFilter, FaPrint, FaFilePdf, FaFileExcel,
+  FaGasPump, FaCogs, FaChair, FaPallet, FaWrench, FaShieldAlt, FaCreditCard
+} from "react-icons/fa";
+import {
+  Download, Filter, TrendingUp, DollarSign, Activity,
+  PieChart as PieChartIcon, BarChart3, LineChart as LineChartIcon,
+  Target, Gauge, Zap, Shield, MoreVertical, DownloadCloud, Printer,
+  User, Users, Wallet, Briefcase, MapPin, Clock, Mail, Phone, Calendar,
+  Map, Home, CreditCard, Award, Star as StarIcon
+} from 'lucide-react';
+import Swal from "sweetalert2";
+
+// Chart Colors
+const CHART_COLORS = {
+  primary: '#3B82F6',
+  secondary: '#10B981',
+  warning: '#F59E0B',
+  danger: '#EF4444',
+  purple: '#8B5CF6',
+  pink: '#EC4899',
+  indigo: '#6366F1',
+  cyan: '#06B6D4',
+  orange: '#F97316',
+  teal: '#14B8A6',
+  blue: '#3B82F6',
+  green: '#10B981',
+  yellow: '#F59E0B',
+  red: '#EF4444',
+  violet: '#8B5CF6',
+  gray: '#6B7280',
+  lightGray: '#E5E7EB'
+};
+
+// --- Registry Configuration Hub ---
+const initialForm = {
+  name: "", email: "", phone: "", password: "",
+  address: "", city: "", state: "", pincode: "",
+  licenseNumber: "", licenseExpiry: "",
+  aadhar: "", pan: "",
+  carNumber: "", carModel: "", carBrand: "", carType: "",
+  carColor: "", manufacturingYear: "", seatCapacity: 4,
+  insuranceExpiry: "", permitExpiry: "", pucExpiry: "",
+  accountNumber: "", ifscCode: "", accountHolderName: "", bankName: "",
+  rejectionReason: ""
+};
+
+// --- Strategic Visual Components ---
+
+const StatCard = ({ icon: Icon, label, value, color, trend, subtitle }) => (
+  <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all group">
+    <div className="flex items-start justify-between mb-4">
+      <div className={`p-3 rounded-xl bg-${color}-50 group-hover:scale-110 transition-transform`}>
+        <Icon className={`text-${color}-600`} size={24} />
+      </div>
+      {trend && (
+        <span className={`text-xs font-medium px-2 py-1 rounded-full ${trend > 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
+          }`}>
+          {trend > 0 ? '+' : ''}{trend}%
+        </span>
+      )}
+    </div>
+    <p className="text-2xl font-bold text-gray-900 mb-1">{value}</p>
+    <p className="text-sm text-gray-500">{label}</p>
+    {subtitle && <p className="text-xs text-gray-400 mt-1">{subtitle}</p>}
+  </div>
+);
+
+const ChartCard = ({ title, subtitle, icon: Icon, children, action }) => (
+  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-lg transition-all">
+    <div className="flex items-center justify-between mb-6">
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+        <p className="text-sm text-gray-500">{subtitle}</p>
+      </div>
+      <div className="flex items-center gap-2">
+        {action && (
+          <button className="p-2 hover:bg-gray-100 rounded-lg">
+            <MoreVertical size={16} className="text-gray-400" />
+          </button>
+        )}
+        <div className="p-2 bg-blue-50 rounded-lg">
+          <Icon className="text-blue-600" size={20} />
+        </div>
+      </div>
+    </div>
+    {children}
+  </div>
+);
+
+const StatBox = ({ icon: Icon, label, value, colorHex, themeColors, borderColor, textColorSecondary }) => (
+  <div className="px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl border shadow-sm flex items-center gap-3 transition-colors flex-1 min-w-[140px]"
+    style={{ backgroundColor: themeColors.surface, borderColor: borderColor }}>
+    <div className="p-2 rounded-lg shrink-0" style={{ backgroundColor: colorHex + "15" }}>
+      <Icon size={14} style={{ color: colorHex }} />
+    </div>
+    <div className="min-w-0">
+      <p className="text-[9px] sm:text-[10px] font-bold leading-none mb-1 uppercase tracking-wider truncate" style={{ color: textColorSecondary }}>{label}</p>
+      <p className="text-xs sm:text-sm font-black truncate" style={{ color: themeColors.text }}>{value}</p>
+    </div>
+  </div>
+);
+
+const Field = ({ label, name, value, onChange, type = "text", required = false, icon: Icon }) => {
+  const { themeColors = {}, theme } = useTheme();
+  const borderColor = themeColors.border || (theme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)");
+  return (
+    <div className="space-y-1 w-full">
+      <label className="text-xs font-medium flex items-center gap-1.5 text-gray-600">
+        {Icon && <Icon size={14} className="text-gray-400" />}
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <input
+        type={type} name={name} value={value || ""} onChange={onChange} required={required}
+        className="w-full h-10 px-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
+        style={{
+          backgroundColor: themeColors.background || themeColors.surface || "#ffffff",
+          borderColor: borderColor,
+          color: themeColors.text || "#000000"
+        }}
+      />
+    </div>
+  );
+};
+
+const SelectField = ({ label, name, value, onChange, options, required = false, icon: Icon }) => {
+  const { themeColors = {}, theme } = useTheme();
+  const borderColor = themeColors.border || (theme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)");
+  return (
+    <div className="space-y-1 w-full">
+      <label className="text-xs font-medium flex items-center gap-1.5 text-gray-600">
+        {Icon && <Icon size={14} className="text-gray-400" />}
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
+      <select
+        name={name} value={value || ""} onChange={onChange} required={required}
+        className="w-full h-10 px-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
+        style={{
+          backgroundColor: themeColors.background || themeColors.surface || "#ffffff",
+          borderColor: borderColor,
+          color: themeColors.text || "#000000"
+        }}
+      >
+        <option value="">Select {label}</option>
+        {options.map(opt => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
+      </select>
+    </div>
+  );
+};
+
+export default function ManageDrivers() {
+  const { themeColors, theme } = useTheme();
+  const { currentFont } = useFont();
+
+  const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
+  const [drivers, setDrivers] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [viewing, setViewing] = useState(null);
+  const [isEditing, setIsEditing] = useState(null);
+  const [editForm, setEditForm] = useState(initialForm);
+  const [activeTab, setActiveTab] = useState("all");
+  const [showFilters, setShowFilters] = useState(false);
+  const [dateRange, setDateRange] = useState('month');
+  const [selectedChart, setSelectedChart] = useState('all');
+  const [expandedRows, setExpandedRows] = useState({});
+  const [imageFile, setImageFile] = useState(null);
+  const rowsPerPage = 10;
+
+  const textColorSecondary = useMemo(() => {
+    if (theme === "dark") return "rgba(255, 255, 255, 0.6)";
+    return themeColors.textSecondary || "rgba(107, 114, 128, 1)";
+  }, [theme, themeColors]);
+
+  const borderColor = useMemo(() => {
+    return themeColors.border || (theme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)");
+  }, [theme, themeColors]);
+
+  useEffect(() => {
+    fetchInitialData();
+  }, []);
+
+  const fetchInitialData = async () => {
+    try {
+      setFetching(true);
+      await Promise.all([fetchCategories(), fetchDrivers()]);
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await getAllCarCategories();
+      const list = res.categories || res.data || [];
+      setCategories(list);
+    } catch (err) { console.error("Category sync failed"); }
+  };
+
+  const fetchDrivers = async () => {
+    try {
+      const res = await getAllDrivers();
+      let list = res.drivers || [];
+      setDrivers([...list].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+    } catch { setDrivers([]); }
+  };
+
+  // Advanced Statistics
+  const stats = useMemo(() => ({
+    total: drivers.length,
+    pending: drivers.filter(d => !d.isApproved && !d.isRejected).length,
+    approved: drivers.filter(d => d.isApproved).length,
+    active: drivers.filter(d => d.isActive).length,
+    rejected: drivers.filter(d => d.isRejected).length,
+    online: drivers.filter(d => d.isOnline).length,
+    totalEarnings: drivers.reduce((sum, d) => sum + (d.totalEarnings || 0), 0),
+    totalTrips: drivers.reduce((sum, d) => sum + (d.totalTrips || 0), 0),
+    avgRating: (drivers.reduce((sum, d) => sum + (d.rating || 0), 0) / (drivers.length || 1)).toFixed(1)
+  }), [drivers]);
+
+  // Chart 1: Driver Status Distribution - Pie Chart
+  const statusData = [
+    { name: 'Approved', value: stats.approved, color: CHART_COLORS.green },
+    { name: 'Pending', value: stats.pending, color: CHART_COLORS.warning },
+    { name: 'Rejected', value: stats.rejected, color: CHART_COLORS.red }
+  ].filter(item => item.value > 0);
+
+  // Chart 2: Online vs Offline - Pie Chart
+  const onlineData = [
+    { name: 'Online', value: stats.online, color: CHART_COLORS.green },
+    { name: 'Offline', value: stats.approved - stats.online, color: CHART_COLORS.gray }
+  ].filter(item => item.value > 0);
+
+  // Chart 3: Performance Metrics - Bar Chart
+  const performanceData = [
+    { name: 'Total', value: stats.total, color: CHART_COLORS.blue },
+    { name: 'Approved', value: stats.approved, color: CHART_COLORS.green },
+    { name: 'Active', value: stats.active, color: CHART_COLORS.purple },
+    { name: 'Online', value: stats.online, color: CHART_COLORS.cyan }
+  ];
+
+  // Chart 4: Top Earners - Bar Chart
+  const earningsData = drivers.slice(0, 8).map((d, i) => ({
+    name: d.name?.substring(0, 8) || `Driver ${i + 1}`,
+    earnings: d.totalEarnings || 0,
+    trips: d.totalTrips || 0
+  }));
+
+  const filteredDrivers = useMemo(() => {
+    let list = drivers;
+
+    if (activeTab === "pending") {
+      list = list.filter(d => !d.isApproved && !d.isRejected);
+    } else if (activeTab === "approved") {
+      list = list.filter(d => d.isApproved);
+    } else if (activeTab === "rejected") {
+      list = list.filter(d => d.isRejected);
+    } else if (activeTab === "inactive") {
+      list = list.filter(d => !d.isActive);
+    } else if (activeTab === "online") {
+      list = list.filter(d => d.isOnline);
+    }
+
+    return list.filter(d =>
+      d.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (d.carDetails?.carNumber || d.carNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.phone?.includes(searchQuery) ||
+      d.email?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [drivers, searchQuery, activeTab]);
+
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return filteredDrivers.slice(start, start + rowsPerPage);
+  }, [filteredDrivers, currentPage]);
+
+  const totalPages = Math.ceil(filteredDrivers.length / rowsPerPage);
+
+  const handleApprove = async (id) => {
+    const res = await Swal.fire({
+      title: "Approve Driver?",
+      text: "Authorize this driver for system access.",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: themeColors.primary,
+      confirmButtonText: "YES, APPROVE"
+    });
+    if (res.isConfirmed) {
+      try {
+        await approveDriver(id);
+        fetchDrivers();
+      } catch (err) { console.error(err); }
+    }
+  };
+
+  const handleReject = async (id) => {
+    const { value: reason } = await Swal.fire({
+      title: "Reject Driver?",
+      input: "text",
+      inputLabel: "Reason for Rejection",
+      showCancelButton: true,
+      confirmButtonColor: themeColors.danger,
+      confirmButtonText: "REJECT",
+    });
+    if (reason) {
+      try {
+        await rejectDriver(id, reason);
+        fetchDrivers();
+      } catch (err) { console.error(err); }
+    }
+  };
+
+  const handleToggleStatus = async (id) => {
+    try {
+      await toggleDriverStatus(id);
+      fetchDrivers();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleOpenEdit = (d) => {
+    setIsEditing(d._id);
+    setEditForm({
+      name: d.name || "",
+      email: d.email || "",
+      phone: d.phone || "",
+      password: "",
+      address: d.address || d.documents?.address || "",
+      city: d.city || d.documents?.city || "",
+      state: d.state || d.documents?.state || "",
+      pincode: d.pincode || d.documents?.pincode || "",
+      licenseNumber: d.licenseNumber || d.documents?.license || "",
+      licenseExpiry: d.licenseExpiry ? d.licenseExpiry.substring(0, 10) : "",
+      aadhar: d.documents?.aadhar || d.aadhar || "",
+      pan: d.documents?.pan || d.pan || "",
+      carNumber: d.carDetails?.carNumber || d.carNumber || "",
+      carModel: d.carDetails?.carModel || d.carModel || "",
+      carBrand: d.carDetails?.carBrand || d.carBrand || "",
+      carType: d.carDetails?.carType || d.carType || "",
+      carColor: d.carDetails?.carColor || d.carColor || "",
+      manufacturingYear: d.carDetails?.manufacturingYear || d.manufacturingYear || "",
+      seatCapacity: d.carDetails?.seatCapacity || d.availableSeats || 4,
+      insuranceExpiry: d.carDetails?.insuranceExpiry ? d.carDetails.insuranceExpiry.substring(0, 10) : "",
+      permitExpiry: d.carDetails?.permitExpiry ? d.carDetails.permitExpiry.substring(0, 10) : "",
+      pucExpiry: d.carDetails?.pucExpiry ? d.carDetails.pucExpiry.substring(0, 10) : "",
+      accountNumber: d.bankDetails?.accountNumber || "",
+      ifscCode: d.bankDetails?.ifscCode || "",
+      accountHolderName: d.bankDetails?.accountHolderName || "",
+      bankName: d.bankDetails?.bankName || "",
+      rejectionReason: d.rejectionReason || d.documents?.rejectionReason || ""
+    });
+    setImageFile(null);
+  };
+
+  const handleNewDriver = () => {
+    setIsEditing("new");
+    setEditForm(initialForm);
+    setImageFile(null);
+  };
+
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleImageChange = (e) => {
+    if (e.target.files[0]) {
+      setImageFile(e.target.files[0]);
+    }
+  };
+
+  const saveDriver = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+
+      // Create FormData for file upload
+      const formData = new FormData();
+
+      // Required fields
+      formData.append("name", editForm.name);
+      formData.append("email", editForm.email);
+      formData.append("phone", editForm.phone);
+      formData.append("password", editForm.password || "default@123");
+
+      // Profile fields
+      if (editForm.licenseNumber) formData.append("licenseNumber", editForm.licenseNumber);
+      if (editForm.licenseExpiry) formData.append("licenseExpiry", editForm.licenseExpiry);
+      if (editForm.aadhar) formData.append("aadhar", editForm.aadhar);
+      if (editForm.pan) formData.append("pan", editForm.pan);
+      if (editForm.address) formData.append("address", editForm.address);
+      if (editForm.city) formData.append("city", editForm.city);
+      if (editForm.state) formData.append("state", editForm.state);
+      if (editForm.pincode) formData.append("pincode", editForm.pincode);
+
+      // Bank details
+      if (editForm.accountNumber) formData.append("accountNumber", editForm.accountNumber);
+      if (editForm.ifscCode) formData.append("ifscCode", editForm.ifscCode);
+      if (editForm.accountHolderName) formData.append("accountHolderName", editForm.accountHolderName);
+      if (editForm.bankName) formData.append("bankName", editForm.bankName);
+
+      // Car details (only if carNumber is provided)
+      if (editForm.carNumber) {
+        formData.append("carNumber", editForm.carNumber);
+        if (editForm.carModel) formData.append("carModel", editForm.carModel);
+        if (editForm.carBrand) formData.append("carBrand", editForm.carBrand);
+        if (editForm.carType) formData.append("carType", editForm.carType);
+        if (editForm.carColor) formData.append("carColor", editForm.carColor);
+        if (editForm.manufacturingYear) formData.append("manufacturingYear", editForm.manufacturingYear);
+        if (editForm.seatCapacity) formData.append("seatCapacity", editForm.seatCapacity);
+        if (editForm.insuranceExpiry) formData.append("insuranceExpiry", editForm.insuranceExpiry);
+        if (editForm.permitExpiry) formData.append("permitExpiry", editForm.permitExpiry);
+        if (editForm.pucExpiry) formData.append("pucExpiry", editForm.pucExpiry);
+      }
+
+      // Profile image
+      if (imageFile) {
+        formData.append("image", imageFile);
+      }
+
+      let response;
+      if (isEditing === "new") {
+        // Register new driver
+        response = await registerDriver(formData);
+      } else {
+        // Update existing driver
+        response = await updateDriver(isEditing, formData);
+      }
+
+      if (response.success) {
+        Swal.fire({
+          icon: "success",
+          title: isEditing === "new" ? "Driver Registered Successfully" : "Driver Updated Successfully",
+          timer: 1500,
+          showConfirmButton: false,
+          background: themeColors.surface,
+          color: themeColors.text
+        });
+        setIsEditing(null);
+        fetchDrivers();
+      } else {
+        throw new Error(response.message || "Operation failed");
+      }
+    } catch (err) {
+      console.error(err);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.response?.data?.message || err.message || "Operation failed",
+        background: themeColors.surface,
+        color: themeColors.text
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    const res = await Swal.fire({
+      title: "Delete Driver?",
+      text: "This will permanently remove the driver.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#ef4444",
+      confirmButtonText: "YES, DELETE"
+    });
+    if (res.isConfirmed) {
+      try {
+        await deleteDriver(id);
+        fetchDrivers();
+      } catch (err) { console.error(err); }
+    }
+  };
+
+  const toggleRowExpansion = (id) => {
+    setExpandedRows(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, activeTab]);
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="z-50 mt-7">
+        <div className="px-4 sm:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-lg sm:text-2xl font-bold text-gray-900">Driver Management</h1>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1">Manage all drivers and their details</p>
+            </div>
+
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              {/* Refresh */}
+              <button
+                onClick={fetchDrivers}
+                className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                <FaSyncAlt size={16} className={fetching ? 'animate-spin' : ''} />
+              </button>
+
+              {/* Add New */}
+              <button
+                onClick={handleNewDriver}
+                className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center space-x-1 sm:space-x-2 shadow-lg"
+              >
+                <FaPlus size={14} />
+                <span className="hidden sm:inline text-sm">New Driver</span>
+                <span className="sm:hidden">Add</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Filters */}
+          {showFilters && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg grid grid-cols-1 md:grid-cols-4 gap-4">
+              <input
+                type="text"
+                placeholder="Search drivers..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg col-span-2"
+              />
+              <select className="px-3 py-2 border border-gray-300 rounded-lg">
+                <option>All Status</option>
+                <option>Approved Only</option>
+                <option>Pending Only</option>
+                <option>Rejected Only</option>
+              </select>
+              <select className="px-3 py-2 border border-gray-300 rounded-lg">
+                <option>Sort By</option>
+                <option>Highest Earnings</option>
+                <option>Most Trips</option>
+                <option>Highest Rating</option>
+              </select>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="px-4 sm:px-8 py-6">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-8">
+          <StatCard icon={FaUsers} label="Total Drivers" value={stats.total} color="blue" subtitle="All registered drivers" />
+          <StatCard icon={FaCheckCircle} label="Approved" value={stats.approved} color="green" subtitle={`${((stats.approved / stats.total) * 100 || 0).toFixed(1)}% approval`} />
+          <StatCard icon={FaSyncAlt} label="Pending" value={stats.pending} color="orange" subtitle="Awaiting approval" />
+          <StatCard icon={FaBan} label="Rejected" value={stats.rejected} color="red" subtitle="Denied access" />
+          <StatCard icon={FaCircle} label="Online" value={stats.online} color="purple" subtitle="Currently active" />
+          <StatCard icon={FaStar} label="Avg Rating" value={stats.avgRating} color="yellow" subtitle="Out of 5.0" />
+        </div>
+
+
+        {/* Navigation Tabs */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+          <div className="px-6 py-2 border-b border-gray-200 flex items-center gap-2 sm:gap-4 overflow-x-auto">
+            {[
+              { id: "all", label: "All", icon: FaUsers },
+              { id: "pending", label: "Pending", icon: FaSyncAlt },
+              { id: "approved", label: "Approved", icon: FaCheckCircle },
+              { id: "rejected", label: "Rejected", icon: FaBan },
+              { id: "inactive", label: "Inactive", icon: FaTimesCircle },
+              { id: "online", label: "Online", icon: FaCircle }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1 sm:gap-2 py-3 text-xs font-medium transition-all border-b-2 ${activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+              >
+                <tab.icon size={12} />
+                <span className="hidden sm:inline">{tab.label}</span>
+                <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${activeTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                  }`}>
+                  {tab.id === "all" ? stats.total :
+                    tab.id === "pending" ? stats.pending :
+                      tab.id === "approved" ? stats.approved :
+                        tab.id === "rejected" ? stats.rejected :
+                          tab.id === "inactive" ? (stats.approved - stats.active) :
+                            stats.online}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Driver Table */}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[800px]">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Driver</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Contact</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Vehicle</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Location</th>
+                  <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Rating</th>
+                  <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase">Earnings</th>
+                  <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {paginatedData.map((d) => (
+                  <React.Fragment key={d._id}>
+                    <tr
+                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => toggleRowExpansion(d._id)}
+                    >
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden">
+                            {d.image ? (
+                              <img src={`http://localhost:5000/uploads/${d.image}`} alt={d.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <FaUserCircle size={16} className="text-blue-600" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{d.name}</p>
+                            <p className="text-xs text-gray-500">{d.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <p className="text-sm text-gray-900">{d.phone}</p>
+                        <p className="text-xs text-gray-500">{d.email}</p>
+                      </td>
+                      <td className="py-3 px-4">
+                        <p className="text-sm text-gray-900">{d.carDetails?.carModel || d.carModel || '—'}</p>
+                        <p className="text-xs text-gray-500">{d.carDetails?.carNumber || d.carNumber || '—'}</p>
+                      </td>
+                      <td className="py-3 px-4">
+                        <p className="text-sm text-gray-900">{d.city || '—'}</p>
+                        <p className="text-xs text-gray-500">{d.state || '—'}</p>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <FaStar size={10} className="text-yellow-400" />
+                          <span className="text-sm font-medium text-gray-900">{d.rating || '0.0'}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <span className="text-sm font-medium text-gray-900">₹{(d.totalEarnings || 0).toLocaleString()}</span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          {!d.isApproved && !d.isRejected ? (
+                            <div className="flex gap-1">
+                              <button onClick={(e) => { e.stopPropagation(); handleApprove(d._id); }} className="p-1 hover:bg-green-100 rounded text-green-600"><FaCheckCircle size={12} /></button>
+                              <button onClick={(e) => { e.stopPropagation(); handleReject(d._id); }} className="p-1 hover:bg-red-100 rounded text-red-600"><FaBan size={12} /></button>
+                            </div>
+                          ) : (
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${d.isApproved ? 'bg-green-100 text-green-700' : d.isRejected ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                              }`}>
+                              {d.isApproved ? 'Approved' : d.isRejected ? 'Rejected' : 'Pending'}
+                            </span>
+                          )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleToggleStatus(d._id); }}
+                            className={`ml-1 ${d.isActive ? 'text-green-600' : 'text-gray-300'}`}
+                          >
+                            {d.isActive ? <FaToggleOn size={16} /> : <FaToggleOff size={16} />}
+                          </button>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setViewing(d); }}
+                            className="p-1 hover:bg-gray-100 rounded text-blue-600"
+                            title="View"
+                          >
+                            <FaEye size={14} />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleOpenEdit(d); }}
+                            className="p-1 hover:bg-gray-100 rounded text-orange-600"
+                            title="Edit"
+                          >
+                            <FaEdit size={14} />
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDelete(d._id); }}
+                            className="p-1 hover:bg-gray-100 rounded text-red-600"
+                            title="Delete"
+                          >
+                            <FaTrash size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {expandedRows[d._id] && (
+                      <tr className="bg-gray-50">
+                        <td colSpan="8" className="p-4">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* Personal Details */}
+                            <div className="bg-white p-4 rounded-lg border border-gray-200">
+                              <h4 className="text-xs font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-200">Personal Details</h4>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">License:</span>
+                                  <span className="font-medium text-gray-900">{d.licenseNumber || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Expiry:</span>
+                                  <span className="font-medium text-gray-900">{d.licenseExpiry ? new Date(d.licenseExpiry).toLocaleDateString() : 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Aadhar:</span>
+                                  <span className="font-medium text-gray-900">{d.documents?.aadhar || d.aadhar || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">PAN:</span>
+                                  <span className="font-medium text-gray-900">{d.documents?.pan || d.pan || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Address:</span>
+                                  <span className="font-medium text-gray-900 text-right">{d.address || 'N/A'}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Vehicle Details */}
+                            <div className="bg-white p-4 rounded-lg border border-gray-200">
+                              <h4 className="text-xs font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-200">Vehicle Details</h4>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Model:</span>
+                                  <span className="font-medium text-gray-900">{d.carDetails?.carModel || d.carModel || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Number:</span>
+                                  <span className="font-medium text-gray-900">{d.carDetails?.carNumber || d.carNumber || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Color:</span>
+                                  <span className="font-medium text-gray-900">{d.carDetails?.carColor || d.carColor || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Seats:</span>
+                                  <span className="font-medium text-gray-900">{d.carDetails?.seatCapacity || d.availableSeats || 4}</span>
+                                </div>
+                                <div className="flex justify-between mt-1">
+                                  <span className="text-gray-500">Layout:</span>
+                                  <span className="font-medium text-gray-900">
+                                    {(() => {
+                                      const carTypeId = d.carDetails?.carType || d.carType;
+                                      let layoutData = d.carDetails?.seatLayout;
+                                      if (!layoutData && carTypeId && typeof carTypeId === 'object') {
+                                        layoutData = carTypeId.seatLayout;
+                                      } else if (!layoutData) {
+                                        const category = categories.find(c => c._id === carTypeId);
+                                        layoutData = category?.seatLayout;
+                                      }
+                                      let layout = [];
+                                      if (layoutData) {
+                                        try {
+                                          layout = typeof layoutData === 'string' ? JSON.parse(layoutData) : layoutData;
+                                        } catch (e) { }
+                                      }
+                                      return layout && layout.length > 0 ? (
+                                        <div className="flex flex-wrap gap-1 justify-end">
+                                          {layout.map((seat, i) => (
+                                            <span key={i} className="px-1.5 py-0.5 bg-gray-100 border border-gray-200 shadow-sm rounded text-[9px]">{seat}</span>
+                                          ))}
+                                        </div>
+                                      ) : 'Standard';
+                                    })()}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Pricing:</span>
+                                  <span className="font-medium text-gray-900">
+                                    Base: ₹{d.carDetails?.baseFare || 0} | Private: ₹{d.carDetails?.privateRatePerKm || 0}/km | Shared: ₹{d.carDetails?.sharedRatePerSeatPerKm || 0}/seat
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Bank Details & Stats */}
+                            <div className="bg-white p-4 rounded-lg border border-gray-200">
+                              <h4 className="text-xs font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-200">Bank Details & Stats</h4>
+                              <div className="space-y-2 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Bank:</span>
+                                  <span className="font-medium text-gray-900">{d.bankDetails?.bankName || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Account:</span>
+                                  <span className="font-medium text-gray-900">****{d.bankDetails?.accountNumber?.slice(-4) || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">IFSC:</span>
+                                  <span className="font-medium text-gray-900">{d.bankDetails?.ifscCode || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Holder:</span>
+                                  <span className="font-medium text-gray-900">{d.bankDetails?.accountHolderName || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Wallet:</span>
+                                  <span className={`font-medium ${d.walletBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                    ₹{(d.walletBalance || 0).toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Trips:</span>
+                                  <span className="font-medium text-blue-600">{d.totalTrips || 0}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Joined:</span>
+                                  <span className="font-medium text-gray-900">{new Date(d.createdAt).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+            <p className="text-sm text-gray-500">
+              Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredDrivers.length)} of {filteredDrivers.length}
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                <FaChevronLeft size={14} />
+              </button>
+              <span className="text-sm font-medium text-gray-700">Page {currentPage} of {totalPages || 1}</span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages || totalPages === 0}
+                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                <FaChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+        {/* Chart Selector */}
+        <div className="mb-6 flex flex-wrap gap-2">
+          {['all', 'status', 'performance', 'earnings'].map((type) => (
+            <button
+              key={type}
+              onClick={() => setSelectedChart(type)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedChart === type
+                ? 'bg-blue-600 text-white shadow-lg'
+                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                }`}
+            >
+              {type.charAt(0).toUpperCase() + type.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* Charts Grid - Only 4 Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Chart 1: Driver Status Distribution */}
+          {(selectedChart === 'all' || selectedChart === 'status') && (
+            <ChartCard title="Driver Status" subtitle="Approved vs Pending vs Rejected" icon={PieChartIcon}>
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={statusData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {statusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          )}
+
+          {/* Chart 2: Online Status */}
+          {(selectedChart === 'all' || selectedChart === 'status') && (
+            <ChartCard title="Online Status" subtitle="Currently active drivers" icon={Activity}>
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={onlineData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {onlineData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          )}
+
+          {/* Chart 3: Performance Metrics */}
+          {(selectedChart === 'all' || selectedChart === 'performance') && (
+            <ChartCard title="Performance Metrics" subtitle="Key driver indicators" icon={BarChart3}>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={performanceData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    {performanceData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          )}
+
+          {/* Chart 4: Top Earners */}
+          {(selectedChart === 'all' || selectedChart === 'earnings') && (
+            <ChartCard title="Top Earners" subtitle="Highest earning drivers" icon={DollarSign}>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={earningsData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="earnings" fill={CHART_COLORS.green} radius={[4, 4, 0, 0]} name="Earnings" />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+          )}
+        </div>
+
+
+      </div>
+
+      {/* View Modal */}
+      {viewing && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden">
+                  {viewing.image ? (
+                    <img src={`http://localhost:5000/uploads/${viewing.image}`} alt={viewing.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <FaUserCircle size={24} className="text-blue-600" />
+                  )}
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-gray-900">{viewing.name}</h2>
+                  <p className="text-sm text-gray-500">Driver ID: {viewing._id?.slice(-8)}</p>
+                </div>
+              </div>
+              <button onClick={() => setViewing(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+                <FaTimes size={18} className="text-gray-500" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {/* Quick Stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-1">Rating</p>
+                  <div className="flex items-center gap-1">
+                    <FaStar className="text-yellow-400" size={14} />
+                    <p className="text-base font-bold text-gray-900">{viewing.rating || '0.0'}</p>
+                  </div>
+                </div>
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-1">Earnings</p>
+                  <p className="text-base font-bold text-green-600">₹{viewing.totalEarnings || 0}</p>
+                </div>
+                <div className="p-3 bg-purple-50 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-1">Trips</p>
+                  <p className="text-base font-bold text-purple-600">{viewing.totalTrips || 0}</p>
+                </div>
+                <div className="p-3 bg-orange-50 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-1">Wallet</p>
+                  <p className="text-base font-bold text-orange-600">₹{viewing.walletBalance || 0}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Personal Details */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Personal Details</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Email:</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.email}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Phone:</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.phone}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">License:</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.licenseNumber || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Expiry:</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.licenseExpiry ? new Date(viewing.licenseExpiry).toLocaleDateString() : 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Aadhar:</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.documents?.aadhar || viewing.aadhar || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">PAN:</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.documents?.pan || viewing.pan || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Address:</span>
+                      <span className="text-sm font-medium text-gray-900 text-right">{viewing.address}, {viewing.city} - {viewing.pincode}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Vehicle Details */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Vehicle Details</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Model:</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.carDetails?.carModel || viewing.carModel || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Brand:</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.carDetails?.carBrand || viewing.carBrand || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Number:</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.carDetails?.carNumber || viewing.carNumber || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Color:</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.carDetails?.carColor || viewing.carColor || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Year:</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.carDetails?.manufacturingYear || viewing.manufacturingYear || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Seats:</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.carDetails?.seatCapacity || viewing.availableSeats || 4}</span>
+                    </div>
+                    <div className="flex justify-between mt-1">
+                      <span className="text-sm text-gray-500">Layout:</span>
+                      <div className="flex flex-wrap gap-1 justify-end">
+                        {(() => {
+                          const carTypeId = viewing.carDetails?.carType || viewing.carType;
+                          let layoutData = viewing.carDetails?.seatLayout;
+                          if (!layoutData && carTypeId && typeof carTypeId === 'object') {
+                            layoutData = carTypeId.seatLayout;
+                          } else if (!layoutData) {
+                            const category = categories.find(c => c._id === carTypeId);
+                            layoutData = category?.seatLayout;
+                          }
+                          let layout = [];
+                          if (layoutData) {
+                            try {
+                              layout = typeof layoutData === 'string' ? JSON.parse(layoutData) : layoutData;
+                            } catch (e) { }
+                          }
+                          return layout && layout.length > 0 ? layout.map((seat, i) => (
+                            <span key={i} className="px-1.5 py-0.5 bg-gray-100 border border-gray-200 shadow-sm rounded text-[10px] text-gray-700">{seat}</span>
+                          )) : <span className="text-sm font-medium text-gray-900">Standard</span>;
+                        })()}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pricing */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Pricing</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Base Fare:</span>
+                      <span className="text-sm font-medium text-gray-900">₹{viewing.carDetails?.baseFare || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Private/km:</span>
+                      <span className="text-sm font-medium text-gray-900">₹{viewing.carDetails?.privateRatePerKm || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Shared/seat/km:</span>
+                      <span className="text-sm font-medium text-gray-900">₹{viewing.carDetails?.sharedRatePerSeatPerKm || 0}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bank Details */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Bank Details</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Bank:</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.bankDetails?.bankName || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Account:</span>
+                      <span className="text-sm font-medium text-gray-900">****{viewing.bankDetails?.accountNumber?.slice(-4) || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">IFSC:</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.bankDetails?.ifscCode || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Holder:</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.bankDetails?.accountHolderName || 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setViewing(null)}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  setViewing(null);
+                  handleOpenEdit(viewing);
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+              >
+                Edit Driver
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit/Create Modal */}
+      {isEditing && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
+              <h2 className="text-xl font-bold text-gray-900">
+                {isEditing === "new" ? "Register New Driver" : "Edit Driver"}
+              </h2>
+              <button onClick={() => setIsEditing(null)} className="p-2 hover:bg-gray-100 rounded-lg">
+                <FaTimes size={18} className="text-gray-500" />
+              </button>
+            </div>
+
+            <form onSubmit={saveDriver} className="p-6 space-y-6">
+              {/* Basic Info */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-4">Basic Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Full Name" name="name" value={editForm.name} onChange={handleEditChange} required icon={User} />
+                  <Field label="Email" name="email" value={editForm.email} onChange={handleEditChange} required type="email" icon={Mail} />
+                  <Field label="Phone" name="phone" value={editForm.phone} onChange={handleEditChange} required icon={Phone} />
+                  <Field label="Password" name="password" value={editForm.password} onChange={handleEditChange} required={isEditing === "new"} type="password" icon={FaShieldAlt} />
+                </div>
+              </div>
+
+              {/* Address */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-4">Address</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <Field label="Address" name="address" value={editForm.address} onChange={handleEditChange} icon={Home} />
+                  </div>
+                  <Field label="City" name="city" value={editForm.city} onChange={handleEditChange} icon={MapPin} />
+                  <Field label="State" name="state" value={editForm.state} onChange={handleEditChange} icon={Map} />
+                  <Field label="Pincode" name="pincode" value={editForm.pincode} onChange={handleEditChange} icon={Map} />
+                </div>
+              </div>
+
+              {/* Documents */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-4">Documents</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="License Number" name="licenseNumber" value={editForm.licenseNumber} onChange={handleEditChange} icon={FaIdCard} />
+                  <Field label="License Expiry" name="licenseExpiry" value={editForm.licenseExpiry} onChange={handleEditChange} type="date" icon={FaCalendarAlt} />
+                  <Field label="Aadhar Number" name="aadhar" value={editForm.aadhar} onChange={handleEditChange} icon={FaIdCard} />
+                  <Field label="PAN Number" name="pan" value={editForm.pan} onChange={handleEditChange} icon={FaIdCard} />
+                </div>
+              </div>
+
+              {/* Vehicle Details */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-4">Vehicle Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Car Number" name="carNumber" value={editForm.carNumber} onChange={handleEditChange} icon={FaCar} />
+                  <Field label="Car Model" name="carModel" value={editForm.carModel} onChange={handleEditChange} icon={FaCar} />
+                  <Field label="Car Brand" name="carBrand" value={editForm.carBrand} onChange={handleEditChange} icon={FaCar} />
+                  <SelectField
+                    label="Car Type"
+                    name="carType"
+                    value={editForm.carType}
+                    onChange={handleEditChange}
+                    options={categories.map(c => ({ value: c._id, label: c.name }))}
+                    icon={FaCar}
+                  />
+                  {editForm.carType && (() => {
+                    const cat = categories.find(c => c._id === editForm.carType);
+                    let layout = [];
+                    if (cat?.seatLayout) {
+                      try {
+                        layout = typeof cat.seatLayout === 'string' ? JSON.parse(cat.seatLayout) : cat.seatLayout;
+                      } catch (e) { }
+                    }
+                    return (
+                      <div className="md:col-span-2 space-y-1">
+                        <label className="text-xs font-medium flex items-center gap-1.5 text-gray-600">
+                          <FaChair size={14} className="text-gray-400" /> Selected Car Layout (Read Only)
+                        </label>
+                        <div className="flex flex-wrap gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg min-h-[46px]">
+                          {layout && layout.length > 0 ? layout.map((seat, i) => (
+                            <span key={i} className="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-medium text-gray-700 shadow-sm">{seat}</span>
+                          )) : <span className="text-xs text-gray-400">Standard Layout</span>}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  <Field label="Car Color" name="carColor" value={editForm.carColor} onChange={handleEditChange} icon={FaPalette} />
+                  <Field label="Year" name="manufacturingYear" value={editForm.manufacturingYear} onChange={handleEditChange} type="number" icon={FaCalendarAlt} />
+                  <Field label="Seats" name="seatCapacity" value={editForm.seatCapacity} onChange={handleEditChange} type="number" icon={FaUsers} />
+                  <Field label="Insurance Expiry" name="insuranceExpiry" value={editForm.insuranceExpiry} onChange={handleEditChange} type="date" icon={FaShieldAlt} />
+                  <Field label="Permit Expiry" name="permitExpiry" value={editForm.permitExpiry} onChange={handleEditChange} type="date" icon={FaFileInvoice} />
+                  <Field label="PUC Expiry" name="pucExpiry" value={editForm.pucExpiry} onChange={handleEditChange} type="date" icon={FaGasPump} />
+                </div>
+              </div>
+
+              {/* Bank Details */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-4">Bank Details</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Field label="Bank Name" name="bankName" value={editForm.bankName} onChange={handleEditChange} icon={FaLandmark} />
+                  <Field label="Account Holder" name="accountHolderName" value={editForm.accountHolderName} onChange={handleEditChange} icon={User} />
+                  <Field label="Account Number" name="accountNumber" value={editForm.accountNumber} onChange={handleEditChange} icon={FaCreditCard} />
+                  <Field label="IFSC Code" name="ifscCode" value={editForm.ifscCode} onChange={handleEditChange} icon={FaCreditCard} />
+                </div>
+              </div>
+
+              {/* Profile Image */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-4">Profile Image</h3>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+
+              {/* Form Actions */}
+              <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(null)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm flex items-center gap-2"
+                >
+                  {loading && <FaSyncAlt className="animate-spin" size={14} />}
+                  {loading ? 'Saving...' : isEditing === "new" ? 'Register Driver' : 'Update Driver'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
