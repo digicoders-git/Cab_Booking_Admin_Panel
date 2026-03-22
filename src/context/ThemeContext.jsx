@@ -93,7 +93,7 @@ const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
   const getInitialTheme = () => {
-    return localStorage.getItem("theme") || "light";
+    return "light";
   };
 
   const getInitialPalette = () => {
