@@ -196,13 +196,18 @@ export default function ManageUsers() {
     { name: 'Verified', value: stats.verified, color: CHART_COLORS.orange }
   ];
 
-  // Chart 3: User Growth Trend - Line Chart
-  const growthData = [
-    { month: 'Week 1', users: Math.round(stats.total * 0.25) },
-    { month: 'Week 2', users: Math.round(stats.total * 0.5) },
-    { month: 'Week 3', users: Math.round(stats.total * 0.75) },
-    { month: 'Week 4', users: stats.total }
-  ];
+  // Chart 3: User Growth Trend - real monthly data from createdAt
+  const growthData = useMemo(() => {
+    const monthMap = {};
+    users.forEach(u => {
+      const d = new Date(u.createdAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+      if (!monthMap[key]) monthMap[key] = { month: label, users: 0 };
+      monthMap[key].users += 1;
+    });
+    return Object.keys(monthMap).sort().map(k => monthMap[k]);
+  }, [users]);
 
   // Chart 4: Registration Timeline - Area Chart
   const registrationData = users.slice(0, 8).map((u, i) => ({
@@ -218,19 +223,25 @@ export default function ManageUsers() {
     { metric: 'Recent Rate', value: (stats.recent / stats.total) * 100, fullMark: 100 }
   ];
 
-  // Chart 6: Activity Timeline - Composed Chart
-  const activityData = [
-    { day: 'Mon', active: Math.round(stats.active * 0.3), new: Math.round(stats.recent * 0.2) },
-    { day: 'Tue', active: Math.round(stats.active * 0.4), new: Math.round(stats.recent * 0.3) },
-    { day: 'Wed', active: Math.round(stats.active * 0.5), new: Math.round(stats.recent * 0.4) },
-    { day: 'Thu', active: Math.round(stats.active * 0.6), new: Math.round(stats.recent * 0.5) },
-    { day: 'Fri', active: Math.round(stats.active * 0.7), new: Math.round(stats.recent * 0.6) },
-    { day: 'Sat', active: Math.round(stats.active * 0.8), new: Math.round(stats.recent * 0.7) },
-    { day: 'Sun', active: stats.active, new: stats.recent }
-  ];
+  // Chart 6: Weekly Activity - real data from createdAt
+  const activityData = useMemo(() => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const counts = Array(7).fill(0).map((_, i) => ({ day: days[i], active: 0, new: 0 }));
+    const now = new Date();
+    users.forEach(u => {
+      const d = new Date(u.createdAt);
+      const diffDays = Math.floor((now - d) / (1000 * 60 * 60 * 24));
+      if (diffDays <= 6) {
+        const dayIndex = d.getDay();
+        counts[dayIndex].new += 1;
+        if (u.isActive) counts[dayIndex].active += 1;
+      }
+    });
+    return counts;
+  }, [users]);
 
   // Chart 7: Top Users by Activity - Funnel
-  const topUsers = users
+  const topUsers = [...users]
     .sort((a, b) => (b.totalBookings || 0) - (a.totalBookings || 0))
     .slice(0, 5)
     .map((u, i) => ({

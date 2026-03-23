@@ -230,14 +230,31 @@ export default function WalletManagement() {
   }).reverse();
 
   // Chart 5: Monthly Trend - Bar Chart
-  const monthlyData = Array.from({ length: 4 }, (_, i) => {
-    const week = `Week ${i + 1}`;
-    const weekTransactions = transactions.filter((_, index) =>
-      index >= i * 7 && index < (i + 1) * 7
-    );
-    const amount = weekTransactions.reduce((sum, t) => sum + (t.amount || 0), 0);
-    return { week, amount };
-  });
+  const monthlyData = useMemo(() => {
+    const monthMap = {};
+    const now = new Date();
+    
+    // Last 12 months
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      monthMap[monthKey] = 0;
+    }
+    
+    // Group transactions by month
+    transactions.forEach(t => {
+      const tDate = new Date(t.createdAt);
+      const monthKey = tDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      if (monthMap.hasOwnProperty(monthKey)) {
+        monthMap[monthKey] += t.amount || 0;
+      }
+    });
+    
+    return Object.entries(monthMap).map(([month, amount]) => ({
+      month,
+      amount
+    }));
+  }, [transactions]);
 
   // Chart 6: Transaction by User Type - Bar Chart
   const userTypeData = transactions.reduce((acc, t) => {
@@ -788,9 +805,9 @@ export default function WalletManagement() {
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={monthlyData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                  <XAxis dataKey="week" />
+                  <XAxis dataKey="month" />
                   <YAxis />
-                  <Tooltip />
+                  <Tooltip formatter={(value) => `₹${value.toLocaleString('en-IN')}`} />
                   <Bar dataKey="amount" fill={CHART_COLORS.blue} radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>

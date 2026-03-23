@@ -19,7 +19,7 @@ import { getDashboardStats as fetchStatsAPI } from '../apis/admin';
 
 const AdminDashboard = () => {
    const [dashboardData, setDashboardData] = useState(null);
-   const [loading, setLoading] = useState(true);
+   const [loading, setLoading] = useState(false);
    const [selectedTimeRange, setSelectedTimeRange] = useState('week');
    const [showFilters, setShowFilters] = useState(false);
 
@@ -70,16 +70,10 @@ const AdminDashboard = () => {
 
    if (loading) {
       return (
-         <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center">
+         <div className="flex items-center justify-center h-64">
             <div className="text-center">
-               <div className="relative">
-                  <div className="animate-spin rounded-full h-24 w-24 border-4 border-blue-500 border-t-transparent"></div>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                     <Car className="text-blue-400" size={32} />
-                  </div>
-               </div>
-               <p className="mt-6 text-white text-lg font-medium">Loading Dashboard...</p>
-               <p className="text-gray-400 mt-2">Fetching real-time data</p>
+               <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
+               <p className="mt-4 text-gray-500 text-sm">Loading Dashboard...</p>
             </div>
          </div>
       );
@@ -350,7 +344,7 @@ const AdminDashboard = () => {
                      <BarChart data={bookingStatusData} layout="vertical">
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis type="number" />
-                        <YAxis type="category" dataKey="name" width={80} />
+                        <YAxis type="category" dataKey="name" width={100} tick={{ fontSize: 12 }} />
                         <Tooltip />
                         <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                            {bookingStatusData.map((entry, index) => (

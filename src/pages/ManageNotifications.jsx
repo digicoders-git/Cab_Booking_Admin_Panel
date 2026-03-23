@@ -244,14 +244,18 @@ export default function ManageNotifications() {
     };
   }).reverse();
 
-  // Chart 4: Monthly Trend - Bar Chart
-  const monthlyData = Array.from({ length: 4 }, (_, i) => {
-    const week = `Week ${i + 1}`;
-    const count = notifications.filter((_, index) =>
-      index >= i * 7 && index < (i + 1) * 7
-    ).length;
-    return { week, count };
-  });
+  // Chart 4: Monthly Trend - real monthly data from createdAt
+  const monthlyData = useMemo(() => {
+    const monthMap = {};
+    notifications.forEach(n => {
+      const d = new Date(n.createdAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+      if (!monthMap[key]) monthMap[key] = { week: label, count: 0 };
+      monthMap[key].count += 1;
+    });
+    return Object.keys(monthMap).sort().map(k => monthMap[k]);
+  }, [notifications]);
 
   // Chart 5: Created By Distribution - Bar Chart
   const creatorData = notifications.reduce((acc, n) => {

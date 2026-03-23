@@ -2,7 +2,7 @@ import { lazy } from "react";
 import {
   FaTachometerAlt, FaTruck, FaUserTie, FaCar, FaUsers,
   FaBell, FaUserShield, FaWallet, FaRoute, FaCarSide,
-  FaAddressCard, FaSitemap
+  FaAddressCard, FaSitemap, FaMap
 } from "react-icons/fa";
 
 const Dashboard = lazy(() => import("../pages/Dashboard"));
@@ -17,6 +17,8 @@ const ManageBookings = lazy(() => import("../pages/ManageBookings"));
 const ManageCarCategories = lazy(() => import("../pages/ManageCarCategories"));
 const ManageFleetRegistry = lazy(() => import("../pages/ManageFleetRegistry"));
 const Reports = lazy(() => import("../pages/Reports"));
+const Support = lazy(() => import("../pages/Support"));
+const LiveTracking = lazy(() => import("../pages/LiveTracking"));
 
 const routes = [
   { path: "/dashboard", component: Dashboard, name: "Dashboard", icon: FaTachometerAlt },
@@ -24,6 +26,7 @@ const routes = [
   { path: "/agent/create", component: CreateAgent, name: "Create Agent", icon: FaUserTie },
   { path: "/fleet/manage-registry", component: ManageFleetRegistry, name: "Manage Fleet Data ", icon: FaSitemap },
   { path: "/drivers/manage", component: ManageDrivers, name: "Main Drivers", icon: FaCar },
+  { path: "/tracking/live", component: LiveTracking, name: "Live Tracking", icon: FaMap },
   { path: "/users/manage", component: ManageUsers, name: "Manage Users", icon: FaUsers },
   { path: "/notifications/manage", component: ManageNotifications, name: "Announcements", icon: FaBell },
   { path: "/wallet/manage", component: WalletManagement, name: "Wallet & Payouts", icon: FaWallet },
@@ -31,6 +34,7 @@ const routes = [
   { path: "/car-categories/manage", component: ManageCarCategories, name: "CarCategargary", icon: FaCar },
   { path: "/admin/profile", component: AdminProfile, name: "Profile", icon: FaUserShield },
   { path: "/reports", component: Reports, name: "Reports", icon: FaTachometerAlt },
+  { path: "/support", component: Support, name: "Support", icon: FaBell },
 ];
 
 export default routes;

@@ -198,17 +198,33 @@ export default function ManageBookings() {
   }).reverse();
 
   // Chart 4: Monthly Trend - Bar Chart
-  const monthlyData = Array.from({ length: 4 }, (_, i) => {
-    const week = `Week ${i + 1}`;
-    const weekBookings = bookings.filter((_, index) =>
-      index >= i * 7 && index < (i + 1) * 7
-    );
-    return {
-      week,
-      bookings: weekBookings.length,
-      revenue: weekBookings.reduce((sum, b) => sum + (b.fareEstimate || 0), 0)
-    };
-  });
+  const monthlyData = useMemo(() => {
+    const monthMap = {};
+    const now = new Date();
+    
+    // Last 12 months
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      monthMap[monthKey] = { bookings: 0, revenue: 0 };
+    }
+    
+    // Group bookings by month
+    bookings.forEach(b => {
+      const bDate = new Date(b.createdAt);
+      const monthKey = bDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+      if (monthMap.hasOwnProperty(monthKey)) {
+        monthMap[monthKey].bookings += 1;
+        monthMap[monthKey].revenue += b.fareEstimate || 0;
+      }
+    });
+    
+    return Object.entries(monthMap).map(([month, data]) => ({
+      month,
+      bookings: data.bookings,
+      revenue: data.revenue
+    }));
+  }, [bookings]);
 
   // Chart 5: Ride Type Distribution - Bar Chart
   const rideTypeData = bookings.reduce((acc, b) => {
@@ -444,18 +460,18 @@ export default function ManageBookings() {
 
           {/* Bookings Table */}
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-max">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
-                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Ref ID</th>
-                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Passenger</th>
-                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Booked By</th>
-                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Route</th>
-                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Vehicle</th>
-                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Driver</th>
-                  <th className="text-right py-4 px-6 text-xs font-medium text-gray-500 uppercase">Fare</th>
-                  <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Ref ID</th>
+                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Passenger</th>
+                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Booked By</th>
+                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Route</th>
+                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Vehicle</th>
+                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Driver</th>
+                  <th className="text-right py-4 px-6 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Fare</th>
+                  <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Status</th>
+                  <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -486,17 +502,17 @@ export default function ManageBookings() {
                           </div>
                         </div>
                       </td>
-                      <td className="py-4 px-6 min-w-[300px]">
+                      <td className="py-4 px-6 min-w-[400px]">
                         <div className="space-y-1">
                           <div className="flex items-start gap-2">
                             <div className="mt-1">
                               <FaCircle size={6} className="text-green-500" />
                             </div>
-                            <span className="text-xs text-gray-700 truncate">{b.pickup?.address}</span>
+                            <span className="text-xs text-gray-700">{b.pickup?.address}</span>
                           </div>
                           <div className="flex items-start gap-2">
                             <FaMapMarkerAlt size={8} className="text-red-500 mt-1" />
-                            <span className="text-xs text-gray-700 truncate">{b.drop?.address}</span>
+                            <span className="text-xs text-gray-700">{b.drop?.address}</span>
                           </div>
                         </div>
                       </td>
@@ -744,7 +760,7 @@ export default function ManageBookings() {
                   <XAxis dataKey="week" />
                   <YAxis yAxisId="left" />
                   <YAxis yAxisId="right" orientation="right" />
-                  <Tooltip />
+                  <Tooltip formatter={(value) => typeof value === 'number' ? (value > 100 ? `₹${value.toLocaleString('en-IN')}` : value) : value} />
                   <Legend />
                   <Bar yAxisId="left" dataKey="bookings" fill={CHART_COLORS.blue} radius={[8, 8, 0, 0]} name="Bookings" />
                   <Line yAxisId="right" type="monotone" dataKey="revenue" stroke={CHART_COLORS.orange} name="Revenue" strokeWidth={2} />

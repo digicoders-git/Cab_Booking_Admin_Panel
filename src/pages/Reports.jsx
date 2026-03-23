@@ -98,7 +98,7 @@ const AdminReportPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="relative">
             <div className="animate-spin rounded-full h-32 w-32 border-4 border-blue-600 border-t-transparent"></div>
@@ -144,12 +144,43 @@ const AdminReportPage = () => {
   ];
 
   // Chart 3: Growth Trend - Line Chart (real data from API)
-  const growthData = [
-    { name: 'Week 1', users: Math.round(newUsersLast30Days * 0.25), drivers: Math.round(newDriversLast30Days * 0.2) },
-    { name: 'Week 2', users: Math.round(newUsersLast30Days * 0.5), drivers: Math.round(newDriversLast30Days * 0.4) },
-    { name: 'Week 3', users: Math.round(newUsersLast30Days * 0.75), drivers: Math.round(newDriversLast30Days * 0.7) },
-    { name: 'Week 4', users: newUsersLast30Days, drivers: newDriversLast30Days }
-  ];
+  const growthData = (() => {
+    const weekMap = {};
+    const now = new Date();
+    
+    // Last 4 weeks
+    for (let i = 3; i >= 0; i--) {
+      const weekStart = new Date(now);
+      weekStart.setDate(weekStart.getDate() - (i * 7));
+      const weekLabel = `Week ${4 - i} (${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`;
+      weekMap[weekLabel] = { users: 0, drivers: 0 };
+    }
+    
+    // Distribute data across weeks based on transaction dates
+    transactions.forEach(t => {
+      const tDate = new Date(t.createdAt);
+      const daysDiff = Math.floor((now - tDate) / (1000 * 60 * 60 * 24));
+      const weekIndex = Math.floor(daysDiff / 7);
+      
+      if (weekIndex <= 3) {
+        const weekNum = 4 - weekIndex;
+        const weekStart = new Date(now);
+        weekStart.setDate(weekStart.getDate() - (weekIndex * 7));
+        const weekLabel = `Week ${weekNum} (${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`;
+        
+        if (weekMap.hasOwnProperty(weekLabel)) {
+          if (t.userModel === 'Driver') weekMap[weekLabel].drivers += 1;
+          else if (t.userModel === 'User') weekMap[weekLabel].users += 1;
+        }
+      }
+    });
+    
+    return Object.entries(weekMap).map(([week, data]) => ({
+      name: week,
+      users: data.users,
+      drivers: data.drivers
+    })).reverse();
+  })();
 
   // Chart 4: Transaction Timeline - Area Chart
   const transactionTimelineData = transactions.reduce((acc, transaction) => {
@@ -192,7 +223,21 @@ const AdminReportPage = () => {
 
   // Chart 6: Category Analysis - Bar Chart
   const categoryData = transactions.reduce((acc, transaction) => {
-    const category = transaction.category || 'Other';
+    let category = transaction.category || 'Other';
+    // Normalize category names
+    const categoryLower = category.toLowerCase().trim();
+    if (categoryLower.includes('withdraw') || categoryLower === 'widrall') {
+      category = 'Withdrawal';
+    } else if (categoryLower.includes('commission') || categoryLower === 'commaistion') {
+      category = 'Commission';
+    } else if (categoryLower.includes('refund')) {
+      category = 'Refund';
+    } else if (categoryLower.includes('credit')) {
+      category = 'Credit';
+    } else if (categoryLower.includes('debit')) {
+      category = 'Debit';
+    }
+    
     const existing = acc.find(item => item.name === category);
     if (existing) {
       existing.count += 1;
@@ -206,7 +251,7 @@ const AdminReportPage = () => {
       });
     }
     return acc;
-  }, []);
+  }, []).sort((a, b) => b.amount - a.amount);
 
   // Chart 7: Performance Radar - Radar Chart
   const performanceRadarData = [
@@ -548,37 +593,36 @@ const AdminReportPage = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <ResponsiveContainer width="100%" height={200}>
+          <div className="space-y-6">
+            <div className="flex justify-center">
+              <ResponsiveContainer width="100%" height={280}>
                 <PieChart>
                   <Pie
                     data={transactionTypeData}
                     cx="50%"
                     cy="50%"
-                    outerRadius={80}
+                    outerRadius={90}
                     dataKey="value"
-                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={true}
                   >
                     {transactionTypeData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip formatter={(value) => `${value} transactions`} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
-            <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               {transactionTypeData.map((type, index) => (
-                <div key={index} className="flex items-center justify-between border-b border-gray-100 pb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: type.color }} />
-                    <span className="text-sm text-gray-600">{type.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-gray-900">{type.value}</p>
-                    <p className="text-xs text-gray-500">₹{type.amount}</p>
-                  </div>
+                <div key={index} className="p-4 bg-gradient-to-r rounded-lg border-2 flex flex-col items-center justify-center text-center" style={{
+                  backgroundColor: type.color + '15',
+                  borderColor: type.color
+                }}>
+                  <p className="text-2xl font-black text-gray-900">{type.value}</p>
+                  <p className="text-sm font-bold text-gray-700 mt-1">{type.name}</p>
+                  <p className="text-xs font-semibold mt-2" style={{ color: type.color }}>₹{type.amount.toLocaleString('en-IN')}</p>
                 </div>
               ))}
             </div>
@@ -601,15 +645,31 @@ const AdminReportPage = () => {
             <BarChart data={categoryData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
               <XAxis type="number" />
-              <YAxis type="category" dataKey="name" width={80} />
-              <Tooltip />
-              <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+              <YAxis type="category" dataKey="name" width={100} />
+              <Tooltip formatter={(value) => `₹${value.toLocaleString('en-IN')}`} />
+              <Bar dataKey="amount" radius={[0, 4, 4, 0]}>
                 {categoryData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color} />
                 ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+
+          {/* Category Stats */}
+          <div className="grid grid-cols-1 gap-3 mt-6">
+            {categoryData.map((item, index) => (
+              <div key={index} className="p-3 bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                  <span className="text-sm font-medium text-gray-700">{item.name}</span>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-gray-900">₹{item.amount.toLocaleString('en-IN')}</p>
+                  <p className="text-xs text-gray-500">{item.count} transactions</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 

@@ -207,14 +207,19 @@ export default function CreateAgent() {
     { metric: 'Total Bookings', value: stats.totalBookings, fullMark: 50 }
   ];
 
-  // Chart 6: Growth Metrics - Composed Chart
-  const growthMetricsData = [
-    { month: 'Jan', agents: Math.round(stats.total * 0.6), earnings: stats.totalEarnings * 0.1 },
-    { month: 'Feb', agents: Math.round(stats.total * 0.7), earnings: stats.totalEarnings * 0.15 },
-    { month: 'Mar', agents: Math.round(stats.total * 0.8), earnings: stats.totalEarnings * 0.2 },
-    { month: 'Apr', agents: Math.round(stats.total * 0.9), earnings: stats.totalEarnings * 0.25 },
-    { month: 'May', agents: stats.total, earnings: stats.totalEarnings * 0.3 }
-  ];
+  // Chart 6: Growth Metrics - real monthly data from createdAt
+  const growthMetricsData = useMemo(() => {
+    const monthMap = {};
+    agents.forEach(a => {
+      const d = new Date(a.createdAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+      if (!monthMap[key]) monthMap[key] = { month: label, agents: 0, earnings: 0 };
+      monthMap[key].agents += 1;
+      monthMap[key].earnings += a.totalEarnings || 0;
+    });
+    return Object.keys(monthMap).sort().map(k => monthMap[k]);
+  }, [agents]);
 
   // Chart 7: Top Performers - Funnel Chart
   const topPerformers = agents
@@ -475,6 +480,7 @@ export default function CreateAgent() {
                     <tr className="bg-gray-50 border-b border-gray-200">
                       <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Agent</th>
                       <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Contact</th>
+                      <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Password</th>
                       <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Location</th>
                       <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase">Bookings</th>
                       <th className="text-right py-4 px-6 text-xs font-medium text-gray-500 uppercase">Earnings</th>
@@ -508,6 +514,9 @@ export default function CreateAgent() {
                           <td className="py-4 px-6">
                             <p className="text-sm text-gray-900">{a.phone}</p>
                             <p className="text-xs text-gray-500">{a.email}</p>
+                          </td>
+                          <td className="py-4 px-6">
+                            <span className="text-sm font-mono bg-gray-100 text-gray-800 px-2 py-1 rounded">{a.password || '—'}</span>
                           </td>
                           <td className="py-4 px-6">
                             <p className="text-sm text-gray-900">{a.city}</p>

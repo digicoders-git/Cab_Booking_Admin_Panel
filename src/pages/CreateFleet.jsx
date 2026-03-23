@@ -199,14 +199,19 @@ export default function CreateFleet() {
     { metric: 'Drivers per Fleet', value: stats.totalDrivers / stats.total, fullMark: 20 }
   ];
 
-  // Chart 6: Growth Metrics - Composed Chart
-  const growthMetricsData = [
-    { month: 'Jan', fleets: Math.round(stats.total * 0.6), earnings: stats.totalEarnings * 0.1 },
-    { month: 'Feb', fleets: Math.round(stats.total * 0.7), earnings: stats.totalEarnings * 0.15 },
-    { month: 'Mar', fleets: Math.round(stats.total * 0.8), earnings: stats.totalEarnings * 0.2 },
-    { month: 'Apr', fleets: Math.round(stats.total * 0.9), earnings: stats.totalEarnings * 0.25 },
-    { month: 'May', fleets: stats.total, earnings: stats.totalEarnings * 0.3 }
-  ];
+  // Chart 6: Growth Metrics - real monthly data from createdAt
+  const growthMetricsData = useMemo(() => {
+    const monthMap = {};
+    fleets.forEach(f => {
+      const d = new Date(f.createdAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+      if (!monthMap[key]) monthMap[key] = { month: label, fleets: 0, earnings: 0 };
+      monthMap[key].fleets += 1;
+      monthMap[key].earnings += f.totalEarnings || 0;
+    });
+    return Object.keys(monthMap).sort().map(k => monthMap[k]);
+  }, [fleets]);
 
   // Chart 7: Top Performers - Funnel Chart
   const topPerformers = fleets
@@ -533,6 +538,7 @@ export default function CreateFleet() {
                     <tr className="bg-gray-50 border-b border-gray-200">
                       <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Fleet</th>
                       <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Contact</th>
+                      <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Password</th>
                       <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Location</th>
                       <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase">Cars</th>
                       <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase">Drivers</th>
@@ -566,6 +572,9 @@ export default function CreateFleet() {
                           <td className="py-4 px-6">
                             <p className="text-sm text-gray-900">{f.phone}</p>
                             <p className="text-xs text-gray-500">{f.email}</p>
+                          </td>
+                          <td className="py-4 px-6">
+                            <span className="text-sm font-mono bg-gray-100 text-gray-800 px-2 py-1 rounded">{f.password || '—'}</span>
                           </td>
                           <td className="py-4 px-6">
                             <p className="text-sm text-gray-900">{f.city}</p>
