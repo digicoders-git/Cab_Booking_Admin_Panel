@@ -268,11 +268,13 @@ export default function ManageCarCategories() {
   };
 
   const addSeat = () => {
-    setFormData(prev => ({ ...prev, seatLayout: [...prev.seatLayout, "New Seat"] }));
+    const newLayout = [...formData.seatLayout, "New Seat"];
+    setFormData(prev => ({ ...prev, seatLayout: newLayout, seatCapacity: newLayout.length }));
   };
 
   const removeSeat = (index) => {
-    setFormData(prev => ({ ...prev, seatLayout: prev.seatLayout.filter((_, i) => i !== index) }));
+    const newLayout = formData.seatLayout.filter((_, i) => i !== index);
+    setFormData(prev => ({ ...prev, seatLayout: newLayout, seatCapacity: newLayout.length }));
   };
 
   const updateSeat = (index, value) => {
@@ -508,7 +510,7 @@ export default function ManageCarCategories() {
 
               {/* Seat Layout */}
               <div className="flex flex-wrap gap-1 mb-4">
-                {(typeof c.seatLayout === 'string' ? JSON.parse(c.seatLayout) : (c.seatLayout || [])).slice(0, 4).map((s, i) => (
+                {(typeof c.seatLayout === 'string' ? JSON.parse(c.seatLayout) : (c.seatLayout || [])).map((s, i) => (
                   <span key={i} className="px-2 py-1 bg-gray-100 rounded text-xs text-gray-600">
                     {s}
                   </span>
@@ -590,7 +592,16 @@ export default function ManageCarCategories() {
               {/* Specs */}
               <div className="space-y-4">
                 <h3 className="text-sm font-medium text-gray-900">Specifications</h3>
-                <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-gray-600">Seat Capacity</label>
+                    <input
+                      type="number"
+                      value={formData.seatLayout.length}
+                      readOnly
+                      className="w-full px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+                    />
+                  </div>
                   <div>
                     <label className="text-sm text-gray-600">Avg Speed (km/h)</label>
                     <input
@@ -613,6 +624,8 @@ export default function ManageCarCategories() {
                     <input
                       type="number"
                       value={formData.baseFare}
+                      onFocus={(e) => { if (e.target.value === '0') setFormData(p => ({ ...p, baseFare: '' })) }}
+                      onBlur={(e) => { if (e.target.value === '') setFormData(p => ({ ...p, baseFare: '0' })) }}
                       onChange={(e) => setFormData({ ...formData, baseFare: e.target.value })}
                       required
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
@@ -623,6 +636,8 @@ export default function ManageCarCategories() {
                     <input
                       type="number"
                       value={formData.privateRatePerKm}
+                      onFocus={(e) => { if (e.target.value === '0') setFormData(p => ({ ...p, privateRatePerKm: '' })) }}
+                      onBlur={(e) => { if (e.target.value === '') setFormData(p => ({ ...p, privateRatePerKm: '0' })) }}
                       onChange={(e) => setFormData({ ...formData, privateRatePerKm: e.target.value })}
                       required
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
@@ -633,6 +648,8 @@ export default function ManageCarCategories() {
                     <input
                       type="number"
                       value={formData.sharedRatePerSeatPerKm}
+                      onFocus={(e) => { if (e.target.value === '0') setFormData(p => ({ ...p, sharedRatePerSeatPerKm: '' })) }}
+                      onBlur={(e) => { if (e.target.value === '') setFormData(p => ({ ...p, sharedRatePerSeatPerKm: '0' })) }}
                       onChange={(e) => setFormData({ ...formData, sharedRatePerSeatPerKm: e.target.value })}
                       required
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
@@ -676,11 +693,12 @@ export default function ManageCarCategories() {
 
               {/* Image */}
               <div className="space-y-2">
-                <label className="text-sm text-gray-600">Category Image</label>
+                <label className="text-sm text-gray-600">Category Image {!editingCategory && <span className="text-red-500">*</span>}</label>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={(e) => setFormData({ ...formData, image: e.target.files[0] })}
+                  required={!editingCategory}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg"
                 />
               </div>

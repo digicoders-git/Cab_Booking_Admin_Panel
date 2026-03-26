@@ -77,7 +77,7 @@ const AdminReplyModal = ({ ticket, isOpen, onClose, onSubmit, loading }) => {
             >
               <option value="Open">Open</option>
               <option value="In-Progress">In Progress</option>
-              <option value="Resolved">Resolved</option>
+              <option value="Closed">Closed</option>
             </select>
           </div>
 
@@ -113,7 +113,7 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, onReplyClick }) => {
 
   const getStatusBadge = (status) => {
     switch (status?.toLowerCase()) {
-      case 'resolved': return { label: 'Resolved', color: '#10B981', bg: '#10B98115' };
+      case 'closed': return { label: 'Closed', color: '#10B981', bg: '#10B98115' };
       case 'in-progress': return { label: 'In Progress', color: '#3B82F6', bg: '#3B82F615' };
       case 'open': return { label: 'Open', color: '#F59E0B', bg: '#F59E0B15' };
       default: return { label: status || 'Open', color: '#F59E0B', bg: '#F59E0B15' };
@@ -184,7 +184,7 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, onReplyClick }) => {
             </div>
           )}
 
-          {ticket.status?.toLowerCase() !== 'resolved' && (
+          {ticket.status?.toLowerCase() !== 'closed' && (
             <button
               onClick={() => onReplyClick(ticket)}
               className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
@@ -251,9 +251,9 @@ export default function Support() {
     const total = tickets.length;
     const open = tickets.filter(t => t.status?.toLowerCase() === 'open').length;
     const inProgress = tickets.filter(t => t.status?.toLowerCase() === 'in-progress').length;
-    const resolved = tickets.filter(t => t.status?.toLowerCase() === 'resolved').length;
+    const closed = tickets.filter(t => t.status?.toLowerCase() === 'closed').length;
 
-    return { total, open, inProgress, resolved };
+    return { total, open, inProgress, closed };
   }, [tickets]);
 
   // Chart Data - Tickets by Type
@@ -310,7 +310,7 @@ export default function Support() {
 
   const getStatusBadge = (status) => {
     switch (status?.toLowerCase()) {
-      case 'resolved': return { label: 'Resolved', color: '#10B981', bg: '#10B98115' };
+      case 'closed': return { label: 'Closed', color: '#10B981', bg: '#10B98115' };
       case 'in-progress': return { label: 'In Progress', color: '#3B82F6', bg: '#3B82F615' };
       case 'open': return { label: 'Open', color: '#F59E0B', bg: '#F59E0B15' };
       default: return { label: status || 'Open', color: '#F59E0B', bg: '#F59E0B15' };
@@ -334,7 +334,7 @@ export default function Support() {
           <StatCard label="Total Tickets" value={stats.total} icon={FaTicketAlt} color="#3B82F6" />
           <StatCard label="Open" value={stats.open} icon={Clock} color="#F59E0B" />
           <StatCard label="In Progress" value={stats.inProgress} icon={Activity} color="#3B82F6" />
-          <StatCard label="Resolved" value={stats.resolved} icon={CheckCircle} color="#10B981" />
+          <StatCard label="Closed" value={stats.closed} icon={CheckCircle} color="#10B981" />
         </div>
 
         {/* Charts Section */}
@@ -372,7 +372,7 @@ export default function Support() {
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
-              {['all', 'open', 'in-progress', 'resolved'].map((status) => (
+              {['all', 'open', 'in-progress', 'closed'].map((status) => (
                 <button
                   key={status}
                   onClick={() => { setFilter(status); setCurrentPage(1); }}
@@ -461,7 +461,7 @@ export default function Support() {
                             >
                               <FaEye size={14} />
                             </button>
-                            {ticket.status?.toLowerCase() !== 'resolved' && (
+                            {ticket.status?.toLowerCase() !== 'closed' && (
                               <button
                                 onClick={() => setReplyTicket(ticket)}
                                 className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-all"

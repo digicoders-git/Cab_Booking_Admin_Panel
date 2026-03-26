@@ -312,26 +312,81 @@ export default function ManageDrivers() {
     });
     if (res.isConfirmed) {
       try {
-        await approveDriver(id);
-        fetchDrivers();
-      } catch (err) { console.error(err); }
+        const response = await approveDriver(id);
+        if (response.success) {
+          Swal.fire({
+            icon: "success",
+            title: "Driver Approved Successfully!",
+            html: `
+              <div style="text-align: left; margin: 20px 0;">
+                <p><strong>Name:</strong> ${response.driver.name}</p>
+                <p><strong>Email:</strong> ${response.driver.email}</p>
+                <p><strong>Status:</strong> <span style="color: green; font-weight: bold;">✓ Approved</span></p>
+                <p><strong>Approved At:</strong> ${new Date(response.driver.approvedAt).toLocaleString()}</p>
+              </div>
+            `,
+            confirmButtonText: "OK",
+            background: themeColors.surface,
+            color: themeColors.text
+          });
+          fetchDrivers();
+        }
+      } catch (err) {
+        console.error("Error approving driver:", err);
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: err.response?.data?.message || "Failed to approve driver",
+          background: themeColors.surface,
+          color: themeColors.text
+        });
+      }
     }
   };
 
   const handleReject = async (id) => {
     const { value: reason } = await Swal.fire({
       title: "Reject Driver?",
-      input: "text",
+      input: "textarea",
       inputLabel: "Reason for Rejection",
+      inputPlaceholder: "Enter rejection reason...",
       showCancelButton: true,
       confirmButtonColor: themeColors.danger,
       confirmButtonText: "REJECT",
+      background: themeColors.surface,
+      color: themeColors.text
     });
     if (reason) {
       try {
-        await rejectDriver(id, reason);
-        fetchDrivers();
-      } catch (err) { console.error(err); }
+        const response = await rejectDriver(id, reason);
+        if (response.success) {
+          Swal.fire({
+            icon: "success",
+            title: "Driver Rejected Successfully!",
+            html: `
+              <div style="text-align: left; margin: 20px 0;">
+                <p><strong>Name:</strong> ${response.driver.name}</p>
+                <p><strong>Email:</strong> ${response.driver.email}</p>
+                <p><strong>Status:</strong> <span style="color: red; font-weight: bold;">✗ Rejected</span></p>
+                <p><strong>Reason:</strong> ${response.driver.rejectionReason}</p>
+              </div>
+            `,
+            confirmButtonText: "OK",
+            background: themeColors.surface,
+            color: themeColors.text
+          });
+          fetchDrivers();
+        }
+      } catch (err) {
+        console.error("Error rejecting driver:", err);
+        Swal.fire({
+          icon: "error",
+          title: "Error",
+          text: err.response?.data?.message || "Failed to reject driver",
+          background: themeColors.surface,
+          color: themeColors.text
+        });
+      }
     }
   };
 
@@ -613,7 +668,7 @@ export default function ManageDrivers() {
 
           {/* Driver Table */}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px]">
+            <table className="w-full min-w-[1600px]">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Driver</th>
@@ -622,6 +677,7 @@ export default function ManageDrivers() {
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Location</th>
                   <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Rating</th>
                   <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase">Earnings</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Password</th>
                   <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
@@ -669,19 +725,17 @@ export default function ManageDrivers() {
                       <td className="py-3 px-4 text-right">
                         <span className="text-sm font-medium text-gray-900">₹{(d.totalEarnings || 0).toLocaleString()}</span>
                       </td>
+                      <td className="py-3 px-4">
+                        <p className="text-sm font-mono text-gray-900 bg-gray-100 px-2 py-1 rounded">
+                          {d.password && d.password.length > 20 ? '••••••••••••••••••••' : d.password || 'N/A'}
+                        </p>
+                      </td>
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center gap-1">
-                          {!d.isApproved && !d.isRejected ? (
-                            <div className="flex gap-1">
-                              <button onClick={(e) => { e.stopPropagation(); handleApprove(d._id); }} className="p-1 hover:bg-green-100 rounded text-green-600"><FaCheckCircle size={12} /></button>
-                              <button onClick={(e) => { e.stopPropagation(); handleReject(d._id); }} className="p-1 hover:bg-red-100 rounded text-red-600"><FaBan size={12} /></button>
-                            </div>
-                          ) : (
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${d.isApproved ? 'bg-green-100 text-green-700' : d.isRejected ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
-                              }`}>
-                              {d.isApproved ? 'Approved' : d.isRejected ? 'Rejected' : 'Pending'}
-                            </span>
-                          )}
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${d.isApproved ? 'bg-green-100 text-green-700' : d.isRejected ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                            }`}>
+                            {d.isApproved ? 'Approved' : d.isRejected ? 'Rejected' : 'Pending'}
+                          </span>
                           <button
                             onClick={(e) => { e.stopPropagation(); handleToggleStatus(d._id); }}
                             className={`ml-1 ${d.isActive ? 'text-green-600' : 'text-gray-300'}`}
@@ -691,7 +745,25 @@ export default function ManageDrivers() {
                         </div>
                       </td>
                       <td className="py-3 px-4 text-center">
-                        <div className="flex items-center justify-center gap-1">
+                        <div className="flex items-center justify-center gap-2">
+                          {!d.isApproved && !d.isRejected && (
+                            <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleApprove(d._id); }}
+                                className="p-1.5 hover:bg-green-100 rounded text-green-600 font-bold"
+                                title="Approve"
+                              >
+                                <FaCheckCircle size={16} />
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleReject(d._id); }}
+                                className="p-1.5 hover:bg-red-100 rounded text-red-600 font-bold"
+                                title="Reject"
+                              >
+                                <FaTimesCircle size={16} />
+                              </button>
+                            </>
+                          )}
                           <button
                             onClick={(e) => { e.stopPropagation(); setViewing(d); }}
                             className="p-1 hover:bg-gray-100 rounded text-blue-600"
@@ -744,6 +816,12 @@ export default function ManageDrivers() {
                                   <span className="text-gray-500">Address:</span>
                                   <span className="font-medium text-gray-900 text-right">{d.address || 'N/A'}</span>
                                 </div>
+                                {d.isRejected && d.rejectionReason && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-500">Rejection Reason:</span>
+                                    <span className="font-medium text-red-600 text-right">{d.rejectionReason}</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
 

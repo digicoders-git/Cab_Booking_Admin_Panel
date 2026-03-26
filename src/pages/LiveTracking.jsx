@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { io } from 'socket.io-client';
 import { trackingService } from '../apis/trackingApi';
 import { getAddressFromCoordinates } from '../apis/geocodingApi';
 import {
@@ -72,10 +73,10 @@ const DriverCard = ({ driver, onSelect, address }) => {
   };
 
   const statusInfo = getStatusColor(driver.status);
-  const lastUpdated = driver.location?.lastUpdated 
+  const lastUpdated = driver.location?.lastUpdated
     ? new Date(driver.location.lastUpdated).toLocaleTimeString()
     : 'N/A';
-  
+
   const hasLocation = driver.location?.latitude && driver.location?.longitude;
   const VehicleIcon = getVehicleIcon(driver.rideType);
   const vehicleColor = getVehicleColor(driver.rideType);
@@ -88,8 +89,8 @@ const DriverCard = ({ driver, onSelect, address }) => {
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3 flex-1">
           {driver.carInfo?.carCategoryImage && driver.carInfo.carCategoryImage !== 'null' ? (
-            <img 
-              src={driver.carInfo.carCategoryImage} 
+            <img
+              src={driver.carInfo.carCategoryImage}
               alt="Car"
               className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
               onError={(e) => {
@@ -98,8 +99,8 @@ const DriverCard = ({ driver, onSelect, address }) => {
               }}
             />
           ) : driver.image ? (
-            <img 
-              src={`${import.meta.env.VITE_API_BASE_URL}/uploads/${driver.image}`} 
+            <img
+              src={`${import.meta.env.VITE_API_BASE_URL}/uploads/${driver.image}`}
               alt={driver.name}
               className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
               onError={(e) => {
@@ -144,9 +145,9 @@ const DriverCard = ({ driver, onSelect, address }) => {
         </div>
         {driver.carInfo?.carCategoryImage && driver.carInfo.carCategoryImage !== 'null' && (
           <div className="mt-2">
-            <img 
-              src={driver.carInfo.carCategoryImage} 
-              alt="Car" 
+            <img
+              src={driver.carInfo.carCategoryImage}
+              alt="Car"
               className="w-full h-20 object-cover rounded-lg border border-gray-200"
               onError={(e) => e.target.style.display = 'none'}
             />
@@ -340,7 +341,7 @@ const TripMap = ({ driver }) => {
       if (driver.carInfo?.carCategoryImage && driver.carInfo.carCategoryImage !== 'null') {
         carImage = `${import.meta.env.VITE_API_BASE_URL}/uploads/${driver.carInfo.carCategoryImage}`;
       }
-      
+
       const liveMarker = new window.google.maps.Marker({
         position: {
           lat: driver.location.latitude,
@@ -438,7 +439,7 @@ const DriverDetailModal = ({ driver, isOpen, onClose, address, pickupAddress, dr
   };
 
   const statusInfo = getStatusColor(driver.status);
-  const lastUpdated = driver.location?.lastUpdated 
+  const lastUpdated = driver.location?.lastUpdated
     ? new Date(driver.location.lastUpdated).toLocaleString()
     : 'N/A';
   const hasLocation = driver.location?.latitude && driver.location?.longitude;
@@ -465,8 +466,8 @@ const DriverDetailModal = ({ driver, isOpen, onClose, address, pickupAddress, dr
           <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-5 border border-blue-100">
             <div className="flex items-start gap-4">
               {driver.image ? (
-                <img 
-                  src={`${import.meta.env.VITE_API_BASE_URL}/uploads/${driver.image}`} 
+                <img
+                  src={`${import.meta.env.VITE_API_BASE_URL}/uploads/${driver.image}`}
                   alt={driver.name}
                   className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md"
                   onError={(e) => {
@@ -533,9 +534,9 @@ const DriverDetailModal = ({ driver, isOpen, onClose, address, pickupAddress, dr
               {driver.carInfo?.carCategoryImage && driver.carInfo.carCategoryImage !== 'null' ? (
                 <div className="mt-4">
                   <p className="text-xs text-gray-500 mb-2">Car Image</p>
-                  <img 
-                    src={driver.carInfo.carCategoryImage} 
-                    alt="Car" 
+                  <img
+                    src={driver.carInfo.carCategoryImage}
+                    alt="Car"
                     className="w-full h-32 object-cover rounded-lg border border-gray-200"
                     onError={(e) => e.target.style.display = 'none'}
                   />
@@ -649,22 +650,28 @@ export default function LiveTracking() {
   const [loading, setLoading] = useState(true);
   const [selectedDriver, setSelectedDriver] = useState(null);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [rideTypeFilter, setRideTypeFilter] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
   const [addresses, setAddresses] = useState({});
   const [pickupAddresses, setPickupAddresses] = useState({});
   const [dropAddresses, setDropAddresses] = useState({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(20);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const socketRef = useRef(null);
 
   const fetchDrivers = async () => {
     try {
       setLoading(true);
       const res = await trackingService.getLiveTracking();
       setDrivers(res?.drivers || []);
-      
+
       const newAddresses = {};
       const newPickupAddresses = {};
       const newDropAddresses = {};
-      
+
       for (const driver of (res?.drivers || [])) {
         if (driver.location?.latitude && driver.location?.longitude) {
           const address = await getAddressFromCoordinates(
@@ -673,7 +680,7 @@ export default function LiveTracking() {
           );
           newAddresses[driver.driverId] = address;
         }
-        
+
         if (driver.currentTrip?.pickup?.latitude && driver.currentTrip?.pickup?.longitude) {
           const pickupAddr = await getAddressFromCoordinates(
             driver.currentTrip.pickup.latitude,
@@ -681,7 +688,7 @@ export default function LiveTracking() {
           );
           newPickupAddresses[driver.driverId] = pickupAddr;
         }
-        
+
         if (driver.currentTrip?.drop?.latitude && driver.currentTrip?.drop?.longitude) {
           const dropAddr = await getAddressFromCoordinates(
             driver.currentTrip.drop.latitude,
@@ -690,7 +697,7 @@ export default function LiveTracking() {
           newDropAddresses[driver.driverId] = dropAddr;
         }
       }
-      
+
       setAddresses(newAddresses);
       setPickupAddresses(newPickupAddresses);
       setDropAddresses(newDropAddresses);
@@ -703,9 +710,59 @@ export default function LiveTracking() {
   };
 
   useEffect(() => {
+    // Initial data fetch
     fetchDrivers();
-    const interval = setInterval(fetchDrivers, 30000);
-    return () => clearInterval(interval);
+
+    // Socket.io connection
+    const socket = io(import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000', {
+      transports: ['websocket'],
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
+    });
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      setSocketConnected(true);
+      // Join as admin
+      socket.emit('join_room', { userId: 'admin_panel', role: 'admin' });
+    });
+
+    socket.on('disconnect', () => {
+      setSocketConnected(false);
+    });
+
+    // Real-time driver location update
+    socket.on('driver_location_update', (data) => {
+      const { driverId, latitude, longitude, heading, status } = data;
+
+      setDrivers(prev => prev.map(d => {
+        if (d.driverId === driverId) {
+          return {
+            ...d,
+            location: { ...d.location, latitude, longitude, lastUpdated: new Date().toISOString() },
+            ...(status && { status }),
+            ...(heading !== undefined && { heading })
+          };
+        }
+        return d;
+      }));
+
+      // Update address for moved driver
+      getAddressFromCoordinates(latitude, longitude).then(address => {
+        setAddresses(prev => ({ ...prev, [driverId]: address }));
+      });
+    });
+
+    // Full drivers list update from server
+    socket.on('live_tracking_update', async (data) => {
+      if (data?.drivers) {
+        setDrivers(data.drivers);
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   const handleRefresh = async () => {
@@ -723,15 +780,64 @@ export default function LiveTracking() {
     return { total, idle, onRide, offline };
   }, [drivers]);
 
+  const rideTypes = useMemo(() => {
+    const typesMap = new Map();
+    drivers.forEach(d => {
+      let rideType = d.rideType;
+      if (!rideType && d.currentTrip?.type) {
+        rideType = d.currentTrip.type;
+      }
+      if (rideType && rideType !== 'N/A') {
+        if (!typesMap.has(rideType)) {
+          typesMap.set(rideType, 0);
+        }
+        typesMap.set(rideType, typesMap.get(rideType) + 1);
+      }
+    });
+    return Array.from(typesMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [drivers]);
+
+  const categories = useMemo(() => {
+    const catsMap = new Map();
+    drivers.forEach(d => {
+      const catName = d.carInfo?.carCategoryName;
+      if (catName && catName !== 'N/A') {
+        if (!catsMap.has(catName)) {
+          catsMap.set(catName, 0);
+        }
+        catsMap.set(catName, catsMap.get(catName) + 1);
+      }
+    });
+    return Array.from(catsMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+  }, [drivers]);
+
   const filteredDrivers = useMemo(() => {
     let filtered = [...drivers];
 
-    if (filter !== 'all') {
+    if (statusFilter !== 'all') {
       filtered = filtered.filter(d => {
-        if (filter === 'idle') return d.status?.toLowerCase() === 'idle';
-        if (filter === 'active') return d.status?.toLowerCase().includes('ride');
-        if (filter === 'offline') return d.status?.toLowerCase() === 'offline';
+        if (statusFilter === 'idle') return d.status?.toLowerCase() === 'idle';
+        if (statusFilter === 'online') return d.status?.toLowerCase() !== 'offline';
+        if (statusFilter === 'ongoing') return d.status?.toLowerCase().includes('ride');
+        if (statusFilter === 'offline') return d.status?.toLowerCase() === 'offline';
         return true;
+      });
+    }
+
+    if (rideTypeFilter !== 'all') {
+      filtered = filtered.filter(d => {
+        let rideType = d.rideType;
+        if (!rideType && d.currentTrip?.type) {
+          rideType = d.currentTrip.type;
+        }
+        return rideType === rideTypeFilter;
+      });
+    }
+
+    if (categoryFilter !== 'all') {
+      filtered = filtered.filter(d => {
+        const catName = d.carInfo?.carCategoryName;
+        return catName === categoryFilter;
       });
     }
 
@@ -747,18 +853,37 @@ export default function LiveTracking() {
     }
 
     return filtered;
-  }, [drivers, filter, search]);
+  }, [drivers, statusFilter, categoryFilter, rideTypeFilter, search]);
+
+  const paginatedDrivers = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredDrivers.slice(startIndex, endIndex);
+  }, [filteredDrivers, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredDrivers.length / itemsPerPage);
+
+  const handleItemsPerPageChange = (newItemsPerPage) => {
+    setItemsPerPage(newItemsPerPage);
+    setCurrentPage(1);
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-4">
+      <div className="max-w-8xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2 text-gray-900">
               <FaMap className="text-blue-600" />
               Live Tracking
             </h1>
-            <p className="text-sm text-gray-500 mt-1">Real-time driver location tracking</p>
+            <p className="text-sm text-gray-500 mt-1 flex items-center gap-2">
+              Real-time driver location tracking
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${socketConnected ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                <FaCircle size={6} />
+                {socketConnected ? 'Live' : 'Disconnected'}
+              </span>
+            </p>
           </div>
           <button
             onClick={handleRefresh}
@@ -792,34 +917,91 @@ export default function LiveTracking() {
         </div>
 
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex items-center gap-2 p-1 bg-gray-100 rounded-lg">
-              {['all', 'idle', 'active', 'offline'].map((status) => (
-                <button
-                  key={status}
-                  onClick={() => setFilter(status)}
-                  className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${filter === status ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600'}`}
+          <div className="flex flex-col gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Status Filter</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white"
                 >
-                  {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)}
-                </button>
-              ))}
+                  <option value="all">All Status</option>
+                  <option value="idle">Idle</option>
+                  <option value="online">Online</option>
+                  <option value="ongoing">Ongoing</option>
+                  <option value="offline">Offline</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Car Category Filter</label>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white"
+                >
+                  <option value="all">All Categories</option>
+                  {categories.map(([cat, count]) => (
+                    <option key={cat} value={cat}>
+                      {cat} ({count})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Ride Type Filter</label>
+                <select
+                  value={rideTypeFilter}
+                  onChange={(e) => setRideTypeFilter(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 bg-white"
+                >
+                  <option value="all">All Ride Types</option>
+                  {rideTypes.map(([type, count]) => (
+                    <option key={type} value={type}>
+                      {type} ({count})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-              <input
-                type="text"
-                placeholder="Search by name, phone, car number, or model..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              />
-              {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><X size={14} /></button>}
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Search</label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+                <input
+                  type="text"
+                  placeholder="Search by name, phone, car number, or model..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+                {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><X size={14} /></button>}
+              </div>
             </div>
           </div>
         </div>
 
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Drivers List ({filteredDrivers.length})</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
+            <h2 className="text-lg font-semibold text-gray-900">Drivers List ({filteredDrivers.length})</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Items per page:</span>
+              <div className="flex gap-2">
+                {[20, 40, 60, 80, 100].map(num => (
+                  <button
+                    key={num}
+                    onClick={() => handleItemsPerPageChange(num)}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${itemsPerPage === num
+                        ? 'bg-blue-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                  >
+                    {num}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
           {loading ? (
             <div className="py-12 text-center">
               <div className="animate-spin h-10 w-10 border-4 border-blue-600 border-t-transparent rounded-full mx-auto" />
@@ -832,24 +1014,61 @@ export default function LiveTracking() {
               <p className="text-sm text-gray-400 mt-1">Try adjusting your filters</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredDrivers.map(driver => (
-                <DriverCard
-                  key={driver.driverId}
-                  driver={driver}
-                  onSelect={() => setSelectedDriver(driver)}
-                  address={addresses[driver.driverId]}
-                />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                {paginatedDrivers.map(driver => (
+                  <DriverCard
+                    key={driver.driverId}
+                    driver={driver}
+                    onSelect={() => setSelectedDriver(driver)}
+                    address={addresses[driver.driverId]}
+                  />
+                ))}
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white rounded-xl border border-gray-200 p-4">
+                <p className="text-sm text-gray-600">
+                  Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredDrivers.length)} of {filteredDrivers.length} drivers
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    Previous
+                  </button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`px-2.5 py-1.5 rounded-lg text-sm font-medium transition-all ${currentPage === page
+                            ? 'bg-blue-600 text-white'
+                            : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
+                          }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1.5 rounded-lg border border-gray-300 text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
 
-      <DriverDetailModal 
-        driver={selectedDriver} 
-        isOpen={!!selectedDriver} 
-        onClose={() => setSelectedDriver(null)} 
+      <DriverDetailModal
+        driver={selectedDriver}
+        isOpen={!!selectedDriver}
+        onClose={() => setSelectedDriver(null)}
         address={selectedDriver ? addresses[selectedDriver.driverId] : null}
         pickupAddress={selectedDriver ? pickupAddresses[selectedDriver.driverId] : null}
         dropAddress={selectedDriver ? dropAddresses[selectedDriver.driverId] : null}

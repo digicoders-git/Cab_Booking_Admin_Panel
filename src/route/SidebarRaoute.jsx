@@ -27,6 +27,7 @@ const routes = [
   { path: "/fleet/manage-registry", component: ManageFleetRegistry, name: "Manage Fleet Data ", icon: FaSitemap },
   { path: "/drivers/manage", component: ManageDrivers, name: "Main Drivers", icon: FaCar },
   { path: "/tracking/live", component: LiveTracking, name: "Live Tracking", icon: FaMap },
+  { path: "/support", component: Support, name: "Support", icon: FaBell },
   { path: "/users/manage", component: ManageUsers, name: "Manage Users", icon: FaUsers },
   { path: "/notifications/manage", component: ManageNotifications, name: "Announcements", icon: FaBell },
   { path: "/wallet/manage", component: WalletManagement, name: "Wallet & Payouts", icon: FaWallet },
@@ -34,7 +35,6 @@ const routes = [
   { path: "/car-categories/manage", component: ManageCarCategories, name: "CarCategargary", icon: FaCar },
   { path: "/admin/profile", component: AdminProfile, name: "Profile", icon: FaUserShield },
   { path: "/reports", component: Reports, name: "Reports", icon: FaTachometerAlt },
-  { path: "/support", component: Support, name: "Support", icon: FaBell },
 ];
 
 export default routes;
