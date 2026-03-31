@@ -162,7 +162,8 @@ const DriverCard = ({ driver, onSelect, address }) => {
 const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
-  const markersRef = useRef([]);
+  const markersRef = useRef({}); // DriverId based Map
+  const isInitialLoadRef = useRef(true);
 
   useEffect(() => {
     if (!window.google) {
@@ -177,8 +178,8 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
     }
 
     return () => {
-      markersRef.current.forEach(marker => marker.setMap(null));
-      markersRef.current = [];
+      Object.values(markersRef.current).forEach(marker => marker.setMap(null));
+      markersRef.current = {};
     };
   }, []);
 
@@ -201,40 +202,57 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
   const updateMarkers = () => {
     if (!mapInstanceRef.current) return;
 
-    markersRef.current.forEach(marker => marker.setMap(null));
-    markersRef.current = [];
+    const currentDriverIds = new Set();
 
     drivers.forEach(driver => {
-      if (driver.location?.latitude && driver.location?.longitude) {
-        // Build full image URL from filename
-        let markerIcon = '/car.png';
-        if (driver.carInfo?.carCategoryImage && driver.carInfo.carCategoryImage !== 'null') {
-          markerIcon = `${import.meta.env.VITE_API_BASE_URL}/uploads/${driver.carInfo.carCategoryImage}`;
-        }
+      if (!driver.location?.latitude || !driver.location?.longitude) return;
+      currentDriverIds.add(driver.driverId);
 
+      const latLng = {
+        lat: Number(driver.location.latitude),
+        lng: Number(driver.location.longitude),
+      };
+
+      // Get appropriate icon with rotation
+      let markerIcon = '/car.png';
+      if (driver.carInfo?.carCategoryImage && driver.carInfo.carCategoryImage !== 'null') {
+        markerIcon = `${import.meta.env.VITE_API_BASE_URL}/uploads/${driver.carInfo.carCategoryImage}`;
+      }
+
+      if (markersRef.current[driver.driverId]) {
+        // MOVE EXISTING MARKER (Smooth)
+        const marker = markersRef.current[driver.driverId];
+        marker.setPosition(latLng);
+        
+        // Update rotation if heading exists
+        const icon = marker.getIcon();
+        if (icon && typeof driver.heading === 'number') {
+          icon.rotation = driver.heading;
+          marker.setIcon(icon);
+        }
+      } else {
+        // CREATE NEW MARKER
         const marker = new window.google.maps.Marker({
-          position: {
-            lat: driver.location.latitude,
-            lng: driver.location.longitude,
-          },
+          position: latLng,
           map: mapInstanceRef.current,
           title: driver.name,
+          optimized: true,
           icon: {
             url: markerIcon,
-            scaledSize: new window.google.maps.Size(50, 50),
+            scaledSize: new window.google.maps.Size(45, 45),
             origin: new window.google.maps.Point(0, 0),
-            anchor: new window.google.maps.Point(25, 25),
+            anchor: new window.google.maps.Point(22.5, 22.5),
+            rotation: driver.heading || 0
           },
         });
 
         const infoWindow = new window.google.maps.InfoWindow({
           content: `
             <div style="padding: 10px; font-family: Arial; max-width: 250px;">
-              <h3 style="margin: 0 0 5px 0; font-weight: bold;">${driver.name}</h3>
-              <p style="margin: 0 0 3px 0; font-size: 12px;"><strong>Car:</strong> ${driver.carInfo?.carModel || 'N/A'}</p>
-              <p style="margin: 0 0 3px 0; font-size: 12px;"><strong>Number:</strong> ${driver.carInfo?.carNumber || 'N/A'}</p>
-              <p style="margin: 0 0 3px 0; font-size: 12px;"><strong>Status:</strong> ${driver.status}</p>
-              <p style="margin: 0; font-size: 12px;"><strong>Phone:</strong> ${driver.phone}</p>
+              <h3 style="margin: 0 0 5px 0; font-weight: bold; color: #1e3a8a;">${driver.name}</h3>
+              <p style="margin: 0 0 3px 0; font-size: 11px;"><b>Status:</b> ${driver.status}</p>
+              <p style="margin: 0 0 3px 0; font-size: 11px;"><b>Phone:</b> ${driver.phone}</p>
+              <p style="margin: 0; font-size: 11px;"><b>Car:</b> ${driver.carInfo?.carNumber || 'N/A'}</p>
             </div>
           `,
         });
@@ -244,14 +262,24 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
           onDriverSelect(driver);
         });
 
-        markersRef.current.push(marker);
+        markersRef.current[driver.driverId] = marker;
       }
     });
 
-    if (markersRef.current.length > 0) {
+    // Cleanup markers for drivers no longer in the list
+    Object.keys(markersRef.current).forEach(id => {
+      if (!currentDriverIds.has(id)) {
+        markersRef.current[id].setMap(null);
+        delete markersRef.current[id];
+      }
+    });
+
+    // Fit bounds ONLY ONCE at the start
+    if (isInitialLoadRef.current && Object.keys(markersRef.current).length > 0) {
       const bounds = new window.google.maps.LatLngBounds();
-      markersRef.current.forEach(marker => bounds.extend(marker.getPosition()));
+      Object.values(markersRef.current).forEach(m => bounds.extend(m.getPosition()));
       mapInstanceRef.current.fitBounds(bounds);
+      isInitialLoadRef.current = false;
     }
   };
 
@@ -660,6 +688,7 @@ export default function LiveTracking() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [liveUpdateCount, setLiveUpdateCount] = useState(0); // Testing Counter
   const socketRef = useRef(null);
 
   const fetchDrivers = async () => {
@@ -731,26 +760,32 @@ export default function LiveTracking() {
       setSocketConnected(false);
     });
 
-    // Real-time driver location update
+      // Real-time driver location update
     socket.on('driver_location_update', (data) => {
       const { driverId, latitude, longitude, heading, status } = data;
+      
+      // Increment Test Counter
+      setLiveUpdateCount(prev => prev + 1);
 
       setDrivers(prev => prev.map(d => {
         if (d.driverId === driverId) {
           return {
             ...d,
-            location: { ...d.location, latitude, longitude, lastUpdated: new Date().toISOString() },
+            location: { 
+                ...d.location, 
+                latitude, 
+                longitude, 
+                lastUpdated: new Date().toISOString() 
+            },
             ...(status && { status }),
-            ...(heading !== undefined && { heading })
+            heading: heading || d.heading || 0
           };
         }
         return d;
       }));
 
-      // Update address for moved driver
-      getAddressFromCoordinates(latitude, longitude).then(address => {
-        setAddresses(prev => ({ ...prev, [driverId]: address }));
-      });
+      // NOTE: Removed immediate address geocoding on every second
+      // for all drivers to keep it smooth and save API costs.
     });
 
     // Full drivers list update from server
@@ -869,31 +904,38 @@ export default function LiveTracking() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-4">
-      <div className="max-w-8xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2 text-gray-900">
-              <FaMap className="text-blue-600" />
-              Live Tracking
-            </h1>
-            <p className="text-sm text-gray-500 mt-1 flex items-center gap-2">
-              Real-time driver location tracking
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${socketConnected ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                <FaCircle size={6} />
-                {socketConnected ? 'Live' : 'Disconnected'}
+    <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
+      {/* Page Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <FaMap className="text-blue-600" /> Driver Live Tracking
+            <div className="flex items-center gap-2 ml-4 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold border border-blue-200">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
               </span>
-            </p>
+              Updates: {liveUpdateCount}
+            </div>
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">Real-time driver movements across the region</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm">
+            <div className={`w-2.5 h-2.5 rounded-full ${socketConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+            <span className="text-xs font-semibold text-gray-600">
+              {socketConnected ? 'Real-time Connected' : 'Connecting Engine...'}
+            </span>
           </div>
           <button
             onClick={handleRefresh}
-            disabled={refreshing}
-            className="px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 flex items-center gap-2 shadow-md disabled:opacity-50 transition-all"
+            className={`flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50 transition-all font-medium text-sm shadow-sm ${refreshing ? 'opacity-50 pointer-events-none' : ''}`}
           >
-            <FaSyncAlt size={14} className={refreshing ? 'animate-spin' : ''} />
-            Refresh
+            <FaSyncAlt className={refreshing ? 'animate-spin' : ''} />
+            {refreshing ? 'Syncing...' : 'Full Refresh'}
           </button>
         </div>
+      </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           <StatCard label="Total Drivers" value={stats.total} icon={FaCar} color="#3B82F6" />
@@ -1063,7 +1105,6 @@ export default function LiveTracking() {
             </>
           )}
         </div>
-      </div>
 
       <DriverDetailModal
         driver={selectedDriver}
