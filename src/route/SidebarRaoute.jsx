@@ -2,7 +2,7 @@ import { lazy } from "react";
 import {
   FaTachometerAlt, FaTruck, FaUserTie, FaCar, FaUsers,
   FaBell, FaUserShield, FaWallet, FaRoute, FaCarSide,
-  FaAddressCard, FaSitemap, FaMap
+  FaAddressCard, FaSitemap, FaMap, FaStore
 } from "react-icons/fa";
 
 const Dashboard = lazy(() => import("../pages/Dashboard"));
@@ -19,11 +19,13 @@ const ManageFleetRegistry = lazy(() => import("../pages/ManageFleetRegistry"));
 const Reports = lazy(() => import("../pages/Reports"));
 const Support = lazy(() => import("../pages/Support"));
 const LiveTracking = lazy(() => import("../pages/LiveTracking"));
+const Vendor = lazy(() => import("../pages/Vendor"));
 
 const routes = [
   { path: "/dashboard", component: Dashboard, name: "Dashboard", icon: FaTachometerAlt },
   { path: "/fleet/create", component: CreateFleet, name: "Create Fleet", icon: FaTruck },
   { path: "/agent/create", component: CreateAgent, name: "Create Agent", icon: FaUserTie },
+  { path: "/vendors/manage", component: Vendor, name: "Manage Vendors", icon: FaStore },
   { path: "/fleet/manage-registry", component: ManageFleetRegistry, name: "Manage Fleet Data ", icon: FaSitemap },
   { path: "/drivers/manage", component: ManageDrivers, name: "Main Drivers", icon: FaCar },
   { path: "/tracking/live", component: LiveTracking, name: "Live Tracking", icon: FaMap },
