@@ -175,7 +175,7 @@ export default function ManageDrivers() {
   const { themeColors, theme } = useTheme();
   const { currentFont } = useFont();
 
-  const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') + '/uploads/';
+  const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') + '/uploads/';
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);

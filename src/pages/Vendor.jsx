@@ -190,7 +190,7 @@ const VendorDetailModal = ({ vendor, isOpen, onClose, themeColors }) => {
           <div className="w-24 h-24 rounded-2xl overflow-hidden border-4 border-white dark:border-gray-800 shadow-xl">
             {vendor.image ? (
               <img 
-                src={`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}/uploads/${vendor.image}`} 
+                src={`${import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '')}/uploads/${vendor.image}`} 
                 alt={vendor.name} 
                 className="w-full h-full object-cover"
               />
@@ -342,7 +342,7 @@ export default function VendorManagement() {
   const { themeColors, theme } = useTheme();
   const { currentFont } = useFont();
 
-  const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') + '/uploads/';
+  const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') + '/uploads/';
 
   // State Management
   const [vendors, setVendors] = useState([]);

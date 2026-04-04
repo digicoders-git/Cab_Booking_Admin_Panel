@@ -223,7 +223,7 @@ function CarsTab({ cars, categories, themeColors, theme, borderColor, textColorS
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-lg overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0">
                         {c.image ? (
-                          <img src={`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}/uploads/${c.image}`} alt="car" className="w-full h-full object-cover" />
+                          <img src={`${import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '')}/uploads/${c.image}`} alt="car" className="w-full h-full object-cover" />
                         ) : (
                           <FaCar size={18} className="text-gray-300" />
                         )}
@@ -445,7 +445,7 @@ function DriversTab({ drivers, themeColors, theme, borderColor, textColorSeconda
                   <div className="flex items-center gap-2">
                     <div className="w-10 h-10 rounded-full border border-gray-100 bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden shrink-0">
                       {d.image ? (
-                        <img src={`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}/uploads/${d.image}`} alt={d.name} className="w-full h-full object-cover" />
+                        <img src={`${import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '')}/uploads/${d.image}`} alt={d.name} className="w-full h-full object-cover" />
                       ) : (
                         <FaUserTie size={14} className="text-blue-600" />
                       )}
@@ -500,7 +500,7 @@ function DriversTab({ drivers, themeColors, theme, borderColor, textColorSeconda
               <div className="flex items-center gap-4 pb-4 border-b">
                 <div className="w-16 h-16 rounded-2xl border-2 border-white shadow-lg bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden">
                   {viewing.image ? (
-                    <img src={`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}/uploads/${viewing.image}`} alt={viewing.name} className="w-full h-full object-cover" />
+                    <img src={`${import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '')}/uploads/${viewing.image}`} alt={viewing.name} className="w-full h-full object-cover" />
                   ) : (
                     <FaUserTie size={24} className="text-blue-600" />
                   )}
@@ -773,7 +773,7 @@ export default function ManageFleetRegistry() {
   const { themeColors, theme } = useTheme();
   const { currentFont } = useFont();
 
-  const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') + '/uploads/';
+  const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') + '/uploads/';
 
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("cars");

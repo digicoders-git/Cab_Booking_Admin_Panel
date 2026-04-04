@@ -461,7 +461,7 @@ export default function ManageCarCategories() {
             <div className="h-48 bg-gray-100 relative overflow-hidden">
               {c.image ? (
                   <img
-                    src={`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}/uploads/${c.image}`}
+                    src={`${import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '')}/uploads/${c.image}`}
                     alt={c.name}
                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                   />

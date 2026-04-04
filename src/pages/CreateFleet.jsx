@@ -98,7 +98,7 @@ export default function CreateFleet() {
   const { themeColors, theme } = useTheme();
   const { currentFont } = useFont();
 
-  const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') + '/uploads/';
+  const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') + '/uploads/';
 
   const [form, setForm] = useState(emptyForm);
   const [image, setImage] = useState(null);
