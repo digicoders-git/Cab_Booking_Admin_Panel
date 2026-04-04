@@ -460,11 +460,11 @@ export default function ManageCarCategories() {
             {/* Image */}
             <div className="h-48 bg-gray-100 relative overflow-hidden">
               {c.image ? (
-                <img
-                  src={`http://localhost:5000/uploads/${c.image}`}
-                  alt={c.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
+                  <img
+                    src={`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}/uploads/${c.image}`}
+                    alt={c.name}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <FaCar size={48} className="text-gray-300" />

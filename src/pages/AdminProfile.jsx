@@ -15,7 +15,7 @@ export default function AdminProfile() {
   const { currentFont } = useFont();
   const { admin, setLoginData } = useAuth();
 
-  const BASE_URL = "http://localhost:5000";
+  const BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '');
 
   const getImageUrl = (path) => {
     if (!path) return null;

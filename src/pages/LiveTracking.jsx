@@ -100,7 +100,7 @@ const DriverCard = ({ driver, onSelect, address }) => {
             />
           ) : driver.image ? (
             <img
-              src={`${import.meta.env.VITE_API_BASE_URL}/uploads/${driver.image}`}
+              src={`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}/uploads/${driver.image}`}
               alt={driver.name}
               className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
               onError={(e) => {
@@ -216,7 +216,7 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
       // Get appropriate icon with rotation
       let markerIcon = '/car.png';
       if (driver.carInfo?.carCategoryImage && driver.carInfo.carCategoryImage !== 'null') {
-        markerIcon = `${import.meta.env.VITE_API_BASE_URL}/uploads/${driver.carInfo.carCategoryImage}`;
+        markerIcon = `${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}/uploads/${driver.carInfo.carCategoryImage}`;
       }
 
       if (markersRef.current[driver.driverId]) {
@@ -495,7 +495,7 @@ const DriverDetailModal = ({ driver, isOpen, onClose, address, pickupAddress, dr
             <div className="flex items-start gap-4">
               {driver.image ? (
                 <img
-                  src={`${import.meta.env.VITE_API_BASE_URL}/uploads/${driver.image}`}
+                  src={`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}/uploads/${driver.image}`}
                   alt={driver.name}
                   className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md"
                   onError={(e) => {
@@ -743,7 +743,7 @@ export default function LiveTracking() {
     fetchDrivers();
 
     // Socket.io connection
-    const socket = io(import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000', {
+    const socket = io(import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || 'http://localhost:5000', {
       transports: ['websocket'],
       reconnectionAttempts: 5,
       reconnectionDelay: 2000,

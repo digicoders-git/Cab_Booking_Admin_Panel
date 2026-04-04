@@ -185,6 +185,35 @@ const VendorDetailModal = ({ vendor, isOpen, onClose, themeColors }) => {
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Vendor Details" themeColors={themeColors} size="xl">
       <div className="space-y-6">
+        {/* Profile Header */}
+        <div className="flex items-center gap-6 p-6 rounded-2xl bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/10">
+          <div className="w-24 h-24 rounded-2xl overflow-hidden border-4 border-white dark:border-gray-800 shadow-xl">
+            {vendor.image ? (
+              <img 
+                src={`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}/uploads/${vendor.image}`} 
+                alt={vendor.name} 
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full bg-blue-500 flex items-center justify-center text-white text-3xl font-bold">
+                {vendor.name?.charAt(0).toUpperCase()}
+              </div>
+            )}
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold" style={{ color: themeColors.text }}>{vendor.name}</h2>
+            <p className="text-sm font-medium" style={{ color: themeColors.primary }}>{vendor.companyName}</p>
+            <div className="flex items-center gap-2 mt-2">
+              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${vendor.isActive ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}`}>
+                {vendor.isActive ? 'Active' : 'Inactive'}
+              </span>
+              <span className="text-xs text-gray-500 flex items-center gap-1">
+                <FaMapMarkerAlt size={10} /> {vendor.assignedArea}
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* Basic Info */}
         <div className="grid grid-cols-2 gap-4">
           <div className="col-span-2">
@@ -208,6 +237,10 @@ const VendorDetailModal = ({ vendor, isOpen, onClose, themeColors }) => {
               <div className="p-4 rounded-xl" style={{ backgroundColor: `${themeColors.primary}10` }}>
                 <p className="text-xs mb-1" style={{ color: themeColors.textSecondary }}>Phone</p>
                 <p className="font-semibold" style={{ color: themeColors.text }}>{vendor.phone}</p>
+              </div>
+              <div className="p-4 rounded-xl" style={{ backgroundColor: `${themeColors.primary}10` }}>
+                <p className="text-xs mb-1" style={{ color: themeColors.textSecondary }}>Password</p>
+                <p className="font-semibold font-mono" style={{ color: themeColors.text }}>{vendor.password}</p>
               </div>
             </div>
           </div>
@@ -308,6 +341,8 @@ const VendorDetailModal = ({ vendor, isOpen, onClose, themeColors }) => {
 export default function VendorManagement() {
   const { themeColors, theme } = useTheme();
   const { currentFont } = useFont();
+
+  const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') + '/uploads/';
 
   // State Management
   const [vendors, setVendors] = useState([]);
@@ -883,6 +918,7 @@ export default function VendorManagement() {
                   <tr>
                     <th className="px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Vendor</th>
                     <th className="px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Contact</th>
+                    <th className="px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Password</th>
                     <th className="px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Area</th>
                     <th className="px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Commission</th>
                     <th className="px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Drivers</th>
@@ -896,9 +932,18 @@ export default function VendorManagement() {
                     <tr key={vendor._id} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center font-bold"
-                            style={{ color: themeColors.primary }}>
-                            {vendor.name?.charAt(0).toUpperCase()}
+                          <div className="w-10 h-10 rounded-xl overflow-hidden bg-gradient-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center font-bold shadow-sm"
+                            style={{ color: themeColors.primary, border: `1px solid ${themeColors.border}` }}>
+                            {vendor.image ? (
+                              <img 
+                                src={`${IMAGE_BASE_URL}${vendor.image}`} 
+                                alt={vendor.name} 
+                                className="w-full h-full object-cover"
+                                onError={(e) => { e.target.onerror = null; e.target.src = 'https://ui-avatars.com/api/?name=' + vendor.name; }}
+                              />
+                            ) : (
+                              vendor.name?.charAt(0).toUpperCase()
+                            )}
                           </div>
                           <div>
                             <div className="font-semibold text-[15px]" style={{ color: themeColors.text }}>{vendor.name}</div>
@@ -909,6 +954,9 @@ export default function VendorManagement() {
                       <td className="px-6 py-4">
                         <div className="text-sm font-medium" style={{ color: themeColors.text }}>{vendor.email}</div>
                         <div className="text-xs" style={{ color: themeColors.textSecondary }}>{vendor.phone}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm font-medium font-mono" style={{ color: themeColors.text }}>{vendor.password}</div>
                       </td>
                       <td className="px-6 py-4">
                         <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#3b82f615] text-[#3b82f6]">

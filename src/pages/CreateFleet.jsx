@@ -97,6 +97,9 @@ const ChartCard = ({ title, subtitle, icon: Icon, children, action }) => (
 export default function CreateFleet() {
   const { themeColors, theme } = useTheme();
   const { currentFont } = useFont();
+
+  const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') + '/uploads/';
+
   const [form, setForm] = useState(emptyForm);
   const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -556,9 +559,9 @@ export default function CreateFleet() {
                         >
                           <td className="py-4 px-6">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center">
+                              <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border border-gray-200">
                                 {f.image ? (
-                                  <img src={`http://localhost:5000/uploads/${f.image}`} alt={f.name} className="w-full h-full object-cover rounded-lg" />
+                                  <img src={`${IMAGE_BASE_URL}${f.image}`} alt={f.name} className="w-full h-full object-cover" />
                                 ) : (
                                   <Truck size={18} className="text-blue-600" />
                                 )}
@@ -950,9 +953,9 @@ export default function CreateFleet() {
           <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border border-gray-200">
                   {viewing.image ? (
-                    <img src={`http://localhost:5000/uploads/${viewing.image}`} alt={viewing.name} className="w-full h-full object-cover rounded-xl" />
+                    <img src={`${IMAGE_BASE_URL}${viewing.image}`} alt={viewing.name} className="w-full h-full object-cover" />
                   ) : (
                     <Truck size={24} className="text-blue-600" />
                   )}
@@ -1334,9 +1337,9 @@ export default function CreateFleet() {
                     className="flex-1 p-2 border border-gray-300 rounded-lg"
                   />
                   {(image || (editingId && fleets.find(f => f._id === editingId)?.image)) && (
-                    <div className="w-16 h-16 rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="w-16 h-16 rounded-lg border border-gray-200 overflow-hidden shadow-inner">
                       <img
-                        src={image ? URL.createObjectURL(image) : `http://localhost:5000/uploads/${fleets.find(f => f._id === editingId)?.image}`}
+                        src={image ? URL.createObjectURL(image) : `${IMAGE_BASE_URL}${fleets.find(f => f._id === editingId)?.image}`}
                         alt="preview"
                         className="w-full h-full object-cover"
                       />

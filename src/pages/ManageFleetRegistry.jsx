@@ -220,8 +220,19 @@ function CarsTab({ cars, categories, themeColors, theme, borderColor, textColorS
               return (
                 <tr key={c._id} className="transition-all hover:bg-black/5 dark:hover:bg-white/5">
                   <td className="px-5 py-3 whitespace-nowrap">
-                    <span className="text-xs font-medium text-gray-900">{c.fleetId?.companyName || "Independent"}</span>
-                    <p className="text-[10px] text-gray-500">{c.fleetId?.name || "System"}</p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0">
+                        {c.image ? (
+                          <img src={`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}/uploads/${c.image}`} alt="car" className="w-full h-full object-cover" />
+                        ) : (
+                          <FaCar size={18} className="text-gray-300" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-gray-900 block truncate">{c.fleetId?.companyName || "Independent"}</span>
+                        <p className="text-[10px] text-gray-500 truncate">{c.fleetId?.name || "System"}</p>
+                      </div>
+                    </div>
                   </td>
                   <td className="px-5 py-3 whitespace-nowrap">
                     <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-xs font-medium">{c.carModel}</span>
@@ -432,10 +443,14 @@ function DriversTab({ drivers, themeColors, theme, borderColor, textColorSeconda
                 </td>
                 <td className="px-5 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center">
-                      <FaUserTie size={14} className="text-blue-600" />
+                    <div className="w-10 h-10 rounded-full border border-gray-100 bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden shrink-0">
+                      {d.image ? (
+                        <img src={`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}/uploads/${d.image}`} alt={d.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <FaUserTie size={14} className="text-blue-600" />
+                      )}
                     </div>
-                    <span className="text-sm font-medium text-gray-900">{d.name}</span>
+                    <span className="text-sm font-bold text-gray-900">{d.name}</span>
                   </div>
                 </td>
                 <td className="px-5 py-3 whitespace-nowrap">
@@ -482,13 +497,17 @@ function DriversTab({ drivers, themeColors, theme, borderColor, textColorSeconda
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="flex items-center gap-3 pb-3 border-b">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center">
-                  <FaUserTie size={20} className="text-blue-600" />
+              <div className="flex items-center gap-4 pb-4 border-b">
+                <div className="w-16 h-16 rounded-2xl border-2 border-white shadow-lg bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden">
+                  {viewing.image ? (
+                    <img src={`${import.meta.env.VITE_API_BASE_URL?.replace('/api', '')}/uploads/${viewing.image}`} alt={viewing.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <FaUserTie size={24} className="text-blue-600" />
+                  )}
                 </div>
                 <div>
-                  <p className="text-lg font-bold text-gray-900">{viewing.name}</p>
-                  <p className="text-sm text-gray-500">{viewing.fleetId?.companyName || "Independent"}</p>
+                  <p className="text-xl font-black text-gray-900">{viewing.name}</p>
+                  <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">{viewing.fleetId?.companyName || "Independent"}</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -753,6 +772,8 @@ function AssignmentsTab({ assignments, categories, themeColors, theme, borderCol
 export default function ManageFleetRegistry() {
   const { themeColors, theme } = useTheme();
   const { currentFont } = useFont();
+
+  const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') + '/uploads/';
 
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("cars");

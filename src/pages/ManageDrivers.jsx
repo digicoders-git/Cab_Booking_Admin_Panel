@@ -175,6 +175,8 @@ export default function ManageDrivers() {
   const { themeColors, theme } = useTheme();
   const { currentFont } = useFont();
 
+  const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') + '/uploads/';
+
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [drivers, setDrivers] = useState([]);
@@ -691,9 +693,9 @@ export default function ManageDrivers() {
                     >
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border border-gray-100">
                             {d.image ? (
-                              <img src={`http://localhost:5000/uploads/${d.image}`} alt={d.name} className="w-full h-full object-cover" />
+                              <img src={`${IMAGE_BASE_URL}${d.image}`} alt={d.name} className="w-full h-full object-cover" />
                             ) : (
                               <FaUserCircle size={16} className="text-blue-600" />
                             )}
@@ -1064,11 +1066,11 @@ export default function ManageDrivers() {
           <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden">
+                <div className="w-20 h-20 rounded-2xl border-4 border-white shadow-xl bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden">
                   {viewing.image ? (
-                    <img src={`http://localhost:5000/uploads/${viewing.image}`} alt={viewing.name} className="w-full h-full object-cover" />
+                    <img src={`${IMAGE_BASE_URL}${viewing.image}`} alt={viewing.name} className="w-full h-full object-cover" />
                   ) : (
-                    <FaUserCircle size={24} className="text-blue-600" />
+                    <FaUserCircle size={32} className="text-blue-600" />
                   )}
                 </div>
                 <div>

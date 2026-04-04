@@ -17,7 +17,7 @@ import {
   FaPlus, FaTimes, FaTrash, FaSyncAlt, FaBell, FaPaperPlane,
   FaToggleOn, FaToggleOff, FaSearch, FaUsers, FaUser, FaBullhorn,
   FaChevronLeft, FaChevronRight, FaRegClock, FaInfoCircle, FaInbox, FaStream,
-  FaUserTie, FaBuilding, FaChartPie, FaChartBar, FaChartLine, FaChartArea
+  FaUserTie, FaBuilding, FaChartPie, FaChartBar, FaChartLine, FaChartArea, FaStore
 } from "react-icons/fa";
 import {
   Download, Filter, TrendingUp, Activity,
@@ -193,6 +193,7 @@ export default function ManageNotifications() {
     { id: "fleet", label: "Fleet Hub", icon: FaBuilding },
     { id: "driver", label: "Driver Network", icon: FaUserTie },
     { id: "user", label: "User Base", icon: FaUser },
+    { id: "vendor", label: "Vendor Hub", icon: FaStore },
   ];
 
   // Advanced Statistics
@@ -213,8 +214,9 @@ export default function ManageNotifications() {
     const fleet = notifications.filter(n => n.targetRoles?.includes("agent") || n.recipientModel === "Agent").length;
     const driver = notifications.filter(n => n.targetRoles?.includes("driver") || n.recipientModel === "Driver").length;
     const user = notifications.filter(n => n.targetRoles?.includes("user") || n.recipientModel === "User").length;
+    const vendor = notifications.filter(n => n.targetRoles?.includes("vendor") || n.recipientModel === "Vendor").length;
 
-    return { total, active, inactive, today, thisWeek, everyone, fleet, driver, user };
+    return { total, active, inactive, today, thisWeek, everyone, fleet, driver, user, vendor };
   }, [notifications]);
 
   // Chart 1: Notification Status - Pie Chart
@@ -228,7 +230,8 @@ export default function ManageNotifications() {
     { name: 'Everyone', value: stats.everyone, color: CHART_COLORS.blue },
     { name: 'Fleet', value: stats.fleet, color: CHART_COLORS.purple },
     { name: 'Driver', value: stats.driver, color: CHART_COLORS.orange },
-    { name: 'User', value: stats.user, color: CHART_COLORS.green }
+    { name: 'User', value: stats.user, color: CHART_COLORS.green },
+    { name: 'Vendor', value: stats.vendor, color: CHART_COLORS.indigo }
   ].filter(item => item.value > 0);
 
   // Chart 3: Weekly Trend - Line Chart
@@ -305,6 +308,8 @@ export default function ManageNotifications() {
       list = list.filter(n => n.targetRoles?.includes("driver") || n.recipientModel === "Driver");
     } else if (activeTab === "user") {
       list = list.filter(n => n.targetRoles?.includes("user") || n.recipientModel === "User");
+    } else if (activeTab === "vendor") {
+      list = list.filter(n => n.targetRoles?.includes("vendor") || n.recipientModel === "Vendor");
     }
 
     // Search Filtering
@@ -504,7 +509,8 @@ export default function ManageNotifications() {
                     tab.id === "everyone" ? stats.everyone :
                       tab.id === "fleet" ? stats.fleet :
                         tab.id === "driver" ? stats.driver :
-                          stats.user}
+                          tab.id === "user" ? stats.user :
+                            stats.vendor}
                 </span>
               </button>
             ))}
@@ -864,7 +870,7 @@ export default function ManageNotifications() {
 
                 {form.targetType === 'role' && (
                   <div className="flex flex-wrap gap-2">
-                    {['agent', 'driver', 'admin', 'user'].map(role => (
+                    {['agent', 'driver', 'admin', 'user', 'vendor'].map(role => (
                       <button
                         key={role}
                         type="button"
@@ -898,6 +904,7 @@ export default function ManageNotifications() {
                         <option value="User">User</option>
                         <option value="Driver">Driver</option>
                         <option value="Agent">Agent</option>
+                        <option value="Vendor">Vendor</option>
                       </select>
                     </div>
                     <div className="space-y-1.5">
