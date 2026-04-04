@@ -103,6 +103,7 @@ export default function CreateAgent() {
   const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace('/api', '') + '/uploads/';
 
   const [form, setForm] = useState(emptyForm);
+  const [image, setImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [agents, setAgents] = useState([]);
