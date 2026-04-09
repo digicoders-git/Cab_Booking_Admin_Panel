@@ -6,6 +6,8 @@ import { useFont } from "../context/FontContext";
 import { useNavigate } from "react-router-dom";
 import { adminLogin } from "../apis/auth";
 
+import routes from "../route/SidebarRaoute";
+
 const Login = () => {
   const [credentials, setCredentials] = useState({
     email: "",
@@ -29,10 +31,29 @@ const Login = () => {
     setIsLoading(true);
     setError("");
 
+
+
+    
     try {
       const res = await adminLogin({ email: credentials.email.trim(), password: credentials.password });
-      setLoginData({ ...res.admin, token: res.token });
-      navigate("/dashboard", { replace: true });
+      const admin = res.admin;
+      setLoginData({ ...admin, token: res.token });
+
+      // Dynamic Landing Page Redirection
+      if (admin.role === 'SuperAdmin' || admin.permissions?.includes('DASHBOARD_READ')) {
+        navigate("/dashboard", { replace: true });
+      } else {
+        // Find first route they have permission for
+        const firstAllowed = routes.find(r => 
+          !r.permission || admin.permissions?.includes(r.permission)
+        );
+        
+        if (firstAllowed) {
+          navigate(firstAllowed.path, { replace: true });
+        } else {
+          navigate("/admin/profile", { replace: true });
+        }
+      }
     } catch (err) {
       setError(err?.response?.data?.message || "Login failed. Please try again.");
     } finally {

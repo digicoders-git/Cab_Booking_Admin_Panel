@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { supportService } from '../apis/supportApi';
 import {
   FaTicketAlt, FaPlus, FaEye, FaReply, FaCheckCircle,
-  FaClock, FaChevronLeft, FaChevronRight
+  FaClock, FaChevronLeft, FaChevronRight, FaTrash
 } from 'react-icons/fa';
 import {
   MessageSquare, CheckCircle, Clock, AlertCircle,
@@ -184,7 +185,7 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, onReplyClick }) => {
             </div>
           )}
 
-          {ticket.status?.toLowerCase() !== 'closed' && (
+          {ticket.status?.toLowerCase() !== 'closed' && can('SUPPORT_REPLY') && (
             <button
               onClick={() => onReplyClick(ticket)}
               className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all flex items-center justify-center gap-2"
@@ -200,6 +201,14 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, onReplyClick }) => {
 
 // Main Support Component
 export default function Support() {
+  const { admin } = useAuth();
+  
+  // Helper for Granular Permissions
+  const can = (permission) => {
+    if (admin?.role === 'SuperAdmin') return true;
+    return admin?.permissions?.includes(permission);
+  };
+
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [viewTicket, setViewTicket] = useState(null);
@@ -243,6 +252,34 @@ export default function Support() {
       Swal.fire({ icon: 'error', title: 'Error', text: err?.response?.data?.message || 'Failed to send reply' });
     } finally {
       setReplying(false);
+    }
+  };
+
+  const handleDeleteTicket = async (id) => {
+    try {
+      const result = await Swal.fire({
+        title: 'Are you sure?',
+        text: "You won't be able to revert this!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#EF4444',
+        cancelButtonColor: '#6B7280',
+        confirmButtonText: 'Yes, delete it!'
+      });
+
+      if (result.isConfirmed) {
+        setLoading(true);
+        const res = await supportService.deleteTicket(id);
+        if (res.success) {
+          Swal.fire('Deleted!', 'Ticket has been deleted.', 'success');
+          fetchTickets();
+        }
+      }
+    } catch (err) {
+      console.error('Error deleting ticket:', err);
+      Swal.fire('Error!', err?.response?.data?.message || 'Failed to delete ticket', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -461,13 +498,22 @@ export default function Support() {
                             >
                               <FaEye size={14} />
                             </button>
-                            {ticket.status?.toLowerCase() !== 'closed' && (
+                            {ticket.status?.toLowerCase() !== 'closed' && can('SUPPORT_REPLY') && (
                               <button
                                 onClick={() => setReplyTicket(ticket)}
                                 className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-all"
                                 title="Send Reply"
                               >
                                 <FaReply size={14} />
+                              </button>
+                            )}
+                            {can('SUPPORT_DELETE') && (
+                              <button
+                                onClick={() => handleDeleteTicket(ticket._id)}
+                                className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-all"
+                                title="Delete Ticket"
+                              >
+                                <FaTrash size={14} />
                               </button>
                             )}
                           </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 import { useFont } from "../context/FontContext";
 
 // APIs
@@ -119,6 +120,8 @@ const Field = ({ label, name, value, onChange, themeColors, borderColor, textCol
 
 // --- Content Component: Cars ---
 function CarsTab({ cars, categories, themeColors, theme, borderColor, textColorSecondary, fetchData, fetching }) {
+  const { admin } = useAuth();
+  const can = (permission) => (admin?.role === 'SuperAdmin' || admin?.permissions?.includes(permission));
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
@@ -291,6 +294,8 @@ function CarsTab({ cars, categories, themeColors, theme, borderColor, textColorS
 
 // --- Content Component: Drivers ---
 function DriversTab({ drivers, themeColors, theme, borderColor, textColorSecondary, fetchData, fetching }) {
+  const { admin } = useAuth();
+  const can = (permission) => (admin?.role === 'SuperAdmin' || admin?.permissions?.includes(permission));
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
@@ -328,7 +333,9 @@ function DriversTab({ drivers, themeColors, theme, borderColor, textColorSeconda
     try {
       await toggleDriverApproval(d._id, !d.isApproved);
       fetchData();
-    } catch { }
+    } catch (error) {
+      Swal.fire({ icon: "error", title: "Error", text: error.response?.data?.message || "Failed to toggle approval", background: themeColors.surface, color: themeColors.text });
+    }
   };
 
   const handleEdit = (d) => {
@@ -347,7 +354,9 @@ function DriversTab({ drivers, themeColors, theme, borderColor, textColorSeconda
       await updateFleetDriver(editingId, payload);
       setIsModalOpen(false);
       fetchData();
-    } catch { } finally { setLoadingAction(false); }
+    } catch (error) {
+      Swal.fire({ icon: "error", title: "Error", text: error.response?.data?.message || "Failed to update driver", background: themeColors.surface, color: themeColors.text });
+    } finally { setLoadingAction(false); }
   };
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery]);
@@ -468,15 +477,19 @@ function DriversTab({ drivers, themeColors, theme, borderColor, textColorSeconda
                       }`}>
                       {d.isApproved ? 'Approved' : d.isRejected ? 'Rejected' : 'Pending'}
                     </span>
-                    <button onClick={() => handleToggleApproval(d)} className={`${d.isActive ? 'text-green-600' : 'text-gray-300'}`}>
+                    <button
+                      onClick={() => can('FLEET_EDIT') && handleToggleApproval(d)}
+                      className={`${d.isActive ? 'text-green-600' : 'text-gray-300'} ${!can('FLEET_EDIT') && 'opacity-50 cursor-not-allowed'}`}
+                      disabled={!can('FLEET_EDIT')}
+                    >
                       {d.isActive ? <FaToggleOn size={18} /> : <FaToggleOff size={18} />}
                     </button>
                   </div>
                 </td>
                 <td className="px-5 py-3 whitespace-nowrap">
                   <div className="flex items-center gap-2">
-                    <button onClick={() => setViewing(d)} className="p-1.5 hover:bg-gray-100 rounded text-blue-600"><FaEye size={14} /></button>
-                    <button onClick={() => handleEdit(d)} className="p-1.5 hover:bg-gray-100 rounded text-orange-600"><FaEdit size={14} /></button>
+                    {can('FLEET_READ') && <button onClick={() => setViewing(d)} className="p-1.5 hover:bg-gray-100 rounded text-blue-600"><FaEye size={14} /></button>}
+                    {can('FLEET_EDIT') && <button onClick={() => handleEdit(d)} className="p-1.5 hover:bg-gray-100 rounded text-orange-600"><FaEdit size={14} /></button>}
                   </div>
                 </td>
               </tr>
@@ -811,6 +824,7 @@ export default function ManageFleetRegistry() {
       setAssignments(extractedAssignments);
     } catch (e) {
       console.error(e);
+      Swal.fire({ icon: "error", title: "Error", text: e.response?.data?.message || "Failed to fetch data", background: themeColors.surface, color: themeColors.text });
     } finally {
       setLoading(false);
     }

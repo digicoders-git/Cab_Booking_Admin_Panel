@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { io } from 'socket.io-client';
 import { trackingService } from '../apis/trackingApi';
 import { getAddressFromCoordinates } from '../apis/geocodingApi';
+import { useAuth } from '../context/AuthContext';
 import {
   FaMap, FaCar, FaPhone, FaClock, FaSyncAlt,
   FaCheckCircle, FaCircle, FaUser, FaMapPin
@@ -162,20 +163,44 @@ const DriverCard = ({ driver, onSelect, address }) => {
 const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
-  const markersRef = useRef({}); // DriverId based Map
+  const markersRef = useRef({}); 
   const isInitialLoadRef = useRef(true);
+  const driversRef = useRef(drivers);
+
+  // Keep driversRef always updated with latest prop
+  useEffect(() => {
+    driversRef.current = drivers;
+  }, [drivers]);
 
   useEffect(() => {
-    if (!window.google) {
-      const script = document.createElement('script');
+    const loadScript = () => {
+      // 1. Check if window.google is already there
+      if (window.google && window.google.maps && window.google.maps.Map) {
+        initMap();
+        return;
+      }
+
+      // 2. Check if the script tag is already in progress
+      let script = document.getElementById('google-maps-script');
+      if (script) {
+        script.addEventListener('load', () => {
+          // Add a small delay for library initialization
+          setTimeout(initMap, 100);
+        });
+        return;
+      }
+
+      // 3. Create and append the script tag
+      script = document.createElement('script');
+      script.id = 'google-maps-script';
       script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}`;
       script.async = true;
       script.defer = true;
       script.onload = initMap;
       document.head.appendChild(script);
-    } else {
-      initMap();
-    }
+    };
+
+    loadScript();
 
     return () => {
       Object.values(markersRef.current).forEach(marker => marker.setMap(null));
@@ -185,6 +210,15 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
 
   const initMap = () => {
     if (!mapRef.current) return;
+    
+    // Safety check again for window.google
+    if (!window.google || !window.google.maps) {
+        setTimeout(initMap, 200);
+        return;
+    }
+
+    // Double check if already initialized
+    if (mapInstanceRef.current) return;
 
     const defaultCenter = { lat: 26.9124, lng: 80.9435 };
 
@@ -200,11 +234,12 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
   };
 
   const updateMarkers = () => {
-    if (!mapInstanceRef.current) return;
+    if (!mapInstanceRef.current || !window.google?.maps) return;
 
     const currentDriverIds = new Set();
+    const activeDrivers = driversRef.current; // Use the latest from ref
 
-    drivers.forEach(driver => {
+    activeDrivers.forEach(driver => {
       if (!driver.location?.latitude || !driver.location?.longitude) return;
       currentDriverIds.add(driver.driverId);
 
@@ -220,15 +255,42 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
       }
 
       if (markersRef.current[driver.driverId]) {
-        // MOVE EXISTING MARKER (Smooth)
+        // MOVE EXISTING MARKER (Animated)
         const marker = markersRef.current[driver.driverId];
-        marker.setPosition(latLng);
+        
+        // Advanced: Smoothly interpolate position
+        const animateMarker = (marker, newPos) => {
+          const frames = 20;
+          let frame = 0;
+          const startLat = marker.getPosition().lat();
+          const startLng = marker.getPosition().lng();
+          const deltaLat = (newPos.lat - startLat) / frames;
+          const deltaLng = (newPos.lng - startLng) / frames;
+
+          const move = () => {
+            frame++;
+            const lat = startLat + deltaLat * frame;
+            const lng = startLng + deltaLng * frame;
+            marker.setPosition(new window.google.maps.LatLng(lat, lng));
+            if (frame < frames) {
+              requestAnimationFrame(move);
+            }
+          };
+          move();
+        };
+
+        animateMarker(marker, latLng);
         
         // Update rotation if heading exists
         const icon = marker.getIcon();
         if (icon && typeof driver.heading === 'number') {
           icon.rotation = driver.heading;
           marker.setIcon(icon);
+        }
+
+        // If this driver is selected, follow them
+        if (selectedDriver?.driverId === driver.driverId) {
+          mapInstanceRef.current.panTo(latLng);
         }
       } else {
         // CREATE NEW MARKER
@@ -303,16 +365,30 @@ const TripMap = ({ driver }) => {
   const markersRef = useRef([]);
 
   useEffect(() => {
-    if (!window.google) {
-      const script = document.createElement('script');
+    const loadScript = () => {
+      if (window.google && window.google.maps && window.google.maps.Map) {
+        initMap();
+        return;
+      }
+
+      let script = document.getElementById('google-maps-script');
+      if (script) {
+        script.addEventListener('load', () => {
+          setTimeout(initMap, 100);
+        });
+        return;
+      }
+
+      script = document.createElement('script');
+      script.id = 'google-maps-script';
       script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}`;
       script.async = true;
       script.defer = true;
       script.onload = initMap;
       document.head.appendChild(script);
-    } else {
-      initMap();
-    }
+    };
+
+    loadScript();
 
     return () => {
       markersRef.current.forEach(marker => marker.setMap(null));
@@ -322,6 +398,10 @@ const TripMap = ({ driver }) => {
 
   const initMap = () => {
     if (!mapRef.current) return;
+    if (!window.google || !window.google.maps || !window.google.maps.Map) {
+        setTimeout(initMap, 100);
+        return;
+    }
 
     const defaultCenter = { lat: 26.9124, lng: 80.9435 };
     mapInstanceRef.current = new window.google.maps.Map(mapRef.current, {
@@ -674,6 +754,30 @@ const DriverDetailModal = ({ driver, isOpen, onClose, address, pickupAddress, dr
 
 // Main Live Tracking Component
 export default function LiveTracking() {
+  const { admin } = useAuth();
+
+  useEffect(() => {
+    if (admin && admin.role !== 'SuperAdmin' && !admin.permissions?.includes('TRACKING_READ')) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Access Denied',
+          text: 'You do not have permission to access Live Tracking.',
+          confirmButtonColor: '#3B82F6'
+        });
+    }
+  }, [admin]);
+
+  if (admin && admin.role !== 'SuperAdmin' && !admin.permissions?.includes('TRACKING_READ')) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-4 text-center">
+        <div className="bg-red-50 p-6 rounded-2xl border border-red-100 shadow-sm max-w-md">
+          <AlertCircle size={48} className="text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600">You do not have permission to view live driver tracking.</p>
+        </div>
+      </div>
+    );
+  }
   const [drivers, setDrivers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDriver, setSelectedDriver] = useState(null);
@@ -744,7 +848,7 @@ export default function LiveTracking() {
 
     // Socket.io connection
     const socket = io(import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') || 'http://localhost:5000', {
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'],
       reconnectionAttempts: 5,
       reconnectionDelay: 2000,
     });
@@ -767,22 +871,38 @@ export default function LiveTracking() {
       // Increment Test Counter
       setLiveUpdateCount(prev => prev + 1);
 
-      setDrivers(prev => prev.map(d => {
-        if (d.driverId === driverId) {
-          return {
-            ...d,
-            location: { 
-                ...d.location, 
-                latitude, 
-                longitude, 
-                lastUpdated: new Date().toISOString() 
-            },
-            ...(status && { status }),
-            heading: heading || d.heading || 0
-          };
+      setDrivers(prev => {
+        const driverExists = prev.some(d => d.driverId === driverId);
+        
+        if (driverExists) {
+          return prev.map(d => {
+            if (d.driverId === driverId) {
+              return {
+                ...d,
+                location: { 
+                    ...d.location, 
+                    latitude, 
+                    longitude, 
+                    lastUpdated: new Date().toISOString() 
+                },
+                ...(status && { status }),
+                heading: heading || d.heading || 0
+              };
+            }
+            return d;
+          });
+        } else {
+          // NEW DRIVER SPOTTED! Add them to the list
+          return [...prev, {
+            driverId,
+            name: `Driver ${driverId.substring(0, 5)}...`, // Placeholder until full data fetch
+            status: status || 'Online',
+            location: { latitude, longitude, lastUpdated: new Date().toISOString() },
+            heading: heading || 0,
+            carInfo: { carNumber: 'Loading...', carModel: 'Loading...' }
+          }];
         }
-        return d;
-      }));
+      });
 
       // NOTE: Removed immediate address geocoding on every second
       // for all drivers to keep it smooth and save API costs.

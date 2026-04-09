@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useContext } from "react";
+import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 // Removed redundant StatCard and Modal imports to prevent collisions
@@ -145,7 +146,7 @@ const SelectField = ({ label, name, value, onChange, options, icon: Icon, themeC
 );
 
 // Modern Modal Component
-const Modal = ({ isOpen, onClose, title, children, themeColors, size = "2xl" }) => {
+const Modal = ({ isOpen, onClose, title, children, themeColors, size = "2xl", headerGradient = null }) => {
   if (!isOpen || !themeColors) return null;
 
   const sizeClasses = {
@@ -158,19 +159,21 @@ const Modal = ({ isOpen, onClose, title, children, themeColors, size = "2xl" }) 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className={`relative rounded-2xl shadow-2xl w-full ${sizeClasses[size]} max-h-[90vh] overflow-hidden animate-scaleIn`}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backdropFilter: 'blur(4px)', backgroundColor: 'rgba(0,0,0,0.6)' }}>
+      <div className="absolute inset-0" onClick={onClose} />
+      <div className={`relative rounded-3xl shadow-2xl w-full ${sizeClasses[size]} max-h-[92vh] overflow-hidden flex flex-col`}
         style={{ backgroundColor: themeColors.surface }}>
-        <div className="p-6 border-b" style={{ borderColor: themeColors.border }}>
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold" style={{ color: themeColors.text }}>{title}</h2>
-            <button onClick={onClose} className="p-2 rounded-xl transition-colors hover:bg-black/5 dark:hover:bg-white/5">
-              <FaTimes size={20} style={{ color: themeColors.textSecondary }} />
-            </button>
-          </div>
+        {/* Header */}
+        <div className={`px-8 py-5 flex items-center justify-between flex-shrink-0 ${headerGradient || 'border-b'}`}
+          style={!headerGradient ? { borderColor: themeColors.border } : {}}>
+          <h2 className={`text-lg font-bold ${headerGradient ? 'text-white' : ''}`}
+            style={!headerGradient ? { color: themeColors.text } : {}}>{title}</h2>
+          <button onClick={onClose}
+            className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${headerGradient ? 'bg-white/20 hover:bg-white/30' : 'hover:bg-black/5'}`}>
+            <FaTimes size={16} style={!headerGradient ? { color: themeColors.textSecondary } : { color: 'white' }} />
+          </button>
         </div>
-        <div className="p-6 overflow-y-auto max-h-[calc(90vh-80px)]">
+        <div className="p-6 overflow-y-auto flex-1">
           {children}
         </div>
       </div>
@@ -179,168 +182,145 @@ const Modal = ({ isOpen, onClose, title, children, themeColors, size = "2xl" }) 
 };
 
 // Vendor Detail Modal
-const VendorDetailModal = ({ vendor, isOpen, onClose, themeColors }) => {
+const VendorDetailModal = ({ vendor, isOpen, onClose, themeColors, IMAGE_BASE_URL }) => {
+  const [lightboxImg, setLightboxImg] = React.useState(null);
   if (!vendor) return null;
 
+  const docs = [
+    { label: 'Profile Photo', url: vendor.image ? `${IMAGE_BASE_URL}${vendor.image}` : null },
+    { label: 'Aadhar Card', url: vendor.documents?.aadhar ? `${IMAGE_BASE_URL}${vendor.documents.aadhar}` : null },
+    { label: 'PAN Card', url: vendor.documents?.pan ? `${IMAGE_BASE_URL}${vendor.documents.pan}` : null },
+    { label: 'GST Certificate', url: vendor.documents?.gst ? `${IMAGE_BASE_URL}${vendor.documents.gst}` : null },
+  ];
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Vendor Details" themeColors={themeColors} size="xl">
-      <div className="space-y-6">
-        {/* Profile Header */}
-        <div className="flex items-center gap-6 p-6 rounded-2xl bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/10">
-          <div className="w-24 h-24 rounded-2xl overflow-hidden border-4 border-white dark:border-gray-800 shadow-xl">
-            {vendor.image ? (
-              <img 
-                src={`${import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '')}/uploads/${vendor.image}`} 
-                alt={vendor.name} 
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-blue-500 flex items-center justify-center text-white text-3xl font-bold">
-                {vendor.name?.charAt(0).toUpperCase()}
-              </div>
-            )}
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold" style={{ color: themeColors.text }}>{vendor.name}</h2>
-            <p className="text-sm font-medium" style={{ color: themeColors.primary }}>{vendor.companyName}</p>
-            <div className="flex items-center gap-2 mt-2">
-              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${vendor.isActive ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}`}>
-                {vendor.isActive ? 'Active' : 'Inactive'}
-              </span>
-              <span className="text-xs text-gray-500 flex items-center gap-1">
-                <FaMapMarkerAlt size={10} /> {vendor.assignedArea}
-              </span>
-            </div>
-          </div>
+    <>
+      {lightboxImg && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.92)' }}
+          onClick={() => setLightboxImg(null)}>
+          <button className="absolute top-4 right-4 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center"
+            onClick={() => setLightboxImg(null)}>
+            <FaTimes size={18} className="text-white" />
+          </button>
+          <img src={lightboxImg} alt="preview"
+            className="max-w-full max-h-[90vh] rounded-2xl shadow-2xl object-contain"
+            onClick={(e) => e.stopPropagation()} />
         </div>
+      )}
 
-        {/* Basic Info */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="col-span-2">
-            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: themeColors.primary }}>
-              <FaUserCircle size={14} />
-              Basic Information
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 rounded-xl" style={{ backgroundColor: `${themeColors.primary}10` }}>
-                <p className="text-xs mb-1" style={{ color: themeColors.textSecondary }}>Full Name</p>
-                <p className="font-semibold" style={{ color: themeColors.text }}>{vendor.name}</p>
-              </div>
-              <div className="p-4 rounded-xl" style={{ backgroundColor: `${themeColors.primary}10` }}>
-                <p className="text-xs mb-1" style={{ color: themeColors.textSecondary }}>Company Name</p>
-                <p className="font-semibold" style={{ color: themeColors.text }}>{vendor.companyName}</p>
-              </div>
-              <div className="p-4 rounded-xl" style={{ backgroundColor: `${themeColors.primary}10` }}>
-                <p className="text-xs mb-1" style={{ color: themeColors.textSecondary }}>Email</p>
-                <p className="font-semibold" style={{ color: themeColors.text }}>{vendor.email}</p>
-              </div>
-              <div className="p-4 rounded-xl" style={{ backgroundColor: `${themeColors.primary}10` }}>
-                <p className="text-xs mb-1" style={{ color: themeColors.textSecondary }}>Phone</p>
-                <p className="font-semibold" style={{ color: themeColors.text }}>{vendor.phone}</p>
-              </div>
-              <div className="p-4 rounded-xl" style={{ backgroundColor: `${themeColors.primary}10` }}>
-                <p className="text-xs mb-1" style={{ color: themeColors.textSecondary }}>Password</p>
-                <p className="font-semibold font-mono" style={{ color: themeColors.text }}>{vendor.password}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Location Info */}
-          <div className="col-span-2">
-            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: themeColors.primary }}>
-              <FaMapMarkerAlt size={14} />
-              Location Information
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 rounded-xl" style={{ backgroundColor: `${themeColors.primary}10` }}>
-                <p className="text-xs mb-1" style={{ color: themeColors.textSecondary }}>Assigned Area</p>
-                <p className="font-semibold" style={{ color: themeColors.text }}>{vendor.assignedArea}</p>
-              </div>
-              <div className="p-4 rounded-xl" style={{ backgroundColor: `${themeColors.primary}10` }}>
-                <p className="text-xs mb-1" style={{ color: themeColors.textSecondary }}>Address</p>
-                <p className="font-semibold" style={{ color: themeColors.text }}>{vendor.address || "N/A"}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Financial Info */}
-          <div className="col-span-2">
-            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: themeColors.primary }}>
-              <FaMoneyBillWave size={14} />
-              Financial Information
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 rounded-xl" style={{ backgroundColor: `${themeColors.primary}10` }}>
-                <p className="text-xs mb-1" style={{ color: themeColors.textSecondary }}>Commission Percentage</p>
-                <p className="font-semibold text-xl" style={{ color: themeColors.primary }}>{vendor.commissionPercentage}%</p>
-              </div>
-              <div className="p-4 rounded-xl" style={{ backgroundColor: `${themeColors.primary}10` }}>
-                <p className="text-xs mb-1" style={{ color: themeColors.textSecondary }}>Wallet Balance</p>
-                <p className="font-semibold text-xl" style={{ color: '#10b981' }}>₹{(vendor.walletBalance || 0).toLocaleString()}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Bank Details */}
-          {vendor.bankDetails && (
-            <div className="col-span-2">
-              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: themeColors.primary }}>
-                <FaUniversity size={14} />
-                Bank Details
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl" style={{ backgroundColor: `${themeColors.primary}10` }}>
-                  <p className="text-xs mb-1" style={{ color: themeColors.textSecondary }}>Bank Name</p>
-                  <p className="font-semibold" style={{ color: themeColors.text }}>{vendor.bankDetails.bankName}</p>
+      <Modal isOpen={isOpen} onClose={onClose} title="Vendor Details" themeColors={themeColors} size="xl"
+        headerGradient="bg-gradient-to-r from-blue-600 to-indigo-600">
+        <div className="space-y-6">
+          {/* Profile Header */}
+          <div className="flex items-center gap-5 p-5 rounded-2xl bg-gradient-to-r from-blue-500/10 to-indigo-500/10 border border-blue-500/10">
+            <div
+              className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-white shadow-lg flex-shrink-0 cursor-pointer"
+              onClick={() => vendor.image && setLightboxImg(`${IMAGE_BASE_URL}${vendor.image}`)}
+            >
+              {vendor.image ? (
+                <img src={`${IMAGE_BASE_URL}${vendor.image}`} alt={vendor.name} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-blue-500 flex items-center justify-center text-white text-3xl font-bold">
+                  {vendor.name?.charAt(0).toUpperCase()}
                 </div>
-                <div className="p-4 rounded-xl" style={{ backgroundColor: `${themeColors.primary}10` }}>
-                  <p className="text-xs mb-1" style={{ color: themeColors.textSecondary }}>Account Holder</p>
-                  <p className="font-semibold" style={{ color: themeColors.text }}>{vendor.bankDetails.accountHolderName}</p>
-                </div>
-                <div className="p-4 rounded-xl" style={{ backgroundColor: `${themeColors.primary}10` }}>
-                  <p className="text-xs mb-1" style={{ color: themeColors.textSecondary }}>Account Number</p>
-                  <p className="font-semibold font-mono" style={{ color: themeColors.text }}>{vendor.bankDetails.accountNumber}</p>
-                </div>
-                <div className="p-4 rounded-xl" style={{ backgroundColor: `${themeColors.primary}10` }}>
-                  <p className="text-xs mb-1" style={{ color: themeColors.textSecondary }}>IFSC Code</p>
-                  <p className="font-semibold font-mono" style={{ color: themeColors.text }}>{vendor.bankDetails.ifscCode}</p>
-                </div>
-              </div>
+              )}
             </div>
-          )}
-
-          {/* Stats */}
-          <div className="col-span-2">
-            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: themeColors.primary }}>
-              <FaChartLine size={14} />
-              Performance Stats
-            </h3>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="p-4 rounded-xl text-center" style={{ backgroundColor: `${themeColors.primary}10` }}>
-                <p className="text-xs mb-1" style={{ color: themeColors.textSecondary }}>Total Drivers</p>
-                <p className="text-2xl font-bold" style={{ color: themeColors.text }}>{vendor.totalDrivers || 0}</p>
-              </div>
-              <div className="p-4 rounded-xl text-center" style={{ backgroundColor: `${themeColors.primary}10` }}>
-                <p className="text-xs mb-1" style={{ color: themeColors.textSecondary }}>Total Earnings</p>
-                <p className="text-2xl font-bold" style={{ color: '#10b981' }}>₹{(vendor.totalEarnings || 0).toLocaleString()}</p>
-              </div>
-              <div className="p-4 rounded-xl text-center" style={{ backgroundColor: `${themeColors.primary}10` }}>
-                <p className="text-xs mb-1" style={{ color: themeColors.textSecondary }}>Status</p>
-                <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${vendor.isActive ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}>
+            <div>
+              <h2 className="text-xl font-bold" style={{ color: themeColors.text }}>{vendor.name}</h2>
+              <p className="text-sm font-medium" style={{ color: themeColors.primary }}>{vendor.companyName}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${vendor.isActive ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}`}>
                   {vendor.isActive ? 'Active' : 'Inactive'}
+                </span>
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  <FaMapMarkerAlt size={10} /> {vendor.assignedArea}
                 </span>
               </div>
             </div>
           </div>
+
+          {/* Documents with Lightbox */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: themeColors.primary }}>
+              <FaIdCard size={14} /> Documents
+            </h3>
+            <div className="grid grid-cols-4 gap-3">
+              {docs.map(({ label, url }) => (
+                <div key={label}>
+                  <p className="text-[10px] font-bold mb-1.5" style={{ color: themeColors.textSecondary }}>{label}</p>
+                  <div
+                    className="group relative aspect-video rounded-xl border-2 border-dashed overflow-hidden flex items-center justify-center cursor-pointer"
+                    style={{ borderColor: themeColors.border, backgroundColor: themeColors.background }}
+                    onClick={() => url && setLightboxImg(url)}
+                  >
+                    {url ? (
+                      <>
+                        <img src={url} className="w-full h-full object-cover group-hover:scale-105 transition-transform" alt={label} />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <FaEye size={18} className="text-white" />
+                        </div>
+                      </>
+                    ) : (
+                      <FaIdCard size={20} className="text-gray-300" />
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Info Grid */}
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              ['Full Name', vendor.name], ['Company', vendor.companyName],
+              ['Email', vendor.email], ['Phone', vendor.phone],
+              ['Password', vendor.password], ['Assigned Area', vendor.assignedArea],
+              ['Address', vendor.address || 'N/A'], ['Commission', `${vendor.commissionPercentage}%`],
+              ['Wallet Balance', `₹${(vendor.walletBalance || 0).toLocaleString()}`], ['Total Earnings', `₹${(vendor.totalEarnings || 0).toLocaleString()}`],
+              ['Total Drivers', vendor.totalDrivers || 0], ['Status', vendor.isActive ? 'Active' : 'Inactive'],
+            ].map(([label, val]) => (
+              <div key={label} className="p-3 rounded-xl" style={{ backgroundColor: `${themeColors.primary}10` }}>
+                <p className="text-[10px] font-semibold mb-0.5" style={{ color: themeColors.textSecondary }}>{label}</p>
+                <p className="text-sm font-semibold" style={{ color: themeColors.text }}>{val}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Bank Details */}
+          {vendor.bankDetails && (
+            <div>
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: themeColors.primary }}>
+                <FaUniversity size={14} /> Bank Details
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                {[['Bank Name', vendor.bankDetails.bankName], ['Account Holder', vendor.bankDetails.accountHolderName],
+                  ['Account Number', vendor.bankDetails.accountNumber], ['IFSC Code', vendor.bankDetails.ifscCode]
+                ].map(([label, val]) => (
+                  <div key={label} className="p-3 rounded-xl" style={{ backgroundColor: `${themeColors.primary}10` }}>
+                    <p className="text-[10px] font-semibold mb-0.5" style={{ color: themeColors.textSecondary }}>{label}</p>
+                    <p className="text-sm font-semibold" style={{ color: themeColors.text }}>{val || 'N/A'}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
-    </Modal>
+      </Modal>
+    </>
   );
 };
 
 export default function VendorManagement() {
   const { themeColors, theme } = useTheme();
+  const { admin } = useAuth();
   const { currentFont } = useFont();
+
+  // Helper for Granular Permissions
+  const can = (permission) => {
+    if (admin?.role === 'SuperAdmin') return true;
+    return admin?.permissions?.includes(permission);
+  };
 
   const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') + '/uploads/';
 
@@ -357,6 +337,15 @@ export default function VendorManagement() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [createImage, setCreateImage] = useState(null);
+  const [createAadhar, setCreateAadhar] = useState(null);
+  const [createPan, setCreatePan] = useState(null);
+  const [createGst, setCreateGst] = useState(null);
+
+  const [editImage, setEditImage] = useState(null);
+  const [editAadhar, setEditAadhar] = useState(null);
+  const [editPan, setEditPan] = useState(null);
+  const [editGst, setEditGst] = useState(null);
+
   const [commissionValue, setCommissionValue] = useState(25);
   const [commissionHistory, setCommissionHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -370,15 +359,18 @@ export default function VendorManagement() {
     address: "", city: "", state: "", pincode: "",
     accountNumber: "", ifscCode: "", accountHolderName: "", bankName: ""
   });
-
   const [editForm, setEditForm] = useState({
     name: "",
     email: "",
     phone: "",
+    password: "",
     companyName: "",
     assignedArea: "",
     commissionPercentage: 25,
     address: "",
+    city: "",
+    state: "",
+    pincode: "",
     bankDetails: {
       accountNumber: "",
       ifscCode: "",
@@ -443,12 +435,15 @@ export default function VendorManagement() {
       setLoading(true);
 
       let payload;
-      if (createImage) {
+      if (createImage || createAadhar || createPan || createGst) {
         payload = new FormData();
         Object.entries(createForm).forEach(([k, v]) => {
           if (v !== undefined && v !== null && v !== "") payload.append(k, v);
         });
-        payload.append("image", createImage);
+        if (createImage) payload.append("image", createImage);
+        if (createAadhar) payload.append("aadhar", createAadhar);
+        if (createPan) payload.append("pan", createPan);
+        if (createGst) payload.append("gst", createGst);
       } else {
         payload = { ...createForm };
       }
@@ -457,10 +452,13 @@ export default function VendorManagement() {
       Swal.fire({ icon: "success", title: "Vendor Created!", timer: 1500, showConfirmButton: false, background: themeColors.surface, color: themeColors.text });
       setShowCreateModal(false);
       setCreateImage(null);
+      setCreateAadhar(null);
+      setCreatePan(null);
+      setCreateGst(null);
       setCreateForm({ name: "", email: "", phone: "", password: "", companyName: "", assignedArea: "", commissionPercentage: 25, address: "", city: "", state: "", pincode: "", accountNumber: "", ifscCode: "", accountHolderName: "", bankName: "" });
       fetchAllVendors();
     } catch (error) {
-      Swal.fire({ icon: "error", title: "Error", text: error?.response?.data?.message || error.message || "Failed to create vendor", background: themeColors.surface, color: themeColors.text });
+      Swal.fire({ icon: "error", title: "Error", text: error?.response?.data?.message || (error.response?.data ? JSON.stringify(error.response.data) : error.message) || "Failed to create vendor", background: themeColors.surface, color: themeColors.text });
     } finally {
       setLoading(false);
     }
@@ -470,7 +468,24 @@ export default function VendorManagement() {
     e.preventDefault();
     try {
       setLoading(true);
-      await updateVendor(selectedVendor._id, editForm);
+      const formData = new FormData();
+      Object.entries(editForm).forEach(([k, v]) => {
+        if (k === "bankDetails") {
+          // Flatten bank details for easier handling on backend or send as string
+          Object.entries(v).forEach(([bk, bv]) => {
+            if (bv) formData.append(bk, bv);
+          });
+        } else if (v !== undefined && v !== null && v !== "") {
+          formData.append(k, v);
+        }
+      });
+
+      if (editImage) formData.append("image", editImage);
+      if (editAadhar) formData.append("aadhar", editAadhar);
+      if (editPan) formData.append("pan", editPan);
+      if (editGst) formData.append("gst", editGst);
+
+      await updateVendor(selectedVendor._id, formData);
       Swal.fire({
         icon: "success",
         title: "Success",
@@ -481,12 +496,16 @@ export default function VendorManagement() {
         color: themeColors.text
       });
       setShowEditModal(false);
+      setEditImage(null);
+      setEditAadhar(null);
+      setEditPan(null);
+      setEditGst(null);
       fetchAllVendors();
     } catch (error) {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: error.message || "Failed to update vendor",
+        text: error.response?.data?.message || (error.response?.data ? JSON.stringify(error.response.data) : error.message) || "Failed to update vendor",
         background: themeColors.surface,
         color: themeColors.text
       });
@@ -514,7 +533,7 @@ export default function VendorManagement() {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: error.message || "Failed to update commission",
+        text: error.response?.data?.message || error.message || "Failed to update commission",
         background: themeColors.surface,
         color: themeColors.text
       });
@@ -540,6 +559,13 @@ export default function VendorManagement() {
       });
     } catch (error) {
       console.error("Error toggling status:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: error.response?.data?.message || "Failed to toggle status",
+        background: themeColors.surface,
+        color: themeColors.text
+      });
     }
   };
 
@@ -574,7 +600,7 @@ export default function VendorManagement() {
         Swal.fire({
           icon: "error",
           title: "Error",
-          text: error.message || "Failed to delete vendor",
+          text: error.response?.data?.message || error.message || "Failed to delete vendor",
           background: themeColors.surface,
           color: themeColors.text
         });
@@ -599,6 +625,10 @@ export default function VendorManagement() {
       assignedArea: vendor.assignedArea || "",
       commissionPercentage: vendor.commissionPercentage || 25,
       address: vendor.address || "",
+      city: vendor.city || "",
+      state: vendor.state || "",
+      pincode: vendor.pincode || "",
+      password: vendor.password || "",
       bankDetails: vendor.bankDetails || {
         accountNumber: "",
         ifscCode: "",
@@ -606,6 +636,10 @@ export default function VendorManagement() {
         bankName: ""
       }
     });
+    setEditImage(null);
+    setEditAadhar(null);
+    setEditPan(null);
+    setEditGst(null);
     setShowEditModal(true);
   };
 
@@ -639,7 +673,7 @@ export default function VendorManagement() {
   const paginatedVendors = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
     return filteredVendors.slice(start, start + rowsPerPage);
-  }, [filteredVendors, currentPage]);
+  }, [filteredVendors, currentPage, rowsPerPage]);
 
   const totalPages = Math.ceil(filteredVendors.length / rowsPerPage);
 
@@ -789,14 +823,16 @@ export default function VendorManagement() {
                   }}
                 />
               </div>
-              <button
-                onClick={() => setShowCreateModal(true)}
-                className="px-6 py-3 rounded-xl text-white shadow-lg transition-all duration-200 flex items-center gap-2 font-medium"
-                style={{ backgroundColor: themeColors.primary }}
-              >
-                <FaPlus size={16} />
-                <span>Add Vendor</span>
-              </button>
+              {can('VENDOR_CREATE') && (
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="px-6 py-3 rounded-xl text-white shadow-lg transition-all duration-200 flex items-center gap-2 font-medium"
+                  style={{ backgroundColor: themeColors.primary }}
+                >
+                  <FaPlus size={16} />
+                  <span>Add Vendor</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -842,31 +878,8 @@ export default function VendorManagement() {
         </div>
 
 
-        {/* Analytics Charts - Highcharts Dynamic */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Chart 1: Area Distribution */}
-          <div className="p-6 rounded-2xl shadow-sm border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
-            <HighchartsReact highcharts={Highcharts} options={chartOptions.areaDistribution} />
-          </div>
-
-          {/* Chart 2: Status Distribution */}
-          <div className="p-6 rounded-2xl shadow-sm border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
-            <HighchartsReact highcharts={Highcharts} options={chartOptions.statusSplit} />
-          </div>
-
-          {/* Chart 3: Revenue Growth */}
-          <div className="p-6 rounded-2xl shadow-sm border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
-            <HighchartsReact highcharts={Highcharts} options={chartOptions.revenueTrend} />
-          </div>
-
-          {/* Chart 4: Location Revenue */}
-          <div className="p-6 rounded-2xl shadow-sm border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
-            <HighchartsReact highcharts={Highcharts} options={chartOptions.areaRevenue} />
-          </div>
-        </div>
-
-        {/* Vendors Table Container */}
-        <div className="rounded-2xl shadow-sm border overflow-hidden" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+        {/* Vendors Table Container moved UP */}
+        <div className="rounded-2xl shadow-sm border overflow-hidden mb-8" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
           {/* Modern Design Tabs (Always visible) */}
           <div className="flex items-center gap-8 px-6 border-b overflow-x-auto no-scrollbar" style={{ borderColor: themeColors.border }}>
             {[
@@ -966,12 +979,14 @@ export default function VendorManagement() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <span className="text-lg font-extrabold" style={{ color: themeColors.primary }}>{vendor.commissionPercentage}%</span>
-                          <button
-                            onClick={() => handleOpenCommissionModal(vendor)}
-                            className="p-1.5 rounded-lg transition-all hover:bg-black/5 dark:hover:bg-white/5"
-                          >
-                            <FaEdit size={12} style={{ color: themeColors.textSecondary }} />
-                          </button>
+                          {can('VENDOR_COMMISSION') && (
+                            <button
+                              onClick={() => handleOpenCommissionModal(vendor)}
+                              className="p-1.5 rounded-lg transition-all hover:bg-black/5 dark:hover:bg-white/5"
+                            >
+                              <FaEdit size={12} style={{ color: themeColors.textSecondary }} />
+                            </button>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -988,37 +1003,45 @@ export default function VendorManagement() {
                             }`}>
                             {vendor.isActive ? 'Active' : 'Inactive'}
                           </span>
-                          <button
-                            onClick={() => handleToggleStatus(vendor._id)}
-                            className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5"
-                          >
-                            {vendor.isActive ? <FaToggleOn size={22} className="text-green-500" /> : <FaToggleOff size={22} className="text-gray-400" />}
-                          </button>
+                          {can('VENDOR_STATUS') && (
+                            <button
+                              onClick={() => handleToggleStatus(vendor._id)}
+                              className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5"
+                            >
+                              {vendor.isActive ? <FaToggleOn size={22} className="text-green-500" /> : <FaToggleOff size={22} className="text-gray-400" />}
+                            </button>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleViewVendor(vendor)}
-                            className="p-2.5 rounded-xl transition-all hover:bg-blue-50 dark:hover:bg-blue-500/10 text-blue-600"
-                            title="View Details"
-                          >
-                            <FaEyeIcon size={18} />
-                          </button>
-                          <button
-                            onClick={() => handleEditVendor(vendor)}
-                            className="p-2.5 rounded-xl transition-all hover:bg-amber-50 dark:hover:bg-amber-500/10 text-amber-600"
-                            title="Edit Vendor"
-                          >
-                            <FaEdit size={18} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteVendor(vendor._id, vendor.name)}
-                            className="p-2.5 rounded-xl transition-all hover:bg-red-50 dark:hover:bg-red-500/10 text-red-600"
-                            title="Delete Vendor"
-                          >
-                            <FaTrash size={18} />
-                          </button>
+                          {can('VENDOR_READ') && (
+                            <button
+                              onClick={() => handleViewVendor(vendor)}
+                              className="p-2.5 rounded-xl transition-all hover:bg-blue-50 dark:hover:bg-blue-500/10 text-blue-600"
+                              title="View Details"
+                            >
+                              <FaEyeIcon size={18} />
+                            </button>
+                          )}
+                          {can('VENDOR_EDIT') && (
+                            <button
+                              onClick={() => handleEditVendor(vendor)}
+                              className="p-2.5 rounded-xl transition-all hover:bg-amber-50 dark:hover:bg-amber-500/10 text-amber-600"
+                              title="Edit Vendor"
+                            >
+                              <FaEdit size={18} />
+                            </button>
+                          )}
+                          {can('VENDOR_DELETE') && (
+                            <button
+                              onClick={() => handleDeleteVendor(vendor._id, vendor.name)}
+                              className="p-2.5 rounded-xl transition-all hover:bg-red-50 dark:hover:bg-red-500/10 text-red-600"
+                              title="Delete Vendor"
+                            >
+                              <FaTrash size={18} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1029,88 +1052,71 @@ export default function VendorManagement() {
           </div>
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="px-6 py-4 border-t flex flex-col sm:flex-row items-center justify-between gap-4" style={{ borderColor: themeColors.border }}>
-              <div className="flex items-center gap-4">
-                <p className="text-sm" style={{ color: themeColors.textSecondary }}>
-                  Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredVendors.length)} of {filteredVendors.length} vendors
-                </p>
-                <div className="flex items-center gap-2 ml-4">
-                  <span className="text-xs font-medium" style={{ color: themeColors.textSecondary }}>Rows:</span>
-                  <select
-                    value={rowsPerPage}
-                    onChange={(e) => {
-                      setRowsPerPage(Number(e.target.value));
-                      setCurrentPage(1);
-                    }}
-                    className="px-2 py-1 rounded-lg border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    style={{
-                      backgroundColor: themeColors.surface,
-                      borderColor: themeColors.border,
-                      color: themeColors.text
-                    }}
-                  >
-                    {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(val => (
-                      <option key={val} value={val}>{val}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="px-4 py-2 rounded-xl border transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{
-                    backgroundColor: themeColors.surface,
-                    borderColor: themeColors.border,
-                    color: themeColors.text
-                  }}
-                >
-                  <FaChevronLeft size={14} />
-                </button>
-                <div className="flex items-center gap-1">
-                  {[...Array(Math.min(totalPages, 5))].map((_, i) => {
-                    const pageNum = i + 1;
-                    return (
-                      <button
-                        key={i}
-                        onClick={() => setCurrentPage(pageNum)}
-                        className={`w-10 h-10 rounded-xl font-medium transition-all duration-200 ${currentPage === pageNum
-                          ? 'text-white shadow-lg'
-                          : 'border'
-                          }`}
-                        style={{
-                          backgroundColor: currentPage === pageNum ? themeColors.primary : 'transparent',
-                          borderColor: themeColors.border,
-                          color: currentPage === pageNum ? themeColors.onPrimary : themeColors.text
-                        }}
-                      >
-                        {pageNum}
-                      </button>
-                    );
-                  })}
-                  {totalPages > 5 && <span style={{ color: themeColors.textSecondary }}>...</span>}
-                </div>
-                <button
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages || totalPages === 0}
-                  className="px-4 py-2 rounded-xl border transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{
-                    backgroundColor: themeColors.surface,
-                    borderColor: themeColors.border,
-                    color: themeColors.text
-                  }}
-                >
-                  <FaChevronRight size={14} />
-                </button>
-              </div>
+          <div className="px-6 py-4 border-t flex items-center justify-between" style={{ borderColor: themeColors.border }}>
+            <div className="flex items-center gap-2">
+              <span className="text-sm" style={{ color: themeColors.textSecondary }}>Rows per page:</span>
+              <select
+                value={rowsPerPage}
+                onChange={(e) => { setRowsPerPage(Number(e.target.value)); setCurrentPage(1); }}
+                className="px-2 py-1.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border, color: themeColors.text }}
+              >
+                {[10, 20, 30, 50, 100].map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+              <span className="text-sm" style={{ color: themeColors.textSecondary }}>
+                Showing {filteredVendors.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}–{Math.min(currentPage * rowsPerPage, filteredVendors.length)} of {filteredVendors.length}
+              </span>
             </div>
-          )}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="flex items-center gap-1 px-4 py-2 rounded-xl border text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border, color: themeColors.text }}
+              >
+                <FaChevronLeft size={14} /> Previous
+              </button>
+              <span className="text-sm" style={{ color: themeColors.textSecondary }}>Page {currentPage} of {totalPages || 1}</span>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages || totalPages === 0}
+                className="flex items-center gap-1 px-4 py-2 rounded-xl border text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border, color: themeColors.text }}
+              >
+                Next <FaChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+
+        {/* Analytics Charts - Moved DOWN */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Chart 1: Area Distribution */}
+          <div className="p-6 rounded-2xl shadow-sm border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+            <HighchartsReact highcharts={Highcharts} options={chartOptions.areaDistribution} />
+          </div>
+
+          {/* Chart 2: Status Distribution */}
+          <div className="p-6 rounded-2xl shadow-sm border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+            <HighchartsReact highcharts={Highcharts} options={chartOptions.statusSplit} />
+          </div>
+
+          {/* Chart 3: Revenue Growth */}
+          <div className="p-6 rounded-2xl shadow-sm border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+            <HighchartsReact highcharts={Highcharts} options={chartOptions.revenueTrend} />
+          </div>
+
+          {/* Chart 4: Location Revenue */}
+          <div className="p-6 rounded-2xl shadow-sm border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+            <HighchartsReact highcharts={Highcharts} options={chartOptions.areaRevenue} />
+          </div>
         </div>
       </div>
 
-      <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} title="Create New Vendor" themeColors={themeColors} size="xl">
+      <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} title="Register New Vendor" themeColors={themeColors} size="xl" headerGradient="bg-gradient-to-r from-blue-600 to-purple-600">
         <form onSubmit={handleCreateVendor} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <InputField label="Full Name" name="name" value={createForm.name} onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })} icon={FaUserTie} required placeholder="Enter vendor name" themeColors={themeColors} />
@@ -1138,16 +1144,76 @@ export default function VendorManagement() {
             </div>
           </div>
 
-          {/* Image Upload */}
-          <div className="border-t pt-4" style={{ borderColor: themeColors.border }}>
-            <h3 className="text-sm font-semibold mb-3" style={{ color: themeColors.primary }}>Profile Image</h3>
-            <div className="flex items-center gap-4">
-              <input type="file" accept="image/*" onChange={(e) => setCreateImage(e.target.files[0])}
-                className="flex-1 p-2 border rounded-xl text-sm"
-                style={{ borderColor: themeColors.border, color: themeColors.text, backgroundColor: themeColors.background }} />
-              {createImage && (
-                <img src={URL.createObjectURL(createImage)} alt="preview" className="w-14 h-14 rounded-xl object-cover border" style={{ borderColor: themeColors.border }} />
-              )}
+          {/* Document Uploads */}
+          <div className="border-t pt-4 space-y-4" style={{ borderColor: themeColors.border }}>
+            <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: themeColors.primary }}>
+              <FaIdCard size={14} /> Identification Documents
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold" style={{ color: themeColors.textSecondary }}>Profile Image</label>
+                <div className="relative group aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-2 hover:bg-gray-50 transition-all cursor-pointer"
+                     style={{ borderColor: themeColors.border }}>
+                  {createImage ? (
+                    <img src={URL.createObjectURL(createImage)} className="w-full h-full object-cover rounded-lg" alt="Profile" />
+                  ) : (
+                    <>
+                      <FaUserCircle size={24} className="text-gray-300" />
+                      <span className="text-[10px] mt-1 text-gray-400">Upload Photo</span>
+                    </>
+                  )}
+                  <input type="file" accept="image/*" onChange={(e) => setCreateImage(e.target.files[0])} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold" style={{ color: themeColors.textSecondary }}>Aadhar Card</label>
+                <div className="relative group aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-2 hover:bg-gray-50 transition-all cursor-pointer"
+                     style={{ borderColor: themeColors.border }}>
+                  {createAadhar ? (
+                    <img src={URL.createObjectURL(createAadhar)} className="w-full h-full object-cover rounded-lg" alt="Aadhar" />
+                  ) : (
+                    <>
+                      <FaIdCard size={24} className="text-gray-300" />
+                      <span className="text-[10px] mt-1 text-gray-400">Upload Aadhar</span>
+                    </>
+                  )}
+                  <input type="file" accept="image/*" onChange={(e) => setCreateAadhar(e.target.files[0])} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold" style={{ color: themeColors.textSecondary }}>PAN Card</label>
+                <div className="relative group aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-2 hover:bg-gray-50 transition-all cursor-pointer"
+                     style={{ borderColor: themeColors.border }}>
+                  {createPan ? (
+                    <img src={URL.createObjectURL(createPan)} className="w-full h-full object-cover rounded-lg" alt="PAN" />
+                  ) : (
+                    <>
+                      <FaIdCard size={24} className="text-gray-300" />
+                      <span className="text-[10px] mt-1 text-gray-400">Upload PAN</span>
+                    </>
+                  )}
+                  <input type="file" accept="image/*" onChange={(e) => setCreatePan(e.target.files[0])} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold" style={{ color: themeColors.textSecondary }}>GST Cert.</label>
+                <div className="relative group aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-2 hover:bg-gray-50 transition-all cursor-pointer"
+                     style={{ borderColor: themeColors.border }}>
+                  {createGst ? (
+                    <img src={URL.createObjectURL(createGst)} className="w-full h-full object-cover rounded-lg" alt="GST" />
+                  ) : (
+                    <>
+                      <FaFileInvoice size={24} className="text-gray-300" />
+                      <span className="text-[10px] mt-1 text-gray-400">Upload GST</span>
+                    </>
+                  )}
+                  <input type="file" accept="image/*" onChange={(e) => setCreateGst(e.target.files[0])} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1168,7 +1234,7 @@ export default function VendorManagement() {
       </Modal>
 
       {/* Edit Vendor Modal */}
-      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Vendor" themeColors={themeColors} size="xl">
+      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title="Edit Vendor" themeColors={themeColors} size="xl" headerGradient="bg-gradient-to-r from-amber-500 to-orange-500">
         <form onSubmit={handleUpdateVendor} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <InputField
@@ -1233,16 +1299,112 @@ export default function VendorManagement() {
               placeholder="Enter commission percentage"
               themeColors={themeColors}
             />
-            <TextAreaField
-              label="Address"
-              name="address"
-              value={editForm.address}
-              onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-              icon={FaMapMarkerAlt}
-              placeholder="Enter full address"
+            <InputField
+              label="Password"
+              name="password"
+              value={editForm.password}
+              onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+              icon={FaLock}
+              placeholder="Update password (optional)"
               themeColors={themeColors}
-              rows={2}
             />
+            <InputField label="City" name="city" value={editForm.city} onChange={(e) => setEditForm({ ...editForm, city: e.target.value })} icon={FaMapMarkerAlt} placeholder="City" themeColors={themeColors} />
+            <InputField label="State" name="state" value={editForm.state} onChange={(e) => setEditForm({ ...editForm, state: e.target.value })} icon={FaMapMarkerAlt} placeholder="State" themeColors={themeColors} />
+            <InputField label="Pincode" name="pincode" value={editForm.pincode} onChange={(e) => setEditForm({ ...editForm, pincode: e.target.value })} icon={FaMapMarkerAlt} placeholder="Pincode" themeColors={themeColors} />
+            
+            <div className="col-span-2">
+              <TextAreaField
+                label="Address"
+                name="address"
+                value={editForm.address}
+                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                icon={FaMapMarkerAlt}
+                placeholder="Enter full address"
+                themeColors={themeColors}
+                rows={2}
+              />
+            </div>
+          </div>
+
+          {/* Edit Document Uploads */}
+          <div className="border-t pt-4 space-y-4" style={{ borderColor: themeColors.border }}>
+            <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: themeColors.primary }}>
+              <FaIdCard size={14} /> Identification Documents
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold" style={{ color: themeColors.textSecondary }}>Profile Image</label>
+                <div className="relative group aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-2 hover:bg-gray-50 transition-all cursor-pointer"
+                     style={{ borderColor: themeColors.border }}>
+                  {editImage ? (
+                    <img src={URL.createObjectURL(editImage)} className="w-full h-full object-cover rounded-lg" alt="Profile" />
+                  ) : selectedVendor?.image ? (
+                    <img src={`${IMAGE_BASE_URL}${selectedVendor.image}`} className="w-full h-full object-cover rounded-lg" alt="Current Profile" />
+                  ) : (
+                    <>
+                      <FaUserCircle size={24} className="text-gray-300" />
+                      <span className="text-[10px] mt-1 text-gray-400">Change Photo</span>
+                    </>
+                  )}
+                  <input type="file" accept="image/*" onChange={(e) => setEditImage(e.target.files[0])} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold" style={{ color: themeColors.textSecondary }}>Aadhar Card</label>
+                <div className="relative group aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-2 hover:bg-gray-50 transition-all cursor-pointer"
+                     style={{ borderColor: themeColors.border }}>
+                  {editAadhar ? (
+                    <img src={URL.createObjectURL(editAadhar)} className="w-full h-full object-cover rounded-lg" alt="Aadhar" />
+                  ) : selectedVendor?.documents?.aadhar ? (
+                    <img src={`${IMAGE_BASE_URL}${selectedVendor.documents.aadhar}`} className="w-full h-full object-cover rounded-lg" alt="Current Aadhar" />
+                  ) : (
+                    <>
+                      <FaIdCard size={24} className="text-gray-300" />
+                      <span className="text-[10px] mt-1 text-gray-400">Change Aadhar</span>
+                    </>
+                  )}
+                  <input type="file" accept="image/*" onChange={(e) => setEditAadhar(e.target.files[0])} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold" style={{ color: themeColors.textSecondary }}>PAN Card</label>
+                <div className="relative group aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-2 hover:bg-gray-50 transition-all cursor-pointer"
+                     style={{ borderColor: themeColors.border }}>
+                  {editPan ? (
+                    <img src={URL.createObjectURL(editPan)} className="w-full h-full object-cover rounded-lg" alt="PAN" />
+                  ) : selectedVendor?.documents?.pan ? (
+                    <img src={`${IMAGE_BASE_URL}${selectedVendor.documents.pan}`} className="w-full h-full object-cover rounded-lg" alt="Current PAN" />
+                  ) : (
+                    <>
+                      <FaIdCard size={24} className="text-gray-300" />
+                      <span className="text-[10px] mt-1 text-gray-400">Change PAN</span>
+                    </>
+                  )}
+                  <input type="file" accept="image/*" onChange={(e) => setEditPan(e.target.files[0])} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold" style={{ color: themeColors.textSecondary }}>GST Cert.</label>
+                <div className="relative group aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center p-2 hover:bg-gray-50 transition-all cursor-pointer"
+                     style={{ borderColor: themeColors.border }}>
+                  {editGst ? (
+                    <img src={URL.createObjectURL(editGst)} className="w-full h-full object-cover rounded-lg" alt="GST" />
+                  ) : selectedVendor?.documents?.gst ? (
+                    <img src={`${IMAGE_BASE_URL}${selectedVendor.documents.gst}`} className="w-full h-full object-cover rounded-lg" alt="Current GST" />
+                  ) : (
+                    <>
+                      <FaFileInvoice size={24} className="text-gray-300" />
+                      <span className="text-[10px] mt-1 text-gray-400">Change GST</span>
+                    </>
+                  )}
+                  <input type="file" accept="image/*" onChange={(e) => setEditGst(e.target.files[0])} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="border-t pt-4" style={{ borderColor: themeColors.border }}>
@@ -1380,6 +1542,7 @@ export default function VendorManagement() {
         isOpen={showDetailModal}
         onClose={() => setShowDetailModal(false)}
         themeColors={themeColors}
+        IMAGE_BASE_URL={IMAGE_BASE_URL}
       />
 
       {/* Commission History Modal */}

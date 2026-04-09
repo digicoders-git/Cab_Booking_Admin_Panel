@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 import { useFont } from "../context/FontContext";
 import {
   getAdminWallet,
@@ -110,7 +111,14 @@ const StatBox = ({ icon: Icon, label, value, colorHex, themeColors, borderColor,
 
 export default function WalletManagement() {
   const { themeColors, theme } = useTheme();
+  const { admin } = useAuth();
   const { currentFont } = useFont();
+
+  // Helper for Granular Permissions
+  const can = (permission) => {
+    if (admin?.role === 'SuperAdmin') return true;
+    return admin?.permissions?.includes(permission);
+  };
 
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
@@ -124,7 +132,7 @@ export default function WalletManagement() {
   const [dateRange, setDateRange] = useState('month');
   const [selectedChart, setSelectedChart] = useState('all');
   const [expandedRows, setExpandedRows] = useState({});
-  const rowsPerPage = 10;
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const textColorSecondary = useMemo(() => {
     if (theme === "dark") return "rgba(255, 255, 255, 0.6)";
@@ -419,11 +427,11 @@ export default function WalletManagement() {
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
     return filteredData.slice(start, start + rowsPerPage);
-  }, [filteredData, currentPage]);
+  }, [filteredData, currentPage, rowsPerPage]);
 
   const totalPages = Math.ceil(filteredData.length / rowsPerPage);
 
-  useEffect(() => { setCurrentPage(1); }, [activeTab, searchQuery]);
+  useEffect(() => { setCurrentPage(1); }, [activeTab, searchQuery, rowsPerPage]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -447,14 +455,16 @@ export default function WalletManagement() {
               </button>
 
               {/* Manual Entry */}
-              <button
-                onClick={handleManualUpdate}
-                className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center space-x-1 sm:space-x-2 shadow-lg"
-              >
-                <FaPlus size={18} />
-                <span className="hidden sm:inline">Manual Entry</span>
-                <span className="sm:hidden text-xs">Entry</span>
-              </button>
+              {can('FLEET_WALLET') && (
+                <button
+                  onClick={handleManualUpdate}
+                  className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center space-x-1 sm:space-x-2 shadow-lg"
+                >
+                  <FaPlus size={18} />
+                  <span className="hidden sm:inline">Manual Entry</span>
+                  <span className="sm:hidden text-xs">Entry</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -594,20 +604,24 @@ export default function WalletManagement() {
                       {activeTab === "payouts" && (
                         <td className="py-4 px-6 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleApprove(t._id); }}
-                              className="p-1.5 hover:bg-green-100 rounded-lg transition-colors"
-                              title="Approve"
-                            >
-                              <FaCheckCircle size={16} className="text-green-600" />
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleReject(t._id); }}
-                              className="p-1.5 hover:bg-red-100 rounded-lg transition-colors"
-                              title="Reject"
-                            >
-                              <FaTimesCircle size={16} className="text-red-600" />
-                            </button>
+                            {can('PAYOUT_APPROVE') && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleApprove(t._id); }}
+                                className="p-1.5 hover:bg-green-100 rounded-lg transition-colors"
+                                title="Approve"
+                              >
+                                <FaCheckCircle size={16} className="text-green-600" />
+                              </button>
+                            )}
+                            {can('PAYOUT_REJECT') && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleReject(t._id); }}
+                                className="p-1.5 hover:bg-red-100 rounded-lg transition-colors"
+                                title="Reject"
+                              >
+                                <FaTimesCircle size={16} className="text-red-600" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       )}
@@ -651,35 +665,36 @@ export default function WalletManagement() {
 
           {/* Pagination */}
           <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <p className="text-sm text-gray-500">
-              Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredData.length)} of {filteredData.length} entries
-            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Rows per page:</span>
+              <select
+                value={rowsPerPage}
+                onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              >
+                {[10, 20, 30, 50, 100].map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+              <span className="text-sm text-gray-500">
+                Showing {filteredData.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}–{Math.min(currentPage * rowsPerPage, filteredData.length)} of {filteredData.length}
+              </span>
+            </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <FaChevronLeft size={16} />
+                <FaChevronLeft size={14} /> Previous
               </button>
-              {[...Array(totalPages)].map((_, i) => (
-                <button
-                  key={i + 1}
-                  onClick={() => setCurrentPage(i + 1)}
-                  className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${currentPage === i + 1
-                    ? 'bg-blue-600 text-white'
-                    : 'border border-gray-300 hover:bg-gray-50'
-                    }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
+              <span className="text-sm text-gray-500">Page {currentPage} of {totalPages || 1}</span>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages || totalPages === 0}
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <FaChevronRight size={16} />
+                Next <FaChevronRight size={14} />
               </button>
             </div>
           </div>

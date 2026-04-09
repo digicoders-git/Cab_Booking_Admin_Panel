@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
-import { getAllBookings, updateBookingStatus } from "../apis/booking";
+import { getAllBookings, updateBookingStatus, deleteBooking } from "../apis/booking";
+import { useAuth } from "../context/AuthContext";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell,
@@ -21,7 +22,7 @@ import {
   Download, Filter, TrendingUp, Activity, DollarSign,
   PieChart as PieChartIcon, BarChart3, LineChart as LineChartIcon,
   Target, Gauge, Zap, Shield, MoreVertical, DownloadCloud, Printer,
-  Clock, Calendar, Users, MapPin, Phone, Mail
+  Clock, Calendar, Users, MapPin, Phone, Mail, Trash2
 } from 'lucide-react';
 import Swal from "sweetalert2";
 
@@ -104,6 +105,13 @@ const StatBox = ({ icon: Icon, label, value, colorHex, themeColors, borderColor,
 export default function ManageBookings() {
   const { themeColors, theme } = useTheme();
   const { currentFont } = useFont();
+  const { admin } = useAuth();
+
+  // RBAC Helper
+  const can = (permission) => {
+    if (admin?.role === 'SuperAdmin') return true;
+    return admin?.permissions?.includes(permission);
+  };
 
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
@@ -115,7 +123,7 @@ export default function ManageBookings() {
   const [dateRange, setDateRange] = useState('month');
   const [selectedChart, setSelectedChart] = useState('all');
   const [expandedRows, setExpandedRows] = useState({});
-  const rowsPerPage = 10;
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const textColorSecondary = useMemo(() => {
     if (theme === "dark") return "rgba(255, 255, 255, 0.6)";
@@ -141,9 +149,35 @@ export default function ManageBookings() {
     } catch (err) {
       console.error(err);
     } finally {
-      setFetching(false);
       setLoading(false);
+      setFetching(false);
     }
+  };
+
+  const handleDeleteBooking = async (id) => {
+      const result = await Swal.fire({
+          title: 'Are you sure?',
+          text: "You won't be able to revert this!",
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#d33',
+          cancelButtonColor: '#3085d6',
+          confirmButtonText: 'Yes, delete it!'
+      });
+
+      if (result.isConfirmed) {
+          try {
+              const res = await deleteBooking(id);
+              if (res.success) {
+                  Swal.fire('Deleted!', res.message, 'success');
+                  fetchData(); // Refresh list
+              } else {
+                  Swal.fire('Error!', res.message, 'error');
+              }
+          } catch (error) {
+              Swal.fire('Error!', 'Failed to delete booking', 'error');
+          }
+      }
   };
 
   // Advanced Statistics
@@ -306,11 +340,11 @@ export default function ManageBookings() {
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
     return filteredBookings.slice(start, start + rowsPerPage);
-  }, [filteredBookings, currentPage]);
+  }, [filteredBookings, currentPage, rowsPerPage]);
 
   const totalPages = Math.ceil(filteredBookings.length / rowsPerPage);
 
-  useEffect(() => { setCurrentPage(1); }, [activeTab, searchQuery]);
+  useEffect(() => { setCurrentPage(1); }, [activeTab, searchQuery, rowsPerPage]);
 
   const getStatusStyle = (status) => {
     const s = status?.toLowerCase();
@@ -550,13 +584,25 @@ export default function ManageBookings() {
                         </span>
                       </td>
                       <td className="py-4 px-6 text-center">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleViewDetail(b); }}
-                          className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="View Details"
-                        >
-                          <FaEye size={16} className="text-blue-600" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); handleViewDetail(b); }}
+                                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                                title="View Details"
+                            >
+                                <FaEye size={16} className="text-blue-600" />
+                            </button>
+
+                            {can("BOOKING_DELETE") && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteBooking(b._id); }}
+                                    className="p-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Delete Booking"
+                                >
+                                    <Trash2 size={16} className="text-red-600" />
+                                </button>
+                            )}
+                        </div>
                       </td>
                     </tr>
                     {expandedRows[b._id] && (
@@ -626,35 +672,36 @@ export default function ManageBookings() {
 
           {/* Pagination */}
           <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <p className="text-sm text-gray-500">
-              Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredBookings.length)} of {filteredBookings.length} entries
-            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Rows per page:</span>
+              <select
+                value={rowsPerPage}
+                onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              >
+                {[10, 20, 30, 50, 100].map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+              <span className="text-sm text-gray-500">
+                Showing {filteredBookings.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}–{Math.min(currentPage * rowsPerPage, filteredBookings.length)} of {filteredBookings.length}
+              </span>
+            </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <FaChevronLeft size={16} />
+                <FaChevronLeft size={14} /> Previous
               </button>
-              {[...Array(totalPages)].map((_, i) => (
-                <button
-                  key={i + 1}
-                  onClick={() => setCurrentPage(i + 1)}
-                  className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${currentPage === i + 1
-                    ? 'bg-blue-600 text-white'
-                    : 'border border-gray-300 hover:bg-gray-50'
-                    }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
+              <span className="text-sm text-gray-500">Page {currentPage} of {totalPages || 1}</span>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages || totalPages === 0}
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <FaChevronRight size={16} />
+                Next <FaChevronRight size={14} />
               </button>
             </div>
           </div>

@@ -147,7 +147,7 @@ const AdminReportPage = () => {
   const growthData = (() => {
     const weekMap = {};
     const now = new Date();
-    
+
     // Last 4 weeks
     for (let i = 3; i >= 0; i--) {
       const weekStart = new Date(now);
@@ -155,26 +155,26 @@ const AdminReportPage = () => {
       const weekLabel = `Week ${4 - i} (${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`;
       weekMap[weekLabel] = { users: 0, drivers: 0 };
     }
-    
+
     // Distribute data across weeks based on transaction dates
     transactions.forEach(t => {
       const tDate = new Date(t.createdAt);
       const daysDiff = Math.floor((now - tDate) / (1000 * 60 * 60 * 24));
       const weekIndex = Math.floor(daysDiff / 7);
-      
+
       if (weekIndex <= 3) {
         const weekNum = 4 - weekIndex;
         const weekStart = new Date(now);
         weekStart.setDate(weekStart.getDate() - (weekIndex * 7));
         const weekLabel = `Week ${weekNum} (${weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`;
-        
+
         if (weekMap.hasOwnProperty(weekLabel)) {
           if (t.userModel === 'Driver') weekMap[weekLabel].drivers += 1;
           else if (t.userModel === 'User') weekMap[weekLabel].users += 1;
         }
       }
     });
-    
+
     return Object.entries(weekMap).map(([week, data]) => ({
       name: week,
       users: data.users,
@@ -237,7 +237,7 @@ const AdminReportPage = () => {
     } else if (categoryLower.includes('debit')) {
       category = 'Debit';
     }
-    
+
     const existing = acc.find(item => item.name === category);
     if (existing) {
       existing.count += 1;

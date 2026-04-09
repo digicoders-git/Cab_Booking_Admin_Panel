@@ -17,3 +17,12 @@ export const updateBookingStatus = async (id, status) => {
         return err.response?.data || { success: false, message: "Network Error" };
     }
 };
+
+export const deleteBooking = async (id) => {
+    try {
+        const res = await http.delete(`/api/bookings/delete/${id}`);
+        return res.data;
+    } catch (err) {
+        return err.response?.data || { success: false, message: "Network Error" };
+    }
+};

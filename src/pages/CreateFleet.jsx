@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import { createFleet, getFleets, updateFleet, deleteFleet, toggleFleetStatus } from "../apis/fleet";
@@ -96,25 +97,38 @@ const ChartCard = ({ title, subtitle, icon: Icon, children, action }) => (
 
 export default function CreateFleet() {
   const { themeColors, theme } = useTheme();
+  const { admin } = useAuth();
   const { currentFont } = useFont();
+
+  // Helper for Granular Permissions
+  const can = (permission) => {
+    if (admin?.role === 'SuperAdmin') return true;
+    return admin?.permissions?.includes(permission);
+  };
 
   const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') + '/uploads/';
 
   const [form, setForm] = useState(emptyForm);
   const [image, setImage] = useState(null);
+  const [gstCertificate, setGstCertificate] = useState(null);
+  const [panCard, setPanCard] = useState(null);
+  const [businessLicense, setBusinessLicense] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [fleets, setFleets] = useState([]);
   const [fetching, setFetching] = useState(true);
   const [viewing, setViewing] = useState(null);
+  const [lightboxImg, setLightboxImg] = useState(null);
   const [editingId, setEditingId] = useState(null);
+  const [editingFleet, setEditingFleet] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
   const [dateRange, setDateRange] = useState('month');
   const [selectedChart, setSelectedChart] = useState('all');
   const [expandedRows, setExpandedRows] = useState({});
-  const rowsPerPage = 10;
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [formErrors, setFormErrors] = useState({});
 
   useEffect(() => { fetchFleets(); }, []);
 
@@ -138,12 +152,12 @@ export default function CreateFleet() {
     );
   }, [fleets, searchQuery]);
 
-  useEffect(() => { setCurrentPage(1); }, [searchQuery]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, rowsPerPage]);
 
   const paginatedFleets = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
     return filteredFleets.slice(start, start + rowsPerPage);
-  }, [filteredFleets, currentPage]);
+  }, [filteredFleets, currentPage, rowsPerPage]);
 
   const totalPages = Math.ceil(filteredFleets.length / rowsPerPage);
 
@@ -253,78 +267,71 @@ export default function CreateFleet() {
     name: f.companyName || f.name
   }));
 
-  const handleChange = (e) => setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((p) => ({ ...p, [name]: value }));
+    // Clear error on change
+    if (formErrors[name]) setFormErrors(p => ({ ...p, [name]: "" }));
+  };
+
+  const validate = () => {
+    const errors = {};
+    const trim = (v) => (v || "").toString().trim();
+
+    if (!trim(form.name)) errors.name = "Full name is required";
+
+    if (!trim(form.email)) errors.email = "Email is required";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trim(form.email))) errors.email = "Enter valid email (e.g. abc@gmail.com)";
+
+    if (!trim(form.phone)) errors.phone = "Phone is required";
+    else if (!/^\d{10}$/.test(trim(form.phone))) errors.phone = "Phone must be exactly 10 digits";
+
+    if (!editingId) {
+      if (!trim(form.password)) errors.password = "Password is required";
+      else if (trim(form.password).length < 6) errors.password = "Password must be at least 6 characters";
+    }
+
+    if (!trim(form.companyName)) errors.companyName = "Company name is required";
+
+    if (!trim(form.commissionPercentage)) errors.commissionPercentage = "Commission % is required";
+    else {
+      const c = Number(form.commissionPercentage);
+      if (isNaN(c) || c < 0 || c > 100) errors.commissionPercentage = "Commission must be between 0 and 100";
+    }
+
+    if (trim(form.gstNumber) && !/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/.test(trim(form.gstNumber).toUpperCase()))
+      errors.gstNumber = "Invalid GST format (e.g. 22AAAAA0000A1Z5)";
+
+    if (trim(form.panNumber) && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(trim(form.panNumber).toUpperCase()))
+      errors.panNumber = "Invalid PAN format (e.g. ABCDE1234F)";
+
+    if (!trim(form.address)) errors.address = "Address is required";
+    if (!trim(form.city)) errors.city = "City is required";
+    if (!trim(form.state)) errors.state = "State is required";
+
+    if (!trim(form.pincode)) errors.pincode = "Pincode is required";
+    else if (!/^\d{6}$/.test(trim(form.pincode))) errors.pincode = "Pincode must be exactly 6 digits";
+
+    if (!trim(form.accountHolderName)) errors.accountHolderName = "Account holder name is required";
+
+    if (!trim(form.accountNumber)) errors.accountNumber = "Account number is required";
+    else if (!/^\d{9,18}$/.test(trim(form.accountNumber))) errors.accountNumber = "Account number must be 9-18 digits";
+
+    if (!trim(form.bankName)) errors.bankName = "Bank name is required";
+
+    if (!trim(form.ifscCode)) errors.ifscCode = "IFSC code is required";
+    else if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(trim(form.ifscCode).toUpperCase())) errors.ifscCode = "Invalid IFSC (e.g. SBIN0001234)";
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // ── Validation ──────────────────────────────────────────────
-    const showError = (title, text) => Swal.fire({
-      icon: "warning", title, text,
-      background: themeColors.surface, color: themeColors.text,
-      confirmButtonColor: "#3B82F6"
-    });
+    if (!validate()) return;
 
     const trim = (v) => (v || "").toString().trim();
-
-    if (!trim(form.name))
-      return showError("Name Required", "Please enter the fleet owner's full name.");
-
-    if (!trim(form.email))
-      return showError("Email Required", "Please enter a valid email address.");
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(trim(form.email)))
-      return showError("Invalid Email", "Please enter a properly formatted email (e.g. abc@gmail.com).");
-
-    if (!trim(form.phone))
-      return showError("Phone Required", "Please enter the fleet owner's phone number.");
-    if (!/^\d{10}$/.test(trim(form.phone)))
-      return showError("Invalid Phone", "Phone number must be exactly 10 digits with no spaces or special characters.");
-
-    if (!editingId && !trim(form.password))
-      return showError("Password Required", "Please enter a password for this fleet account.");
-    if (!editingId && trim(form.password).length < 6)
-      return showError("Weak Password", "Password must be at least 6 characters long.");
-
-    if (!trim(form.companyName))
-      return showError("Company Name Required", "Please enter the company / fleet name.");
-
-    if (!trim(form.commissionPercentage))
-      return showError("Commission Required", "Please enter the commission percentage.");
     const comm = Number(form.commissionPercentage);
-    if (isNaN(comm) || comm < 0 || comm > 100)
-      return showError("Invalid Commission", "Commission must be a number between 0 and 100.");
-
-    if (!trim(form.address))
-      return showError("Address Required", "Please enter the fleet's address.");
-
-    if (!trim(form.city))
-      return showError("City Required", "Please enter the city name.");
-
-    if (!trim(form.state))
-      return showError("State Required", "Please enter the state name.");
-
-    if (!trim(form.pincode))
-      return showError("Pincode Required", "Please enter the area pincode.");
-    if (!/^\d{6}$/.test(trim(form.pincode)))
-      return showError("Invalid Pincode", "Pincode must be exactly 6 digits.");
-
-    if (!trim(form.accountHolderName))
-      return showError("Account Holder Required", "Please enter the bank account holder name.");
-
-    if (!trim(form.accountNumber))
-      return showError("Account Number Required", "Please enter the bank account number.");
-    if (!/^\d{9,18}$/.test(trim(form.accountNumber)))
-      return showError("Invalid Account Number", "Account number must be 9 to 18 digits only.");
-
-    if (!trim(form.bankName))
-      return showError("Bank Name Required", "Please enter the bank name.");
-
-    if (!trim(form.ifscCode))
-      return showError("IFSC Code Required", "Please enter the bank's IFSC code.");
-    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(trim(form.ifscCode).toUpperCase()))
-      return showError("Invalid IFSC Code", "IFSC code format should be like SBIN0001234 (4 letters, 0, then 6 alphanumeric).");
-    // ── End Validation ──────────────────────────────────────────
 
     try {
       setLoading(true);
@@ -335,16 +342,16 @@ export default function CreateFleet() {
 
       if (!cleanForm.password) delete cleanForm.password;
 
-      let payload;
-      if (image) {
-        payload = new FormData();
-        Object.entries(cleanForm).forEach(([k, v]) => {
-          if (v !== undefined && v !== null && v !== "") payload.append(k, v);
-        });
-        payload.append("image", image);
-      } else {
-        payload = cleanForm;
-      }
+      // Always use FormData because we have potential multi-files now
+      const payload = new FormData();
+      Object.entries(cleanForm).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== "") payload.append(k, v);
+      });
+
+      if (image) payload.append("image", image);
+      if (gstCertificate) payload.append("gstCertificate", gstCertificate);
+      if (panCard) payload.append("panCard", panCard);
+      if (businessLicense) payload.append("businessLicense", businessLicense);
 
       if (editingId) {
         await updateFleet(editingId, payload);
@@ -375,6 +382,7 @@ export default function CreateFleet() {
 
   const handleEdit = (f) => {
     setEditingId(f._id);
+    setEditingFleet(f);
     setForm({
       name: f.name || "", email: f.email || "", phone: f.phone || "", password: "",
       companyName: f.companyName || "", address: f.address || "", city: f.city || "",
@@ -424,8 +432,13 @@ export default function CreateFleet() {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingId(null);
+    setEditingFleet(null);
     setForm(emptyForm);
+    setFormErrors({});
     setImage(null);
+    setGstCertificate(null);
+    setPanCard(null);
+    setBusinessLicense(null);
   };
 
   const toggleRowExpansion = (id) => {
@@ -457,14 +470,16 @@ export default function CreateFleet() {
               </button>
 
               {/* Add New */}
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center space-x-1 sm:space-x-2 shadow-lg"
-              >
-                <Plus size={18} />
-                <span className="hidden sm:inline">New Fleet</span>
-                <span className="sm:hidden text-xs">New</span>
-              </button>
+              {can('FLEET_CREATE') && (
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center space-x-1 sm:space-x-2 shadow-lg"
+                >
+                  <Plus size={18} />
+                  <span className="hidden sm:inline">New Fleet</span>
+                  <span className="sm:hidden text-xs">New</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -597,39 +612,51 @@ export default function CreateFleet() {
                             <span className="font-medium text-gray-900">₹{(f.totalEarnings || 0).toLocaleString()}</span>
                           </td>
                           <td className="py-4 px-6 text-center">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleToggleStatus(f); }}
-                              className={`px-3 py-1 rounded-full text-xs font-medium ${f.isActive
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-gray-100 text-gray-500'
-                                }`}
-                            >
-                              {f.isActive ? 'Active' : 'Inactive'}
-                            </button>
+                            {can('FLEET_STATUS') ? (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleToggleStatus(f); }}
+                                className={`px-3 py-1 rounded-full text-xs font-medium ${f.isActive
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-gray-100 text-gray-500'
+                                  }`}
+                              >
+                                {f.isActive ? 'Active' : 'Inactive'}
+                              </button>
+                            ) : (
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${f.isActive ? 'text-green-600' : 'text-gray-500'}`}>
+                                {f.isActive ? 'Active' : 'Inactive'}
+                              </span>
+                            )}
                           </td>
                           <td className="py-4 px-6 text-center">
                             <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setViewing(f); }}
-                                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                                title="View Details"
-                              >
-                                <Eye size={16} className="text-blue-600" />
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleEdit(f); }}
-                                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                                title="Edit"
-                              >
-                                <Edit size={16} className="text-orange-600" />
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleDelete(f); }}
-                                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                                title="Delete"
-                              >
-                                <Trash2 size={16} className="text-red-600" />
-                              </button>
+                              {can('FLEET_READ') && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setViewing(f); }}
+                                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                                  title="View Details"
+                                >
+                                  <Eye size={16} className="text-blue-600" />
+                                </button>
+                              )}
+                              {can('FLEET_EDIT') && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleEdit(f); }}
+                                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                                  title="Edit"
+                                >
+                                  <Edit size={16} className="text-orange-600" />
+                                </button>
+                              )}
+                              {can('FLEET_DELETE') && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDelete(f); }}
+                                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                                  title="Delete"
+                                >
+                                  <Trash2 size={16} className="text-red-600" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -702,35 +729,36 @@ export default function CreateFleet() {
 
               {/* Pagination */}
               <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                <p className="text-sm text-gray-500">
-                  Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredFleets.length)} of {filteredFleets.length} entries
-                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">Rows per page:</span>
+                  <select
+                    value={rowsPerPage}
+                    onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                    className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    {[10, 20, 30, 50, 100].map(n => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                  <span className="text-sm text-gray-500">
+                    Showing {filteredFleets.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}–{Math.min(currentPage * rowsPerPage, filteredFleets.length)} of {filteredFleets.length}
+                  </span>
+                </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <ChevronLeft size={16} />
+                    <ChevronLeft size={14} /> Previous
                   </button>
-                  {[...Array(totalPages)].map((_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => setCurrentPage(i + 1)}
-                      className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${currentPage === i + 1
-                        ? 'bg-blue-600 text-white'
-                        : 'border border-gray-300 hover:bg-gray-50'
-                        }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
+                  <span className="text-sm text-gray-500">Page {currentPage} of {totalPages || 1}</span>
                   <button
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages || totalPages === 0}
-                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <ChevronRight size={16} />
+                    Next <ChevronRight size={14} />
                   </button>
                 </div>
               </div>
@@ -947,13 +975,37 @@ export default function CreateFleet() {
 
       </div>
 
+      {/* Lightbox */}
+      {lightboxImg && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.92)' }}
+          onClick={() => setLightboxImg(null)}
+        >
+          <button
+            className="absolute top-4 right-4 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center transition-colors"
+            onClick={() => setLightboxImg(null)}
+          >
+            <X size={20} className="text-white" />
+          </button>
+          <img
+            src={lightboxImg}
+            alt="preview"
+            className="max-w-full max-h-[90vh] rounded-2xl shadow-2xl object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+
       {/* View Modal */}
       {viewing && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border border-gray-200">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border border-gray-200 cursor-pointer"
+                  onClick={() => viewing.image && setLightboxImg(`${IMAGE_BASE_URL}${viewing.image}`)}
+                >
                   {viewing.image ? (
                     <img src={`${IMAGE_BASE_URL}${viewing.image}`} alt={viewing.name} className="w-full h-full object-cover" />
                   ) : (
@@ -1071,6 +1123,41 @@ export default function CreateFleet() {
                     </div>
                   </div>
                 </div>
+
+                {/* Business Documents (View) */}
+                <div className="col-span-2">
+                  <h3 className="text-sm font-medium text-gray-900 mb-4 flex items-center gap-2">
+                    <FileText size={16} className="text-red-500" />
+                    Business Documents
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {['gstCertificate', 'panCard', 'businessLicense'].map(docKey => (
+                      <div key={docKey} className="p-3 border border-gray-100 rounded-xl bg-gray-50/50">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">
+                          {docKey.replace(/([A-Z])/g, ' $1')}
+                        </p>
+                        {viewing.documents?.[docKey] ? (
+                          <div className="group relative rounded-lg overflow-hidden border border-gray-200 bg-white aspect-video">
+                            <img
+                              src={`${IMAGE_BASE_URL}${viewing.documents[docKey]}`}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform cursor-zoom-in"
+                              onClick={() => setLightboxImg(`${IMAGE_BASE_URL}${viewing.documents[docKey]}`)}
+                              alt={docKey}
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                              <Eye size={20} className="text-white" />
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="h-20 flex flex-col items-center justify-center border-2 border-dashed border-gray-200 rounded-lg bg-white">
+                            <X size={16} className="text-gray-300 mb-1" />
+                            <span className="text-[10px] text-gray-400">No Document</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1097,275 +1184,201 @@ export default function CreateFleet() {
 
       {/* Create/Edit Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
-              <h2 className="text-xl font-bold text-gray-900">
-                {editingId ? 'Edit Fleet' : 'Create New Fleet'}
-              </h2>
-              <button onClick={closeModal} className="p-2 hover:bg-gray-100 rounded-lg">
-                <X size={20} className="text-gray-500" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+          <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[92vh] overflow-hidden flex flex-col shadow-2xl">
+
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-8 py-5 border-b border-gray-100 bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-3xl">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
+                  <Truck size={18} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">{editingId ? 'Edit Fleet' : 'Register New Fleet'}</h2>
+                  <p className="text-xs text-blue-100">{editingId ? 'Update fleet information' : 'Fill in the details to onboard a new fleet'}</p>
+                </div>
+              </div>
+              <button onClick={closeModal} className="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-xl flex items-center justify-center transition-colors">
+                <X size={16} className="text-white" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-8">
-              {/* Basic Information */}
+            {/* Scrollable Form Body */}
+            <form id="fleet-modal-form" onSubmit={handleSubmit} className="overflow-y-auto flex-1 px-8 py-6 space-y-7">
+
+              {/* Section: Basic Info */}
               <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-4 flex items-center gap-2">
-                  <User size={16} className="text-blue-600" />
-                  Basic Information
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500">Full Name *</label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={form.name}
-                      onChange={handleChange}
-                      required
-                      className="w-full h-11 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <User size={13} className="text-blue-600" />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500">Email *</label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={form.email}
-                      onChange={handleChange}
-                      required
-                      className="w-full h-11 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500">Phone *</label>
-                    <input
-                      type="text"
-                      name="phone"
-                      value={form.phone}
-                      onChange={handleChange}
-                      required
-                      className="w-full h-11 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500">Password {!editingId && '*'}</label>
-                    <input
-                      type="password"
-                      name="password"
-                      value={form.password}
-                      onChange={handleChange}
-                      required={!editingId}
-                      className="w-full h-11 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
+                  <span className="text-sm font-semibold text-gray-700">Basic Information</span>
+                  <div className="flex-1 h-px bg-gray-100 ml-2" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[{label:'Full Name',name:'name',type:'text'},{label:'Email',name:'email',type:'email'},{label:'Phone',name:'phone',type:'text'},{label:`Password${!editingId?' *':''}`,name:'password',type:'password'}].map(({label,name,type}) => (
+                    <div key={name} className="space-y-1.5">
+                      <label className="text-xs font-medium text-gray-500">{label}</label>
+                      <input
+                        type={type}
+                        name={name}
+                        value={form[name]}
+                        onChange={handleChange}
+                        required={name !== 'password' || !editingId}
+                        placeholder={`Enter ${label.replace(' *','').toLowerCase()}`}
+                        className={`w-full h-11 px-4 rounded-xl border bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 text-sm transition-all ${formErrors[name] ? 'border-red-400 focus:ring-red-400/30' : 'border-gray-200 focus:border-blue-400'}`}
+                      />
+                      {formErrors[name] && <p className="text-xs text-red-500 mt-1">{formErrors[name]}</p>}
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Company Details */}
+              {/* Section: Company */}
               <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-4 flex items-center gap-2">
-                  <Briefcase size={16} className="text-purple-600" />
-                  Company Details
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500">Company Name *</label>
-                    <input
-                      type="text"
-                      name="companyName"
-                      value={form.companyName}
-                      onChange={handleChange}
-                      required
-                      className="w-full h-11 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-6 h-6 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <Briefcase size={13} className="text-purple-600" />
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500">Commission % *</label>
-                    <input
-                      type="number"
-                      name="commissionPercentage"
-                      value={form.commissionPercentage}
-                      onChange={handleChange}
-                      required
-                      className="w-full h-11 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500">GST Number</label>
-                    <input
-                      type="text"
-                      name="gstNumber"
-                      value={form.gstNumber}
-                      onChange={handleChange}
-                      className="w-full h-11 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500">PAN Number</label>
-                    <input
-                      type="text"
-                      name="panNumber"
-                      value={form.panNumber}
-                      onChange={handleChange}
-                      className="w-full h-11 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
+                  <span className="text-sm font-semibold text-gray-700">Company Details</span>
+                  <div className="flex-1 h-px bg-gray-100 ml-2" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[{label:'Company Name *',name:'companyName',type:'text'},{label:'Commission % *',name:'commissionPercentage',type:'number'},{label:'GST Number',name:'gstNumber',type:'text'},{label:'PAN Number',name:'panNumber',type:'text'}].map(({label,name,type}) => (
+                    <div key={name} className="space-y-1.5">
+                      <label className="text-xs font-medium text-gray-500">{label}</label>
+                      <input
+                        type={type}
+                        name={name}
+                        value={form[name]}
+                        onChange={handleChange}
+                        required={label.includes('*')}
+                        placeholder={`Enter ${label.replace(' *','').toLowerCase()}`}
+                        className={`w-full h-11 px-4 rounded-xl border bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-purple-500/30 text-sm transition-all ${formErrors[name] ? 'border-red-400 focus:ring-red-400/30' : 'border-gray-200 focus:border-purple-400'}`}
+                      />
+                      {formErrors[name] && <p className="text-xs text-red-500 mt-1">{formErrors[name]}</p>}
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              {/* Address */}
+              {/* Section: Address */}
               <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-4 flex items-center gap-2">
-                  <MapPin size={16} className="text-green-600" />
-                  Address
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center">
+                    <MapPin size={13} className="text-green-600" />
+                  </div>
+                  <span className="text-sm font-semibold text-gray-700">Address</span>
+                  <div className="flex-1 h-px bg-gray-100 ml-2" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2 space-y-1.5">
                     <label className="text-xs font-medium text-gray-500">Address *</label>
-                    <input
-                      type="text"
-                      name="address"
-                      value={form.address}
-                      onChange={handleChange}
-                      required
-                      className="w-full h-11 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
+                    <input type="text" name="address" value={form.address} onChange={handleChange} required placeholder="Enter full address" className={`w-full h-11 px-4 rounded-xl border bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 text-sm transition-all ${formErrors.address ? 'border-red-400 focus:ring-red-400/30' : 'border-gray-200 focus:border-green-400 focus:ring-green-500/30'}`} />
+                    {formErrors.address && <p className="text-xs text-red-500 mt-1">{formErrors.address}</p>}
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500">City *</label>
-                    <input
-                      type="text"
-                      name="city"
-                      value={form.city}
-                      onChange={handleChange}
-                      required
-                      className="w-full h-11 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500">State *</label>
-                    <input
-                      type="text"
-                      name="state"
-                      value={form.state}
-                      onChange={handleChange}
-                      required
-                      className="w-full h-11 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500">Pincode *</label>
-                    <input
-                      type="text"
-                      name="pincode"
-                      value={form.pincode}
-                      onChange={handleChange}
-                      required
-                      className="w-full h-11 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Bank Details */}
-              <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-4 flex items-center gap-2">
-                  <CreditCard size={16} className="text-orange-600" />
-                  Bank Details
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500">Account Holder Name *</label>
-                    <input
-                      type="text"
-                      name="accountHolderName"
-                      value={form.accountHolderName}
-                      onChange={handleChange}
-                      required
-                      className="w-full h-11 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500">Account Number *</label>
-                    <input
-                      type="text"
-                      name="accountNumber"
-                      value={form.accountNumber}
-                      onChange={handleChange}
-                      required
-                      className="w-full h-11 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500">Bank Name *</label>
-                    <input
-                      type="text"
-                      name="bankName"
-                      value={form.bankName}
-                      onChange={handleChange}
-                      required
-                      className="w-full h-11 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-gray-500">IFSC Code *</label>
-                    <input
-                      type="text"
-                      name="ifscCode"
-                      value={form.ifscCode}
-                      onChange={handleChange}
-                      required
-                      className="w-full h-11 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Profile Image */}
-              <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-4 flex items-center gap-2">
-                  <Camera size={16} className="text-pink-600" />
-                  Profile Image
-                </h3>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setImage(e.target.files[0])}
-                    className="flex-1 p-2 border border-gray-300 rounded-lg"
-                  />
-                  {(image || (editingId && fleets.find(f => f._id === editingId)?.image)) && (
-                    <div className="w-16 h-16 rounded-lg border border-gray-200 overflow-hidden shadow-inner">
-                      <img
-                        src={image ? URL.createObjectURL(image) : `${IMAGE_BASE_URL}${fleets.find(f => f._id === editingId)?.image}`}
-                        alt="preview"
-                        className="w-full h-full object-cover"
-                      />
+                  {[{label:'City *',name:'city'},{label:'State *',name:'state'},{label:'Pincode *',name:'pincode'}].map(({label,name}) => (
+                    <div key={name} className="space-y-1.5">
+                      <label className="text-xs font-medium text-gray-500">{label}</label>
+                      <input type="text" name={name} value={form[name]} onChange={handleChange} required placeholder={`Enter ${name}`} className={`w-full h-11 px-4 rounded-xl border bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 text-sm transition-all ${formErrors[name] ? 'border-red-400 focus:ring-red-400/30' : 'border-gray-200 focus:border-green-400 focus:ring-green-500/30'}`} />
+                      {formErrors[name] && <p className="text-xs text-red-500 mt-1">{formErrors[name]}</p>}
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
 
-              {/* Form Actions */}
-              <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
+              {/* Section: Bank */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-6 h-6 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <CreditCard size={13} className="text-orange-600" />
+                  </div>
+                  <span className="text-sm font-semibold text-gray-700">Bank Details</span>
+                  <div className="flex-1 h-px bg-gray-100 ml-2" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[{label:'Account Holder Name *',name:'accountHolderName'},{label:'Account Number *',name:'accountNumber'},{label:'Bank Name *',name:'bankName'},{label:'IFSC Code *',name:'ifscCode'}].map(({label,name}) => (
+                    <div key={name} className="space-y-1.5">
+                      <label className="text-xs font-medium text-gray-500">{label}</label>
+                      <input type="text" name={name} value={form[name]} onChange={handleChange} required placeholder={`Enter ${label.replace(' *','').toLowerCase()}`} className={`w-full h-11 px-4 rounded-xl border bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 text-sm transition-all ${formErrors[name] ? 'border-red-400 focus:ring-red-400/30' : 'border-gray-200 focus:border-orange-400 focus:ring-orange-500/30'}`} />
+                      {formErrors[name] && <p className="text-xs text-red-500 mt-1">{formErrors[name]}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section: Documents with Preview */}
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-6 h-6 bg-rose-100 rounded-lg flex items-center justify-center">
+                    <FileText size={13} className="text-rose-600" />
+                  </div>
+                  <span className="text-sm font-semibold text-gray-700">Fleet Documents</span>
+                  <div className="flex-1 h-px bg-gray-100 ml-2" />
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Profile Image', file: image, setter: setImage, accent: 'blue', existingUrl: editingFleet?.image ? `${IMAGE_BASE_URL}${editingFleet.image}` : null },
+                    { label: 'GST Certificate', file: gstCertificate, setter: setGstCertificate, accent: 'purple', existingUrl: editingFleet?.documents?.gstCertificate ? `${IMAGE_BASE_URL}${editingFleet.documents.gstCertificate}` : null },
+                    { label: 'PAN Card', file: panCard, setter: setPanCard, accent: 'green', existingUrl: editingFleet?.documents?.panCard ? `${IMAGE_BASE_URL}${editingFleet.documents.panCard}` : null },
+                    { label: 'Business License', file: businessLicense, setter: setBusinessLicense, accent: 'orange', existingUrl: editingFleet?.documents?.businessLicense ? `${IMAGE_BASE_URL}${editingFleet.documents.businessLicense}` : null },
+                  ].map(({ label, file, setter, accent, existingUrl }) => {
+                    const previewSrc = file ? URL.createObjectURL(file) : existingUrl;
+                    return (
+                      <div key={label} className="space-y-2">
+                        <label className="text-xs font-medium text-gray-500">{label}</label>
+                        <label className={`relative flex flex-col items-center justify-center w-full aspect-square rounded-2xl border-2 border-dashed cursor-pointer overflow-hidden transition-all group
+                          ${previewSrc ? 'border-gray-300' : 'border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100'}`}>
+                          {previewSrc ? (
+                            <>
+                              <img src={previewSrc} alt={label} className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1">
+                                <Camera size={18} className="text-white" />
+                                <span className="text-white text-[10px] font-medium">Change</span>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex flex-col items-center gap-2 p-3 text-center">
+                              <div className={`w-10 h-10 rounded-xl bg-${accent}-100 flex items-center justify-center`}>
+                                <Camera size={18} className={`text-${accent}-500`} />
+                              </div>
+                              <span className="text-[10px] text-gray-400 leading-tight">Click to upload</span>
+                            </div>
+                          )}
+                          <input type="file" accept="image/*" className="hidden" onChange={(e) => setter(e.target.files[0])} />
+                        </label>
+                        {file ? (
+                          <p className="text-[10px] text-gray-400 truncate text-center">📎 {file.name}</p>
+                        ) : existingUrl ? (
+                          <p className="text-[10px] text-green-500 truncate text-center">✓ Existing image</p>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+            </form>
+
+            {/* Modal Footer */}
+            <div className="px-8 py-5 border-t border-gray-100 flex items-center justify-between bg-gray-50/50 rounded-b-3xl">
+              <p className="text-xs text-gray-400">Fields marked with <span className="text-red-400">*</span> are required</p>
+              <div className="flex gap-3">
+                <button type="button" onClick={closeModal} className="px-5 py-2.5 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-100 transition-colors">
                   Cancel
                 </button>
                 <button
                   type="submit"
+                  form="fleet-modal-form"
                   disabled={loading}
-                  className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 disabled:opacity-50"
+                  className="px-6 py-2.5 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/25 transition-all"
                 >
-                  {loading ? 'Processing...' : editingId ? 'Update Fleet' : 'Create Fleet'}
+                  {loading ? (
+                    <span className="flex items-center gap-2"><RefreshCw size={14} className="animate-spin" /> Processing...</span>
+                  ) : editingId ? 'Update Fleet' : 'Create Fleet'}
                 </button>
               </div>
-            </form>
+            </div>
           </div>
         </div>
       )}

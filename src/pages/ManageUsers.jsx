@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 import { useFont } from "../context/FontContext";
 import {
   getAllUsers, updateUser, deleteUser, toggleUserStatus
@@ -105,7 +106,14 @@ const Field = ({ label, name, value, onChange, themeColors, borderColor, textCol
 
 export default function ManageUsers() {
   const { themeColors, theme } = useTheme();
+  const { admin } = useAuth();
   const { currentFont } = useFont();
+
+  // Helper for Granular Permissions
+  const can = (permission) => {
+    if (admin?.role === 'SuperAdmin') return true;
+    return admin?.permissions?.includes(permission);
+  };
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState([]);
   const [fetching, setFetching] = useState(true);
@@ -119,7 +127,7 @@ export default function ManageUsers() {
   const [selectedChart, setSelectedChart] = useState('all');
   const [expandedRows, setExpandedRows] = useState({});
 
-  const rowsPerPage = 10;
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const textColorSecondary = useMemo(() => {
     if (theme === "dark") return "rgba(255, 255, 255, 0.6)";
@@ -151,12 +159,12 @@ export default function ManageUsers() {
     );
   }, [users, searchQuery]);
 
-  useEffect(() => { setCurrentPage(1); }, [searchQuery]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, rowsPerPage]);
 
   const paginatedUsers = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
     return filteredUsers.slice(start, start + rowsPerPage);
-  }, [filteredUsers, currentPage]);
+  }, [filteredUsers, currentPage, rowsPerPage]);
 
   const totalPages = Math.ceil(filteredUsers.length / rowsPerPage);
 
@@ -447,33 +455,43 @@ export default function ManageUsers() {
                             <p className="text-xs text-gray-500">{Math.ceil((new Date() - new Date(u.createdAt)) / (1000 * 60 * 60 * 24))} days ago</p>
                           </td>
                           <td className="py-4 px-6 text-center">
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleToggleStatus(u._id); }}
-                              className={`px-3 py-1 rounded-full text-xs font-medium ${u.isActive
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-gray-100 text-gray-500'
-                                }`}
-                            >
-                              {u.isActive ? 'Active' : 'Inactive'}
-                            </button>
+                            {can('USER_STATUS') ? (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleToggleStatus(u._id); }}
+                                className={`px-3 py-1 rounded-full text-xs font-medium ${u.isActive
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-gray-100 text-gray-500'
+                                  }`}
+                              >
+                                {u.isActive ? 'Active' : 'Inactive'}
+                              </button>
+                            ) : (
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${u.isActive ? 'text-green-600' : 'text-gray-500'}`}>
+                                {u.isActive ? 'Active' : 'Inactive'}
+                              </span>
+                            )}
                           </td>
                           <td className="py-4 px-6 text-center">
                             <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={(e) => { e.stopPropagation(); setViewing(u); }}
-                                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                                title="View Details"
-                              >
-                                <Eye size={16} className="text-blue-600" />
-                              </button>
+                              {can('USER_READ') && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setViewing(u); }}
+                                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                                  title="View Details"
+                                >
+                                  <Eye size={16} className="text-blue-600" />
+                                </button>
+                              )}
 
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleDelete(u._id); }}
-                                className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                                title="Delete"
-                              >
-                                <Trash2 size={16} className="text-red-600" />
-                              </button>
+                              {can('USER_DELETE') && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleDelete(u._id); }}
+                                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                                  title="Delete"
+                                >
+                                  <Trash2 size={16} className="text-red-600" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -529,35 +547,36 @@ export default function ManageUsers() {
 
               {/* Pagination */}
               <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                <p className="text-sm text-gray-500">
-                  Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredUsers.length)} of {filteredUsers.length} entries
-                </p>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-500">Rows per page:</span>
+                  <select
+                    value={rowsPerPage}
+                    onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                    className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    {[10, 20, 30, 50, 100].map(n => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                  <span className="text-sm text-gray-500">
+                    Showing {(currentPage - 1) * rowsPerPage + 1}–{Math.min(currentPage * rowsPerPage, filteredUsers.length)} of {filteredUsers.length}
+                  </span>
+                </div>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
-                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <ChevronLeft size={16} />
+                    <ChevronLeft size={16} /> Previous
                   </button>
-                  {[...Array(totalPages)].map((_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => setCurrentPage(i + 1)}
-                      className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${currentPage === i + 1
-                        ? 'bg-blue-600 text-white'
-                        : 'border border-gray-300 hover:bg-gray-50'
-                        }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
+                  <span className="text-sm text-gray-500">Page {currentPage} of {totalPages}</span>
                   <button
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages || totalPages === 0}
-                    className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <ChevronRight size={16} />
+                    Next <ChevronRight size={16} />
                   </button>
                 </div>
               </div>

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 import { useFont } from "../context/FontContext";
 import {
   getAllDrivers, approveDriver, rejectDriver, updateDriver, toggleDriverStatus, deleteDriver, registerDriver
@@ -62,6 +63,7 @@ const initialForm = {
   carNumber: "", carModel: "", carBrand: "", carType: "",
   carColor: "", manufacturingYear: "", seatCapacity: 4,
   insuranceExpiry: "", permitExpiry: "", pucExpiry: "",
+  lastServiceDate: "", nextServiceDate: "", debtLimit: -500,
   accountNumber: "", ifscCode: "", accountHolderName: "", bankName: "",
   rejectionReason: ""
 };
@@ -122,7 +124,7 @@ const StatBox = ({ icon: Icon, label, value, colorHex, themeColors, borderColor,
   </div>
 );
 
-const Field = ({ label, name, value, onChange, type = "text", required = false, icon: Icon }) => {
+const Field = ({ label, name, value, onChange, type = "text", required = false, icon: Icon, readOnly = false }) => {
   const { themeColors = {}, theme } = useTheme();
   const borderColor = themeColors.border || (theme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)");
   return (
@@ -132,10 +134,10 @@ const Field = ({ label, name, value, onChange, type = "text", required = false, 
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       <input
-        type={type} name={name} value={value || ""} onChange={onChange} required={required}
-        className="w-full h-10 px-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
+        type={type} name={name} value={value || ""} onChange={onChange} required={required} readOnly={readOnly}
+        className={`w-full h-10 px-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm ${readOnly ? 'bg-gray-100 cursor-not-allowed opacity-75' : ''}`}
         style={{
-          backgroundColor: themeColors.background || themeColors.surface || "#ffffff",
+          backgroundColor: readOnly ? undefined : (themeColors.background || themeColors.surface || "#ffffff"),
           borderColor: borderColor,
           color: themeColors.text || "#000000"
         }}
@@ -172,8 +174,15 @@ const SelectField = ({ label, name, value, onChange, options, required = false, 
 };
 
 export default function ManageDrivers() {
-  const { themeColors, theme } = useTheme();
+  const { themeColors } = useTheme();
+  const { admin } = useAuth();
   const { currentFont } = useFont();
+
+  // Helper for Granular Permissions
+  const can = (permission) => {
+    if (admin?.role === 'SuperAdmin') return true;
+    return admin?.permissions?.includes(permission);
+  };
 
   const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') + '/uploads/';
 
@@ -192,16 +201,19 @@ export default function ManageDrivers() {
   const [selectedChart, setSelectedChart] = useState('all');
   const [expandedRows, setExpandedRows] = useState({});
   const [imageFile, setImageFile] = useState(null);
-  const rowsPerPage = 10;
+  const [rcFile, setRcFile] = useState(null);
+  const [insuranceFile, setInsuranceFile] = useState(null);
+  const [permitFile, setPermitFile] = useState(null);
+  const [pucFile, setPucFile] = useState(null);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const textColorSecondary = useMemo(() => {
-    if (theme === "dark") return "rgba(255, 255, 255, 0.6)";
     return themeColors.textSecondary || "rgba(107, 114, 128, 1)";
-  }, [theme, themeColors]);
+  }, [themeColors]);
 
   const borderColor = useMemo(() => {
-    return themeColors.border || (theme === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)");
-  }, [theme, themeColors]);
+    return themeColors.border || "rgba(0,0,0,0.05)";
+  }, [themeColors]);
 
   useEffect(() => {
     fetchInitialData();
@@ -299,7 +311,7 @@ export default function ManageDrivers() {
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
     return filteredDrivers.slice(start, start + rowsPerPage);
-  }, [filteredDrivers, currentPage]);
+  }, [filteredDrivers, currentPage, rowsPerPage]);
 
   const totalPages = Math.ceil(filteredDrivers.length / rowsPerPage);
 
@@ -430,20 +442,47 @@ export default function ManageDrivers() {
       ifscCode: d.bankDetails?.ifscCode || "",
       accountHolderName: d.bankDetails?.accountHolderName || "",
       bankName: d.bankDetails?.bankName || "",
-      rejectionReason: d.rejectionReason || d.documents?.rejectionReason || ""
+      rejectionReason: d.rejectionReason || d.documents?.rejectionReason || "",
+      lastServiceDate: d.carDetails?.lastServiceDate ? d.carDetails.lastServiceDate.substring(0, 10) : "",
+      nextServiceDate: d.carDetails?.nextServiceDate ? d.carDetails.nextServiceDate.substring(0, 10) : "",
+      debtLimit: d.debtLimit || -500
     });
     setImageFile(null);
+    setRcFile(null);
+    setInsuranceFile(null);
+    setPermitFile(null);
+    setPucFile(null);
   };
 
   const handleNewDriver = () => {
     setIsEditing("new");
     setEditForm(initialForm);
     setImageFile(null);
+    setRcFile(null);
+    setInsuranceFile(null);
+    setPermitFile(null);
+    setPucFile(null);
   };
 
   const handleEditChange = (e) => {
     const { name, value } = e.target;
-    setEditForm(prev => ({ ...prev, [name]: value }));
+    setEditForm(prev => {
+      const updated = { ...prev, [name]: value };
+      
+      // Auto-fill seat capacity if carType is changed
+      if (name === "carType" && value) {
+        const selectedCat = categories.find(c => c._id === value);
+        // Using seatCapacity from the category model
+        if (selectedCat && selectedCat.seatCapacity) {
+          updated.seatCapacity = selectedCat.seatCapacity;
+        } else if (selectedCat && selectedCat.capacity) {
+          // Fallback if field name varies
+          updated.seatCapacity = selectedCat.capacity;
+        }
+      }
+      
+      return updated;
+    });
   };
 
   const handleImageChange = (e) => {
@@ -497,9 +536,16 @@ export default function ManageDrivers() {
       }
 
       // Profile image
-      if (imageFile) {
-        formData.append("image", imageFile);
-      }
+      if (imageFile) formData.append("image", imageFile);
+      if (rcFile) formData.append("rcImage", rcFile);
+      if (insuranceFile) formData.append("insuranceImage", insuranceFile);
+      if (permitFile) formData.append("permitImage", permitFile);
+      if (pucFile) formData.append("pucImage", pucFile);
+
+      // Tech details
+      if (editForm.lastServiceDate) formData.append("lastServiceDate", editForm.lastServiceDate);
+      if (editForm.nextServiceDate) formData.append("nextServiceDate", editForm.nextServiceDate);
+      if (editForm.debtLimit !== undefined) formData.append("debtLimit", editForm.debtLimit);
 
       let response;
       if (isEditing === "new") {
@@ -562,7 +608,7 @@ export default function ManageDrivers() {
     }));
   };
 
-  useEffect(() => { setCurrentPage(1); }, [searchQuery, activeTab]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, activeTab, rowsPerPage]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -585,14 +631,16 @@ export default function ManageDrivers() {
               </button>
 
               {/* Add New */}
-              <button
-                onClick={handleNewDriver}
-                className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center space-x-1 sm:space-x-2 shadow-lg"
-              >
-                <FaPlus size={14} />
-                <span className="hidden sm:inline text-sm">New Driver</span>
-                <span className="sm:hidden">Add</span>
-              </button>
+              {can('DRIVER_CREATE') && (
+                <button
+                  onClick={handleNewDriver}
+                  className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center space-x-1 sm:space-x-2 shadow-lg"
+                >
+                  <FaPlus size={14} />
+                  <span className="hidden sm:inline text-sm">New Driver</span>
+                  <span className="sm:hidden">Add</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -738,55 +786,67 @@ export default function ManageDrivers() {
                             }`}>
                             {d.isApproved ? 'Approved' : d.isRejected ? 'Rejected' : 'Pending'}
                           </span>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleToggleStatus(d._id); }}
-                            className={`ml-1 ${d.isActive ? 'text-green-600' : 'text-gray-300'}`}
-                          >
-                            {d.isActive ? <FaToggleOn size={16} /> : <FaToggleOff size={16} />}
-                          </button>
+                          {can('DRIVER_STATUS') && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleToggleStatus(d._id); }}
+                              className={`ml-1 ${d.isActive ? 'text-green-600' : 'text-gray-300'}`}
+                            >
+                              {d.isActive ? <FaToggleOn size={16} /> : <FaToggleOff size={16} />}
+                            </button>
+                          )}
                         </div>
                       </td>
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center gap-2">
                           {!d.isApproved && !d.isRejected && (
                             <>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleApprove(d._id); }}
-                                className="p-1.5 hover:bg-green-100 rounded text-green-600 font-bold"
-                                title="Approve"
-                              >
-                                <FaCheckCircle size={16} />
-                              </button>
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleReject(d._id); }}
-                                className="p-1.5 hover:bg-red-100 rounded text-red-600 font-bold"
-                                title="Reject"
-                              >
-                                <FaTimesCircle size={16} />
-                              </button>
+                              {can('DRIVER_APPROVE') && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleApprove(d._id); }}
+                                  className="p-1.5 hover:bg-green-100 rounded text-green-600 font-bold"
+                                  title="Approve"
+                                >
+                                  <FaCheckCircle size={16} />
+                                </button>
+                              )}
+                              {can('DRIVER_REJECT') && (
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleReject(d._id); }}
+                                  className="p-1.5 hover:bg-red-100 rounded text-red-600 font-bold"
+                                  title="Reject"
+                                >
+                                  <FaTimesCircle size={16} />
+                                </button>
+                              )}
                             </>
                           )}
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setViewing(d); }}
-                            className="p-1 hover:bg-gray-100 rounded text-blue-600"
-                            title="View"
-                          >
-                            <FaEye size={14} />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleOpenEdit(d); }}
-                            className="p-1 hover:bg-gray-100 rounded text-orange-600"
-                            title="Edit"
-                          >
-                            <FaEdit size={14} />
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDelete(d._id); }}
-                            className="p-1 hover:bg-gray-100 rounded text-red-600"
-                            title="Delete"
-                          >
-                            <FaTrash size={14} />
-                          </button>
+                          {can('DRIVER_READ') && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setViewing(d); }}
+                              className="p-1 hover:bg-gray-100 rounded text-blue-600"
+                              title="View"
+                            >
+                              <FaEye size={14} />
+                            </button>
+                          )}
+                          {can('DRIVER_EDIT') && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleOpenEdit(d); }}
+                              className="p-1 hover:bg-gray-100 rounded text-orange-600"
+                              title="Edit"
+                            >
+                              <FaEdit size={14} />
+                            </button>
+                          )}
+                          {can('DRIVER_DELETE') && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDelete(d._id); }}
+                              className="p-1 hover:bg-gray-100 rounded text-red-600"
+                              title="Delete"
+                            >
+                              <FaTrash size={14} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -932,24 +992,36 @@ export default function ManageDrivers() {
 
           {/* Pagination */}
           <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <p className="text-sm text-gray-500">
-              Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredDrivers.length)} of {filteredDrivers.length}
-            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Rows per page:</span>
+              <select
+                value={rowsPerPage}
+                onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              >
+                {[10, 20, 30, 50, 100].map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+              <span className="text-sm text-gray-500">
+                Showing {filteredDrivers.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}–{Math.min(currentPage * rowsPerPage, filteredDrivers.length)} of {filteredDrivers.length}
+              </span>
+            </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <FaChevronLeft size={14} />
+                <FaChevronLeft size={14} /> Previous
               </button>
-              <span className="text-sm font-medium text-gray-700">Page {currentPage} of {totalPages || 1}</span>
+              <span className="text-sm text-gray-500">Page {currentPage} of {totalPages || 1}</span>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages || totalPages === 0}
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+                className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <FaChevronRight size={14} />
+                Next <FaChevronRight size={14} />
               </button>
             </div>
           </div>
@@ -1085,7 +1157,7 @@ export default function ManageDrivers() {
 
             <div className="p-6">
               {/* Quick Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
                 <div className="p-3 bg-blue-50 rounded-lg">
                   <p className="text-xs text-gray-500 mb-1">Rating</p>
                   <div className="flex items-center gap-1">
@@ -1104,6 +1176,13 @@ export default function ManageDrivers() {
                 <div className="p-3 bg-orange-50 rounded-lg">
                   <p className="text-xs text-gray-500 mb-1">Wallet</p>
                   <p className="text-base font-bold text-orange-600">₹{viewing.walletBalance || 0}</p>
+                </div>
+                <div className="p-3 bg-red-50 rounded-lg">
+                  <p className="text-xs text-gray-500 mb-1">Debt Limit</p>
+                  <div className="flex items-center gap-1">
+                    <FaMoneyBillWave className="text-red-500" size={14} />
+                    <p className="text-base font-bold text-red-600">₹{viewing.debtLimit || -500}</p>
+                  </div>
                 </div>
               </div>
 
@@ -1198,25 +1277,6 @@ export default function ManageDrivers() {
                   </div>
                 </div>
 
-                {/* Pricing */}
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Pricing</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Base Fare:</span>
-                      <span className="text-sm font-medium text-gray-900">₹{viewing.carDetails?.baseFare || 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Private/km:</span>
-                      <span className="text-sm font-medium text-gray-900">₹{viewing.carDetails?.privateRatePerKm || 0}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Shared/seat/km:</span>
-                      <span className="text-sm font-medium text-gray-900">₹{viewing.carDetails?.sharedRatePerSeatPerKm || 0}</span>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Bank Details */}
                 <div className="space-y-3">
                   <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Bank Details</h3>
@@ -1227,7 +1287,7 @@ export default function ManageDrivers() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-500">Account:</span>
-                      <span className="text-sm font-medium text-gray-900">****{viewing.bankDetails?.accountNumber?.slice(-4) || 'N/A'}</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.bankDetails?.accountNumber || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-500">IFSC:</span>
@@ -1239,10 +1299,71 @@ export default function ManageDrivers() {
                     </div>
                   </div>
                 </div>
+
+                {/* Expiry Dates */}
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Expiry & Status</h3>
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Insurance:</span>
+                      <span className={`text-sm font-medium ${new Date(viewing.carDetails?.insuranceExpiry) < new Date() ? 'text-red-500' : 'text-gray-900'}`}>{viewing.carDetails?.insuranceExpiry ? new Date(viewing.carDetails.insuranceExpiry).toLocaleDateString() : 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">Permit:</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.carDetails?.permitExpiry ? new Date(viewing.carDetails.permitExpiry).toLocaleDateString() : 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-500">PUC:</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.carDetails?.pucExpiry ? new Date(viewing.carDetails.pucExpiry).toLocaleDateString() : 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
+
+              {/* Document Images Section */}
+              <div className="mt-8 space-y-4">
+                <h3 className="text-sm font-semibold text-gray-700 border-b pb-2 flex items-center gap-2">
+                  <FaFileInvoice className="text-blue-500" /> Vehicle Documents (Images)
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {[
+                    { label: 'RC Front', key: 'rc' },
+                    { label: 'Insurance', key: 'insurance' },
+                    { label: 'Permit', key: 'permit' },
+                    { label: 'PUC', key: 'puc' }
+                  ].map((doc) => (
+                    <div key={doc.key} className="space-y-2">
+                      <p className="text-[10px] font-medium text-gray-500 text-center uppercase tracking-wider">{doc.label}</p>
+                      <div className="aspect-[4/3] rounded-lg border border-gray-200 bg-gray-50 overflow-hidden relative group cursor-pointer"
+                        onClick={() => window.open(`${IMAGE_BASE_URL}${viewing.carDetails?.carDocuments?.[doc.key]}`, '_blank')}>
+                        {viewing.carDetails?.carDocuments?.[doc.key] ? (
+                          <img
+                            src={`${IMAGE_BASE_URL}${viewing.carDetails.carDocuments[doc.key]}`}
+                            alt={doc.label}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
+                            <FaBan size={20} />
+                            <span className="text-[9px] mt-1 uppercase">No File</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Rejection Reason if any */}
+              {viewing.isRejected && viewing.rejectionReason && (
+                <div className="mt-6 p-4 bg-red-50 border border-red-100 rounded-xl">
+                  <h4 className="text-xs font-bold text-red-700 uppercase tracking-wider mb-1">Rejection Reason</h4>
+                  <p className="text-sm text-red-600">{viewing.rejectionReason}</p>
+                </div>
+              )}
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+            <div className="p-6 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0 bg-white">
               <button
                 onClick={() => setViewing(null)}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
@@ -1265,137 +1386,191 @@ export default function ManageDrivers() {
 
       {/* Edit/Create Modal */}
       {isEditing && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
-              <h2 className="text-xl font-bold text-gray-900">
-                {isEditing === "new" ? "Register New Driver" : "Edit Driver"}
-              </h2>
-              <button onClick={() => setIsEditing(null)} className="p-2 hover:bg-gray-100 rounded-lg">
-                <FaTimes size={18} className="text-gray-500" />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[92vh] flex flex-col shadow-2xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-blue-600 to-purple-600 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-white/20 rounded-xl flex items-center justify-center">
+                  {isEditing === "new" ? <FaPlus size={16} className="text-white" /> : <FaEdit size={16} className="text-white" />}
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-white">
+                    {isEditing === "new" ? "Register New Driver" : "Edit Driver"}
+                  </h2>
+                  <p className="text-blue-100 text-xs">{isEditing === "new" ? "Fill in the details to register a new driver" : "Update driver information"}</p>
+                </div>
+              </div>
+              <button onClick={() => setIsEditing(null)} className="p-2 hover:bg-white/20 rounded-xl transition-colors">
+                <FaTimes size={18} className="text-white" />
               </button>
             </div>
 
-            <form onSubmit={saveDriver} className="p-6 space-y-6">
-              {/* Basic Info */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">Basic Information</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Field label="Full Name" name="name" value={editForm.name} onChange={handleEditChange} required icon={User} />
-                  <Field label="Email" name="email" value={editForm.email} onChange={handleEditChange} required type="email" icon={Mail} />
-                  <Field label="Phone" name="phone" value={editForm.phone} onChange={handleEditChange} required icon={Phone} />
-                  <Field label="Password" name="password" value={editForm.password} onChange={handleEditChange} required={isEditing === "new"} type="password" icon={FaShieldAlt} />
-                </div>
-              </div>
+            <form onSubmit={saveDriver} className="flex flex-col flex-1 overflow-hidden">
+              <div className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
 
-              {/* Address */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">Address</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="md:col-span-2">
-                    <Field label="Address" name="address" value={editForm.address} onChange={handleEditChange} icon={Home} />
+                {/* Section 1: Basic Info + Profile Image */}
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-7 h-7 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <User size={14} className="text-blue-600" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-800">Basic Information</h3>
                   </div>
-                  <Field label="City" name="city" value={editForm.city} onChange={handleEditChange} icon={MapPin} />
-                  <Field label="State" name="state" value={editForm.state} onChange={handleEditChange} icon={Map} />
-                  <Field label="Pincode" name="pincode" value={editForm.pincode} onChange={handleEditChange} icon={Map} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <Field label="Full Name" name="name" value={editForm.name} onChange={handleEditChange} required icon={User} />
+                    <Field label="Email" name="email" value={editForm.email} onChange={handleEditChange} required type="email" icon={Mail} />
+                    <Field label="Phone" name="phone" value={editForm.phone} onChange={handleEditChange} required icon={Phone} />
+                    <Field label="Password" name="password" value={editForm.password} onChange={handleEditChange} required={isEditing === "new"} type="password" icon={FaShieldAlt} />
+                    <div className="space-y-1">
+                      <label className="text-xs font-medium flex items-center gap-1.5 text-gray-600">
+                        <FaUserCircle size={14} className="text-gray-400" /> Profile Photo
+                      </label>
+                      <input type="file" accept="image/*" onChange={handleImageChange}
+                        className="w-full h-10 px-3 py-2 border border-gray-200 rounded-lg text-xs text-gray-600 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-blue-50 file:text-blue-600 hover:file:bg-blue-100 cursor-pointer" />
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              {/* Documents */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">Documents</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Field label="License Number" name="licenseNumber" value={editForm.licenseNumber} onChange={handleEditChange} icon={FaIdCard} />
-                  <Field label="License Expiry" name="licenseExpiry" value={editForm.licenseExpiry} onChange={handleEditChange} type="date" icon={FaCalendarAlt} />
-                  <Field label="Aadhar Number" name="aadhar" value={editForm.aadhar} onChange={handleEditChange} icon={FaIdCard} />
-                  <Field label="PAN Number" name="pan" value={editForm.pan} onChange={handleEditChange} icon={FaIdCard} />
+                {/* Section 2: Address */}
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-7 h-7 bg-green-100 rounded-lg flex items-center justify-center">
+                      <MapPin size={14} className="text-green-600" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-800">Address Details</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="lg:col-span-3">
+                      <Field label="Full Address" name="address" value={editForm.address} onChange={handleEditChange} icon={Home} />
+                    </div>
+                    <Field label="City" name="city" value={editForm.city} onChange={handleEditChange} icon={MapPin} />
+                    <Field label="State" name="state" value={editForm.state} onChange={handleEditChange} icon={Map} />
+                    <Field label="Pincode" name="pincode" value={editForm.pincode} onChange={handleEditChange} icon={Map} />
+                  </div>
                 </div>
-              </div>
 
-              {/* Vehicle Details */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">Vehicle Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Field label="Car Number" name="carNumber" value={editForm.carNumber} onChange={handleEditChange} icon={FaCar} />
-                  <Field label="Car Model" name="carModel" value={editForm.carModel} onChange={handleEditChange} icon={FaCar} />
-                  <Field label="Car Brand" name="carBrand" value={editForm.carBrand} onChange={handleEditChange} icon={FaCar} />
-                  <SelectField
-                    label="Car Type"
-                    name="carType"
-                    value={editForm.carType}
-                    onChange={handleEditChange}
-                    options={categories.map(c => ({ value: c._id, label: c.name }))}
-                    icon={FaCar}
-                  />
-                  {editForm.carType && (() => {
-                    const cat = categories.find(c => c._id === editForm.carType);
-                    let layout = [];
-                    if (cat?.seatLayout) {
-                      try {
-                        layout = typeof cat.seatLayout === 'string' ? JSON.parse(cat.seatLayout) : cat.seatLayout;
-                      } catch (e) { }
-                    }
-                    return (
-                      <div className="md:col-span-2 space-y-1">
-                        <label className="text-xs font-medium flex items-center gap-1.5 text-gray-600">
-                          <FaChair size={14} className="text-gray-400" /> Selected Car Layout (Read Only)
-                        </label>
-                        <div className="flex flex-wrap gap-2 p-3 bg-gray-50 border border-gray-200 rounded-lg min-h-[46px]">
-                          {layout && layout.length > 0 ? layout.map((seat, i) => (
-                            <span key={i} className="px-2 py-1 bg-white border border-gray-300 rounded text-xs font-medium text-gray-700 shadow-sm">{seat}</span>
-                          )) : <span className="text-xs text-gray-400">Standard Layout</span>}
+                {/* Section 3: Documents */}
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-7 h-7 bg-orange-100 rounded-lg flex items-center justify-center">
+                      <FaIdCard size={14} className="text-orange-600" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-800">Identity Documents</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <Field label="License Number" name="licenseNumber" value={editForm.licenseNumber} onChange={handleEditChange} icon={FaIdCard} />
+                    <Field label="License Expiry" name="licenseExpiry" value={editForm.licenseExpiry} onChange={handleEditChange} type="date" icon={FaCalendarAlt} />
+                    <Field label="Aadhar Number" name="aadhar" value={editForm.aadhar} onChange={handleEditChange} icon={FaIdCard} />
+                    <Field label="PAN Number" name="pan" value={editForm.pan} onChange={handleEditChange} icon={FaIdCard} />
+                  </div>
+                </div>
+
+                {/* Section 4: Vehicle Details */}
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-7 h-7 bg-purple-100 rounded-lg flex items-center justify-center">
+                      <FaCar size={14} className="text-purple-600" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-800">Vehicle Details</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <Field label="Car Number" name="carNumber" value={editForm.carNumber} onChange={handleEditChange} icon={FaCar} />
+                    <Field label="Car Brand" name="carBrand" value={editForm.carBrand} onChange={handleEditChange} icon={FaCar} />
+                    <Field label="Car Model" name="carModel" value={editForm.carModel} onChange={handleEditChange} icon={FaCar} />
+                    <SelectField
+                      label="Car Type / Category"
+                      name="carType"
+                      value={editForm.carType}
+                      onChange={handleEditChange}
+                      options={categories.map(c => ({ value: c._id, label: c.name }))}
+                      icon={FaCar}
+                    />
+                    <Field label="Car Color" name="carColor" value={editForm.carColor} onChange={handleEditChange} icon={FaPalette} />
+                    <Field label="Manufacturing Year" name="manufacturingYear" value={editForm.manufacturingYear} onChange={handleEditChange} type="number" icon={FaCalendarAlt} />
+                    <Field label="Seat Capacity" name="seatCapacity" value={editForm.seatCapacity} onChange={handleEditChange} type="number" icon={FaUsers} readOnly />
+                    {editForm.carType && (() => {
+                      const cat = categories.find(c => c._id === editForm.carType);
+                      let layout = [];
+                      if (cat?.seatLayout) {
+                        try { layout = typeof cat.seatLayout === 'string' ? JSON.parse(cat.seatLayout) : cat.seatLayout; } catch (e) { }
+                      }
+                      return layout.length > 0 ? (
+                        <div className="lg:col-span-2 space-y-1">
+                          <label className="text-xs font-medium flex items-center gap-1.5 text-gray-600">
+                            <FaChair size={14} className="text-gray-400" /> Seat Layout
+                          </label>
+                          <div className="flex flex-wrap gap-1.5 p-3 bg-white border border-gray-200 rounded-lg min-h-[42px]">
+                            {layout.map((seat, i) => (
+                              <span key={i} className="px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs font-medium text-blue-700">{seat}</span>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })()}
-                  <Field label="Car Color" name="carColor" value={editForm.carColor} onChange={handleEditChange} icon={FaPalette} />
-                  <Field label="Year" name="manufacturingYear" value={editForm.manufacturingYear} onChange={handleEditChange} type="number" icon={FaCalendarAlt} />
-                  <Field label="Seats" name="seatCapacity" value={editForm.seatCapacity} onChange={handleEditChange} type="number" icon={FaUsers} />
-                  <Field label="Insurance Expiry" name="insuranceExpiry" value={editForm.insuranceExpiry} onChange={handleEditChange} type="date" icon={FaShieldAlt} />
-                  <Field label="Permit Expiry" name="permitExpiry" value={editForm.permitExpiry} onChange={handleEditChange} type="date" icon={FaFileInvoice} />
-                  <Field label="PUC Expiry" name="pucExpiry" value={editForm.pucExpiry} onChange={handleEditChange} type="date" icon={FaGasPump} />
+                      ) : null;
+                    })()}
+                  </div>
+
+                  {/* Expiry Dates */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-4 pt-4 border-t border-gray-200">
+                    <Field label="Insurance Expiry" name="insuranceExpiry" value={editForm.insuranceExpiry} onChange={handleEditChange} type="date" icon={FaShieldAlt} />
+                    <Field label="Permit Expiry" name="permitExpiry" value={editForm.permitExpiry} onChange={handleEditChange} type="date" icon={FaFileInvoice} />
+                    <Field label="PUC Expiry" name="pucExpiry" value={editForm.pucExpiry} onChange={handleEditChange} type="date" icon={FaGasPump} />
+                    <Field label="Last Service" name="lastServiceDate" value={editForm.lastServiceDate} onChange={handleEditChange} type="date" icon={FaWrench} />
+                    <Field label="Next Service" name="nextServiceDate" value={editForm.nextServiceDate} onChange={handleEditChange} type="date" icon={FaCalendarAlt} />
+                  </div>
+
+                  {/* Vehicle Documents Upload */}
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <p className="text-xs font-semibold text-gray-600 mb-3 flex items-center gap-1.5"><FaFileInvoice size={12} className="text-gray-400" /> Vehicle Document Images</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {[
+                        { label: 'RC Document', setter: setRcFile },
+                        { label: 'Insurance Doc', setter: setInsuranceFile },
+                        { label: 'Permit Doc', setter: setPermitFile },
+                        { label: 'PUC Doc', setter: setPucFile },
+                      ].map(({ label, setter }) => (
+                        <div key={label} className="space-y-1">
+                          <label className="text-xs font-medium text-gray-600">{label}</label>
+                          <input type="file" accept="image/*" onChange={(e) => setter(e.target.files[0])}
+                            className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-gray-600 file:mr-1.5 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-xs file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100 cursor-pointer" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              {/* Bank Details */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">Bank Details</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Field label="Bank Name" name="bankName" value={editForm.bankName} onChange={handleEditChange} icon={FaLandmark} />
-                  <Field label="Account Holder" name="accountHolderName" value={editForm.accountHolderName} onChange={handleEditChange} icon={User} />
-                  <Field label="Account Number" name="accountNumber" value={editForm.accountNumber} onChange={handleEditChange} icon={FaCreditCard} />
-                  <Field label="IFSC Code" name="ifscCode" value={editForm.ifscCode} onChange={handleEditChange} icon={FaCreditCard} />
+                {/* Section 5: Bank Details */}
+                <div className="bg-gray-50 rounded-xl p-5 border border-gray-100">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-7 h-7 bg-teal-100 rounded-lg flex items-center justify-center">
+                      <FaLandmark size={14} className="text-teal-600" />
+                    </div>
+                    <h3 className="text-sm font-semibold text-gray-800">Bank Details</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <Field label="Bank Name" name="bankName" value={editForm.bankName} onChange={handleEditChange} icon={FaLandmark} />
+                    <Field label="Account Holder" name="accountHolderName" value={editForm.accountHolderName} onChange={handleEditChange} icon={User} />
+                    <Field label="Account Number" name="accountNumber" value={editForm.accountNumber} onChange={handleEditChange} icon={FaCreditCard} />
+                    <Field label="IFSC Code" name="ifscCode" value={editForm.ifscCode} onChange={handleEditChange} icon={FaCreditCard} />
+                  </div>
                 </div>
+
               </div>
 
-              {/* Profile Image */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-4">Profile Image</h3>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-
-              {/* Form Actions */}
-              <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(null)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm flex items-center gap-2"
-                >
-                  {loading && <FaSyncAlt className="animate-spin" size={14} />}
-                  {loading ? 'Saving...' : isEditing === "new" ? 'Register Driver' : 'Update Driver'}
-                </button>
+              {/* Sticky Footer Actions */}
+              <div className="flex items-center justify-between px-6 py-4 border-t border-gray-100 bg-gray-50 rounded-b-2xl">
+                <p className="text-xs text-gray-400">Fields marked <span className="text-red-500">*</span> are required</p>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setIsEditing(null)}
+                    className="px-5 py-2.5 border border-gray-300 rounded-xl hover:bg-gray-100 text-sm font-medium text-gray-700 transition-colors">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={loading}
+                    className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 text-sm font-medium flex items-center gap-2 shadow-lg transition-all">
+                    {loading && <FaSyncAlt className="animate-spin" size={14} />}
+                    {loading ? 'Saving...' : isEditing === "new" ? '✓ Register Driver' : '✓ Update Driver'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

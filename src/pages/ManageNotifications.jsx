@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 import { useFont } from "../context/FontContext";
 import {
   getAllNotifications, createNotification, toggleNotificationStatus, deleteNotification
@@ -139,7 +140,14 @@ const StatBox = ({ icon: Icon, label, value, colorHex, themeColors, borderColor,
 
 export default function ManageNotifications() {
   const { themeColors, theme } = useTheme();
+  const { admin } = useAuth();
   const { currentFont } = useFont();
+
+  // Helper for Granular Permissions
+  const can = (permission) => {
+    if (admin?.role === 'SuperAdmin') return true;
+    return admin?.permissions?.includes(permission);
+  };
   const [loading, setLoading] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [fetching, setFetching] = useState(true);
@@ -161,7 +169,7 @@ export default function ManageNotifications() {
     recipientModel: "User",
   });
 
-  const rowsPerPage = 10;
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   const textColorSecondary = useMemo(() => {
     if (theme === "dark") return "rgba(255, 255, 255, 0.6)";
@@ -319,12 +327,12 @@ export default function ManageNotifications() {
     );
   }, [notifications, searchQuery, activeTab]);
 
-  useEffect(() => { setCurrentPage(1); }, [searchQuery, activeTab]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery, activeTab, rowsPerPage]);
 
   const paginatedNotifications = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
     return filteredNotifications.slice(start, start + rowsPerPage);
-  }, [filteredNotifications, currentPage]);
+  }, [filteredNotifications, currentPage, rowsPerPage]);
 
   const totalPages = Math.ceil(filteredNotifications.length / rowsPerPage);
 
@@ -445,14 +453,16 @@ export default function ManageNotifications() {
               </button>
 
               {/* Add New */}
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center space-x-1 sm:space-x-2 shadow-lg"
-              >
-                <FaPlus size={18} />
-                <span className="hidden sm:inline">New Broadcast</span>
-                <span className="sm:hidden text-xs">New</span>
-              </button>
+              {can('NEWS_POST') && (
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 flex items-center space-x-1 sm:space-x-2 shadow-lg"
+                >
+                  <FaPlus size={18} />
+                  <span className="hidden sm:inline">New Broadcast</span>
+                  <span className="sm:hidden text-xs">New</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -574,21 +584,23 @@ export default function ManageNotifications() {
                       </td>
                       <td className="py-4 px-6 text-center">
                         <button
-                          onClick={(e) => { e.stopPropagation(); handleToggle(n._id); }}
-                          className={`text-sm font-medium ${n.isActive ? 'text-green-600' : 'text-gray-400'
-                            }`}
+                          onClick={(e) => { e.stopPropagation(); can('NEWS_POST') && handleToggle(n._id); }}
+                          disabled={!can('NEWS_POST')}
+                          className={`text-sm font-medium ${n.isActive ? 'text-green-600' : 'text-gray-400'} ${!can('NEWS_POST') && 'opacity-50 cursor-not-allowed'}`}
                         >
                           {n.isActive ? <FaToggleOn size={24} /> : <FaToggleOff size={24} />}
                         </button>
                       </td>
                       <td className="py-4 px-6 text-center">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDelete(n._id); }}
-                          className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <FaTrash size={16} className="text-red-600" />
-                        </button>
+                        {can('NEWS_DELETE') && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDelete(n._id); }}
+                            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Delete"
+                          >
+                            <FaTrash size={16} className="text-red-600" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                     {expandedRows[n._id] && (
@@ -621,35 +633,36 @@ export default function ManageNotifications() {
 
           {/* Pagination */}
           <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-            <p className="text-sm text-gray-500">
-              Showing {(currentPage - 1) * rowsPerPage + 1} to {Math.min(currentPage * rowsPerPage, filteredNotifications.length)} of {filteredNotifications.length} entries
-            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Rows per page:</span>
+              <select
+                value={rowsPerPage}
+                onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              >
+                {[10, 20, 30, 50, 100].map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+              <span className="text-sm text-gray-500">
+                Showing {filteredNotifications.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}–{Math.min(currentPage * rowsPerPage, filteredNotifications.length)} of {filteredNotifications.length}
+              </span>
+            </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <FaChevronLeft size={16} />
+                <FaChevronLeft size={14} /> Previous
               </button>
-              {[...Array(totalPages)].map((_, i) => (
-                <button
-                  key={i + 1}
-                  onClick={() => setCurrentPage(i + 1)}
-                  className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${currentPage === i + 1
-                    ? 'bg-blue-600 text-white'
-                    : 'border border-gray-300 hover:bg-gray-50'
-                    }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
+              <span className="text-sm text-gray-500">Page {currentPage} of {totalPages || 1}</span>
               <button
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages || totalPages === 0}
-                className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <FaChevronRight size={16} />
+                Next <FaChevronRight size={14} />
               </button>
             </div>
           </div>

@@ -1,30 +1,62 @@
-import http from "./http";
+import axios from "axios";
 
-export const getAdminProfile = async () => {
-  const res = await http.get("/api/admin/profile");
-  return res.data;
-};
+const API_BAR_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
-export const updateAdminProfile = async (data) => {
-  const res = await http.put("/api/admin/profile-update", data, {
-    headers: {
-      "Content-Type": data instanceof FormData ? "multipart/form-data" : "application/json",
-    },
-  });
-  return res.data;
-};
-
-export const registerAdmin = async (data) => {
-  const res = await http.post("/api/admin/register", data);
-  return res.data;
+const getHeaders = () => {
+    const token = localStorage.getItem("admin-token");
+    return {
+        headers: {
+            Authorization: `Bearer ${token}`,
+        },
+    };
 };
 
 export const getDashboardStats = async () => {
-  const res = await http.get("/api/admin/dashboard-stats");
-  return res.data;
+    const response = await axios.get(`${API_BAR_URL}/admin/dashboard-stats`, getHeaders());
+    return response.data;
+};
+
+export const getAdminProfile = async () => {
+    const response = await axios.get(`${API_BAR_URL}/admin/profile`, getHeaders());
+    return response.data;
+};
+
+export const updateAdminProfile = async (data) => {
+    const response = await axios.put(`${API_BAR_URL}/admin/profile-update`, data, getHeaders());
+    return response.data;
+};
+
+export const getAdminNotifications = async () => {
+    const response = await axios.get(`${API_BAR_URL}/admin/notifications`, getHeaders());
+    return response.data;
 };
 
 export const getFullReport = async () => {
-  const res = await http.get("/api/admin/full-report");
-  return res.data;
+    const response = await axios.get(`${API_BAR_URL}/admin/full-report`, getHeaders());
+    return response.data;
+};
+
+export const updateAdminNotifications = async (id, data) => {
+    const response = await axios.put(`${API_BAR_URL}/admin/notifications/${id}`, data, getHeaders());
+    return response.data;
+};
+
+export const registerSubAdmin = async (data) => {
+    const response = await axios.post(`${API_BAR_URL}/admin/subadmin/register`, data, getHeaders());
+    return response.data;
+};
+
+export const getAllAdmins = async () => {
+    const response = await axios.get(`${API_BAR_URL}/admin/subadmin/all`, getHeaders());
+    return response.data;
+};
+
+export const updateAdminPermissions = async (id, data) => {
+    const response = await axios.put(`${API_BAR_URL}/admin/subadmin/permissions/${id}`, data, getHeaders());
+    return response.data;
+};
+
+export const deleteAdmin = async (id) => {
+    const response = await axios.delete(`${API_BAR_URL}/admin/subadmin/${id}`, getHeaders());
+    return response.data;
 };

@@ -131,8 +131,17 @@ const Sidebar = ({
   logout,
   themeColors,
 }) => {
-  // 🔥 Sirf wahi routes jo hide: true NA ho
-  const visibleRoutes = routes.filter((r) => !r.hide);
+  // 🔥 Filter routes based on Permissions & Role
+  const visibleRoutes = routes.filter((r) => {
+    if (r.hide) return false;
+    // SuperAdmin can see everything
+    if (user?.role === "SuperAdmin") return true;
+    // If route requires a permission, check if user has it
+    if (r.permission) {
+      return user?.permissions?.includes(r.permission);
+    }
+    return true; // Routes without permission requirement are visible to all admins (like Profile)
+  });
 
   // Active check — logic updated to handle parents
   const isRouteActive = (route) => {

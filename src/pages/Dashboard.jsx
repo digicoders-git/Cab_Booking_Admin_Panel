@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import routes from '../route/SidebarRaoute';
 import {
    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
    PieChart, Pie, Cell,
@@ -18,8 +21,27 @@ import {
 import { getDashboardStats as fetchStatsAPI } from '../apis/admin';
 
 const AdminDashboard = () => {
+   const { admin } = useAuth();
+   const navigate = useNavigate();
    const [dashboardData, setDashboardData] = useState(null);
    const [loading, setLoading] = useState(false);
+
+   useEffect(() => {
+      // PERMISSION CHECK: If not SuperAdmin and no DASHBOARD_READ permission
+      if (admin && admin.role !== 'SuperAdmin' && !admin.permissions?.includes('DASHBOARD_READ')) {
+         // Find the first route they HAVE permission for
+         const firstAllowedRoute = routes.find(r => 
+            !r.permission || admin.permissions.includes(r.permission)
+         );
+
+         if (firstAllowedRoute) {
+            navigate(firstAllowedRoute.path, { replace: true });
+         } else {
+            // If they have NO permissions at all (should not happen normally)
+            navigate('/admin/profile', { replace: true });
+         }
+      }
+   }, [admin, navigate]);
    const [selectedTimeRange, setSelectedTimeRange] = useState('week');
    const [showFilters, setShowFilters] = useState(false);
 
@@ -182,6 +204,26 @@ const AdminDashboard = () => {
       }).length;
       return { hour, count };
    });
+
+   if (!admin || loading) {
+      return (
+         <div className="flex items-center justify-center h-screen bg-gray-50">
+            <div className="text-center">
+               <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
+               <p className="mt-4 text-gray-500 text-sm">Validating Access...</p>
+            </div>
+         </div>
+      );
+   }
+
+   // If not SuperAdmin and no permission, show loader while redirecting (to prevent flicker)
+   if (admin.role !== 'SuperAdmin' && !admin.permissions?.includes('DASHBOARD_READ')) {
+      return (
+         <div className="flex items-center justify-center h-screen bg-gray-50">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+         </div>
+      );
+   }
 
    return (
       <div className="min-h-screen bg-gray-100">

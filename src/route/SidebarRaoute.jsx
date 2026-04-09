@@ -20,23 +20,25 @@ const Reports = lazy(() => import("../pages/Reports"));
 const Support = lazy(() => import("../pages/Support"));
 const LiveTracking = lazy(() => import("../pages/LiveTracking"));
 const Vendor = lazy(() => import("../pages/Vendor"));
+const ManageSubAdmins = lazy(() => import("../pages/ManageSubAdmins"));
 
 const routes = [
-  { path: "/dashboard", component: Dashboard, name: "Dashboard", icon: FaTachometerAlt },
-  { path: "/fleet/create", component: CreateFleet, name: "Create Fleet", icon: FaTruck },
-  { path: "/agent/create", component: CreateAgent, name: "Create Agent", icon: FaUserTie },
-  { path: "/vendors/manage", component: Vendor, name: "Manage Vendors", icon: FaStore },
-  { path: "/fleet/manage-registry", component: ManageFleetRegistry, name: "Manage Fleet Data ", icon: FaSitemap },
-  { path: "/drivers/manage", component: ManageDrivers, name: "Main Drivers", icon: FaCar },
-  { path: "/tracking/live", component: LiveTracking, name: "Live Tracking", icon: FaMap },
-  { path: "/support", component: Support, name: "Support", icon: FaBell },
-  { path: "/users/manage", component: ManageUsers, name: "Manage Users", icon: FaUsers },
-  { path: "/notifications/manage", component: ManageNotifications, name: "Announcements", icon: FaBell },
-  { path: "/wallet/manage", component: WalletManagement, name: "Wallet & Payouts", icon: FaWallet },
-  { path: "/bookings/manage", component: ManageBookings, name: "Manage Bookings", icon: FaRoute },
-  { path: "/car-categories/manage", component: ManageCarCategories, name: "CarCategargary", icon: FaCar },
+  { path: "/dashboard", component: Dashboard, name: "Dashboard", icon: FaTachometerAlt, permission: "DASHBOARD_READ" },
+  { path: "/fleet/create", component: CreateFleet, name: "Create Fleet", icon: FaTruck, permission: "FLEET_CREATE" },
+  { path: "/agent/create", component: CreateAgent, name: "Create Agent", icon: FaUserTie, permission: "AGENT_CREATE" },
+  { path: "/vendors/manage", component: Vendor, name: "Manage Vendors", icon: FaStore, permission: "VENDOR_READ" },
+  { path: "/subadmins/manage", component: ManageSubAdmins, name: "Sub Admin", icon: FaUserShield, permission: "STAFF_VIEW" },
+  { path: "/fleet/manage-registry", component: ManageFleetRegistry, name: "Manage Fleet Data ", icon: FaSitemap, permission: "FLEET_READ" },
+  { path: "/drivers/manage", component: ManageDrivers, name: "Main Drivers", icon: FaCar, permission: "DRIVER_READ" },
+  { path: "/tracking/live", component: LiveTracking, name: "Live Tracking", icon: FaMap, permission: "TRACKING_READ" },
+  { path: "/support", component: Support, name: "Support", icon: FaBell, permission: "SUPPORT_READ" },
+  { path: "/users/manage", component: ManageUsers, name: "Manage Users", icon: FaUsers, permission: "USER_READ" },
+  { path: "/notifications/manage", component: ManageNotifications, name: "Announcements", icon: FaBell, permission: "NEWS_VIEW" },
+  { path: "/wallet/manage", component: WalletManagement, name: "Wallet & Payouts", icon: FaWallet, permission: "TRANSACTION_READ" },
+  { path: "/bookings/manage", component: ManageBookings, name: "Manage Bookings", icon: FaRoute, permission: "BOOKING_READ" },
+  { path: "/car-categories/manage", component: ManageCarCategories, name: "CarCategargary", icon: FaCar, permission: "CAT_VIEW" },
   { path: "/admin/profile", component: AdminProfile, name: "Profile", icon: FaUserShield },
-  { path: "/reports", component: Reports, name: "Reports", icon: FaTachometerAlt },
+  { path: "/reports", component: Reports, name: "Reports", icon: FaTachometerAlt, permission: "REPORT_READ" },
 ];
 
 export default routes;

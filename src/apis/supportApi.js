@@ -29,9 +29,16 @@ export const replyTicket = async (id, reply, status) => {
   return res.data;
 };
 
+// 5. Admin View: Delete Ticket (Admin Only)
+export const deleteTicket = async (id) => {
+  const res = await http.delete(`${BASE_URL}/admin/delete/${id}`);
+  return res.data;
+};
+
 export const supportService = {
   createTicket: createSupportTicket,
   getMyTickets,
   getAllTickets,
-  replyTicket
+  replyTicket,
+  deleteTicket
 };

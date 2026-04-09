@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useTheme } from "../context/ThemeContext";
+import { useAuth } from "../context/AuthContext";
 import { useFont } from "../context/FontContext";
 import {
   getAllCarCategories, createCarCategory, updateCarCategory, deleteCarCategory
@@ -86,7 +87,14 @@ const PriceBadge = ({ label, value, icon: Icon }) => (
 
 export default function ManageCarCategories() {
   const { themeColors, theme } = useTheme();
+  const { admin } = useAuth();
   const { currentFont } = useFont();
+
+  // Helper for Granular Permissions
+  const can = (permission) => {
+    if (admin?.role === 'SuperAdmin') return true;
+    return admin?.permissions?.includes(permission);
+  };
 
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(true);
@@ -308,13 +316,15 @@ export default function ManageCarCategories() {
             <p className="text-sm text-gray-500 mt-1">Manage vehicle classifications and pricing</p>
           </div>
           <div className="flex gap-3">
-            <button
-              onClick={() => { setEditingCategory(null); setIsModalOpen(true); }}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-lg"
-            >
-              <FaPlus size={14} />
-              <span>New Category</span>
-            </button>
+            {can('CAT_MANAGE') && (
+              <button
+                onClick={() => { setEditingCategory(null); setIsModalOpen(true); }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-lg"
+              >
+                <FaPlus size={14} />
+                <span>New Category</span>
+              </button>
+            )}
             <button
               onClick={fetchData}
               className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -470,19 +480,23 @@ export default function ManageCarCategories() {
                   <FaCar size={48} className="text-gray-300" />
                 </div>
               )}
-              <div className="absolute top-4 right-4 flex gap-2">
-                <button
-                  onClick={() => startEdit(c)}
-                  className="p-2 bg-white rounded-lg shadow-lg hover:bg-blue-50 transition-colors"
-                >
-                  <FaEdit size={14} className="text-blue-600" />
-                </button>
-                <button
-                  onClick={() => handleDelete(c._id)}
-                  className="p-2 bg-white rounded-lg shadow-lg hover:bg-red-50 transition-colors"
-                >
-                  <FaTrash size={14} className="text-red-600" />
-                </button>
+               <div className="absolute top-4 right-4 flex gap-2">
+                {can('CAT_MANAGE') && (
+                  <>
+                    <button
+                      onClick={() => startEdit(c)}
+                      className="p-2 bg-white rounded-lg shadow-lg hover:bg-blue-50 transition-colors"
+                    >
+                      <FaEdit size={14} className="text-blue-600" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(c._id)}
+                      className="p-2 bg-white rounded-lg shadow-lg hover:bg-red-50 transition-colors"
+                    >
+                      <FaTrash size={14} className="text-red-600" />
+                    </button>
+                  </>
+                )}
               </div>
               <div className="absolute bottom-4 left-4">
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${c.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
@@ -535,10 +549,10 @@ export default function ManageCarCategories() {
 
               {/* Actions */}
               <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                <button
-                  onClick={() => handleToggle(c)}
-                  className={`flex items-center gap-2 text-sm ${c.isActive ? 'text-green-600' : 'text-gray-400'
-                    }`}
+                 <button
+                  onClick={() => can('CAT_MANAGE') && handleToggle(c)}
+                  disabled={!can('CAT_MANAGE')}
+                  className={`flex items-center gap-2 text-sm ${c.isActive ? 'text-green-600' : 'text-gray-400'} ${!can('CAT_MANAGE') && 'opacity-50 cursor-not-allowed'}`}
                 >
                   {c.isActive ? <FaToggleOn size={20} /> : <FaToggleOff size={20} />}
                   <span>{c.isActive ? 'Active' : 'Inactive'}</span>
