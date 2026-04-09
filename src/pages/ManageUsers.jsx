@@ -114,6 +114,8 @@ export default function ManageUsers() {
     if (admin?.role === 'SuperAdmin') return true;
     return admin?.permissions?.includes(permission);
   };
+  
+  const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') + '/uploads/';
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState([]);
   const [fetching, setFetching] = useState(true);
@@ -437,8 +439,17 @@ export default function ManageUsers() {
                         >
                           <td className="py-4 px-6">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center">
-                                <User size={18} className="text-blue-600" />
+                              <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border border-gray-100">
+                                {u.image ? (
+                                  <img 
+                                    src={`${IMAGE_BASE_URL}${u.image}`} 
+                                    alt={u.name} 
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => { e.target.parentElement.innerHTML = '<svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" size="18" class="text-blue-600" height="18" width="18" xmlns="http://www.w3.org/2000/svg"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>'; }}
+                                  />
+                                ) : (
+                                  <User size={18} className="text-blue-600" />
+                                )}
                               </div>
                               <div>
                                 <p className="font-medium text-gray-900">{u.name}</p>
@@ -763,8 +774,17 @@ export default function ManageUsers() {
           <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center">
-                  <User size={24} className="text-blue-600" />
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border border-gray-100 italic">
+                  {viewing.image ? (
+                    <img 
+                      src={`${IMAGE_BASE_URL}${viewing.image}`} 
+                      alt={viewing.name} 
+                      className="w-full h-full object-cover"
+                      onError={(e) => { e.target.parentElement.innerHTML = '<svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" size="24" class="text-blue-600" height="24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>'; }}
+                    />
+                  ) : (
+                    <User size={24} className="text-blue-600" />
+                  )}
                 </div>
                 <div>
                   <h2 className="text-xl font-bold text-gray-900">{viewing.name}</h2>
@@ -777,6 +797,19 @@ export default function ManageUsers() {
             </div>
 
             <div className="p-6">
+              {/* Profile Image Section */}
+              {viewing.image && (
+                <div className="flex justify-center mb-8">
+                  <div className="w-32 h-32 rounded-2xl overflow-hidden border-4 border-gray-50 shadow-md">
+                    <img 
+                      src={`${IMAGE_BASE_URL}${viewing.image}`} 
+                      alt={viewing.name} 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Quick Stats */}
               <div className="grid grid-cols-3 gap-4 mb-8">
                 <div className="p-4 bg-blue-50 rounded-xl">

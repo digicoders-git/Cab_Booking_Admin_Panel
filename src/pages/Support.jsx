@@ -15,6 +15,8 @@ import {
 } from 'recharts';
 import Swal from 'sweetalert2';
 
+const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') + '/uploads/';
+
 // Stat Card Component
 const StatCard = ({ label, value, icon: Icon, color }) => (
   <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 hover:shadow-lg transition-all">
@@ -157,10 +159,25 @@ const TicketDetailModal = ({ ticket, isOpen, onClose, onReplyClick }) => {
               <h3 className="font-semibold text-gray-900">Sender Info</h3>
             </div>
             <div className="space-y-2 text-sm text-gray-700">
-              <p><span className="font-medium">Name:</span> {ticket.sender?.name}</p>
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-16 h-16 rounded-xl bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm">
+                  {ticket.sender?.image ? (
+                    <img 
+                      src={`${IMAGE_BASE_URL}${ticket.sender?.image}`} 
+                      alt={ticket.sender?.name} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User size={30} className="text-blue-600" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-base font-bold text-gray-900">{ticket.sender?.name}</p>
+                  <p className="text-xs text-blue-600 font-medium">{ticket.senderModel}</p>
+                </div>
+              </div>
               <p><span className="font-medium">Email:</span> {ticket.sender?.email}</p>
               <p><span className="font-medium">Phone:</span> {ticket.sender?.phone}</p>
-              <p><span className="font-medium">Type:</span> {ticket.senderModel}</p>
             </div>
           </div>
 
@@ -470,7 +487,23 @@ export default function Support() {
                     return (
                       <tr key={ticket._id} className="hover:bg-gray-50 transition-all">
                         <td className="px-6 py-4 text-sm font-medium text-gray-900 max-w-xs truncate">{ticket.subject}</td>
-                        <td className="px-6 py-4 text-sm text-gray-600">{ticket.sender?.name}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border border-gray-100">
+                              {ticket.sender?.image ? (
+                                <img 
+                                  src={`${IMAGE_BASE_URL}${ticket.sender?.image}`} 
+                                  alt={ticket.sender?.name} 
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => { e.target.parentElement.innerHTML = '<svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" size="14" class="text-blue-600" height="14" width="14" xmlns="http://www.w3.org/2000/svg"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>'; }}
+                                />
+                              ) : (
+                                <User size={14} className="text-blue-600" />
+                              )}
+                            </div>
+                            <span className="text-sm text-gray-600 font-medium">{ticket.sender?.name}</span>
+                          </div>
+                        </td>
                         <td className="px-6 py-4 text-sm text-gray-600">{ticket.senderModel}</td>
                         <td className="px-6 py-4">
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: status.bg, color: status.color }}>

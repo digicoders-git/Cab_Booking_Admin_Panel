@@ -119,6 +119,8 @@ export default function ManageSubAdmins() {
         if (loggedInAdmin?.role === 'SuperAdmin') return true;
         return loggedInAdmin?.permissions?.includes(permission);
     };
+  
+  const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') + '/uploads/';
     const [fetching, setFetching] = useState(true);
     const [loading, setLoading] = useState(false);
     const [admins, setAdmins] = useState([]);
@@ -142,7 +144,9 @@ export default function ManageSubAdmins() {
         try {
             setFetching(true);
             const res = await getAllAdmins();
-            setAdmins(res.admins || []);
+            const allAdmins = res.admins || [];
+            // Additional frontend filter to be safe
+            setAdmins(allAdmins.filter(a => a.role !== 'SuperAdmin'));
         } catch (err) {
             console.error(err);
         } finally {
@@ -299,7 +303,7 @@ export default function ManageSubAdmins() {
                                             <div className="w-10 h-10 rounded-full overflow-hidden border border-blue-100 bg-blue-50 flex items-center justify-center text-blue-600 font-bold shadow-sm">
                                                 {admin.image ? (
                                                     <img
-                                                        src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/uploads/${admin.image}`}
+                                                        src={`${IMAGE_BASE_URL}${admin.image}`}
                                                         alt={admin.name}
                                                         className="w-full h-full object-cover"
                                                     />
@@ -683,7 +687,7 @@ export default function ManageSubAdmins() {
                             <div className="w-32 h-32 rounded-[2rem] bg-white p-1 shadow-2xl border-4 border-white overflow-hidden group">
                                 {viewAdmin.image ? (
                                     <img
-                                        src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/uploads/${viewAdmin.image}`}
+                                        src={`${IMAGE_BASE_URL}${viewAdmin.image}`}
                                         className="w-full h-full object-cover rounded-[1.8rem]"
                                         alt={viewAdmin.name}
                                     />

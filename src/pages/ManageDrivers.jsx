@@ -59,7 +59,7 @@ const initialForm = {
   name: "", email: "", phone: "", password: "",
   address: "", city: "", state: "", pincode: "",
   licenseNumber: "", licenseExpiry: "",
-  aadhar: "", pan: "",
+  aadharNumber: "", panNumber: "",
   carNumber: "", carModel: "", carBrand: "", carType: "",
   carColor: "", manufacturingYear: "", seatCapacity: 4,
   insuranceExpiry: "", permitExpiry: "", pucExpiry: "",
@@ -426,8 +426,8 @@ export default function ManageDrivers() {
       pincode: d.pincode || d.documents?.pincode || "",
       licenseNumber: d.licenseNumber || d.documents?.license || "",
       licenseExpiry: d.licenseExpiry ? d.licenseExpiry.substring(0, 10) : "",
-      aadhar: d.documents?.aadhar || d.aadhar || "",
-      pan: d.documents?.pan || d.pan || "",
+      aadharNumber: d.aadharNumber || "",
+      panNumber: d.panNumber || "",
       carNumber: d.carDetails?.carNumber || d.carNumber || "",
       carModel: d.carDetails?.carModel || d.carModel || "",
       carBrand: d.carDetails?.carBrand || d.carBrand || "",
@@ -508,8 +508,8 @@ export default function ManageDrivers() {
       // Profile fields
       if (editForm.licenseNumber) formData.append("licenseNumber", editForm.licenseNumber);
       if (editForm.licenseExpiry) formData.append("licenseExpiry", editForm.licenseExpiry);
-      if (editForm.aadhar) formData.append("aadhar", editForm.aadhar);
-      if (editForm.pan) formData.append("pan", editForm.pan);
+      if (editForm.aadharNumber) formData.append("aadharNumber", editForm.aadharNumber);
+      if (editForm.panNumber) formData.append("panNumber", editForm.panNumber);
       if (editForm.address) formData.append("address", editForm.address);
       if (editForm.city) formData.append("city", editForm.city);
       if (editForm.state) formData.append("state", editForm.state);
@@ -1209,11 +1209,11 @@ export default function ManageDrivers() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-500">Aadhar:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.documents?.aadhar || viewing.aadhar || 'N/A'}</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.aadharNumber || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-500">PAN:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.documents?.pan || viewing.pan || 'N/A'}</span>
+                      <span className="text-sm font-medium text-gray-900">{viewing.panNumber || 'N/A'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-gray-500">Address:</span>
@@ -1461,8 +1461,8 @@ export default function ManageDrivers() {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Field label="License Number" name="licenseNumber" value={editForm.licenseNumber} onChange={handleEditChange} icon={FaIdCard} />
                     <Field label="License Expiry" name="licenseExpiry" value={editForm.licenseExpiry} onChange={handleEditChange} type="date" icon={FaCalendarAlt} />
-                    <Field label="Aadhar Number" name="aadhar" value={editForm.aadhar} onChange={handleEditChange} icon={FaIdCard} />
-                    <Field label="PAN Number" name="pan" value={editForm.pan} onChange={handleEditChange} icon={FaIdCard} />
+                    <Field label="Aadhar Number" name="aadharNumber" value={editForm.aadharNumber} onChange={handleEditChange} icon={FaIdCard} />
+                    <Field label="PAN Number" name="panNumber" value={editForm.panNumber} onChange={handleEditChange} icon={FaIdCard} />
                   </div>
                 </div>
 

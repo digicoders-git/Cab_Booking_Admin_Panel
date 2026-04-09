@@ -119,6 +119,8 @@ export default function WalletManagement() {
     if (admin?.role === 'SuperAdmin') return true;
     return admin?.permissions?.includes(permission);
   };
+  
+  const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') + '/uploads/';
 
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
@@ -566,8 +568,17 @@ export default function WalletManagement() {
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center">
-                            <FaBuilding size={14} className="text-blue-600" />
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border border-gray-100">
+                            {t.user?.image ? (
+                              <img 
+                                src={`${IMAGE_BASE_URL}${t.user?.image}`} 
+                                alt="Profile" 
+                                className="w-full h-full object-cover"
+                                onError={(e) => { e.target.parentElement.innerHTML = '<svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 448 512" size="14" class="text-blue-600" height="14" width="14" xmlns="http://www.w3.org/2000/svg"><path d="M432 448V72c0-13.255-10.745-24-24-24H256c-13.255 0-24 10.745-24 24v376H40c-13.255 0-24 10.745-24 24v40h416v-40c0-13.255-10.745-24-24-24zM160 448H64V96h96v352zm112-256h64v64h-64v-64zm0 128h64v64h-64v-64z"></path></svg>'; }}
+                              />
+                            ) : (
+                              <FaBuilding size={14} className="text-blue-600" />
+                            )}
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-900">{t.user?.name || t.recipient?.name || 'Anonymous'}</p>

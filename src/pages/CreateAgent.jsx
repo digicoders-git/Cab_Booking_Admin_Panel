@@ -31,7 +31,7 @@ import Swal from "sweetalert2";
 const emptyForm = {
   name: "", email: "", phone: "", password: "",
   address: "", city: "", state: "", pincode: "",
-  commissionPercentage: "", aadhar: "", pan: "",
+  commissionPercentage: "", aadharNumber: "", panNumber: "",
   accountNumber: "", ifscCode: "", accountHolderName: "", bankName: ""
 };
 
@@ -335,8 +335,8 @@ export default function CreateAgent() {
       name: a.name || "", email: a.email || "", phone: a.phone || "", password: "",
       address: a.address || "", city: a.city || "", state: a.state || "", pincode: a.pincode || "",
       commissionPercentage: a.commissionPercentage || "",
-      aadhar: a.documents?.aadhar || a.aadhar || "",
-      pan: a.documents?.pan || a.pan || "",
+      aadharNumber: a.aadharNumber || "",
+      panNumber: a.panNumber || "",
       accountNumber: a.bankDetails?.accountNumber || a.accountNumber || "",
       ifscCode: a.bankDetails?.ifscCode || a.ifscCode || "",
       accountHolderName: a.bankDetails?.accountHolderName || a.accountHolderName || "",
@@ -1031,7 +1031,7 @@ export default function CreateAgent() {
                     <FileText size={16} className="text-purple-600" /> Document Details
                   </h3>
                   <div className="space-y-2">
-                    {[['Aadhar Number', viewing.aadhar || 'N/A'], ['PAN Number', viewing.pan || 'N/A'], ['Commission', `${viewing.commissionPercentage}%`], ['Status', viewing.isActive ? 'Active' : 'Inactive']].map(([label, val]) => (
+                    {[['Aadhar Number', viewing.aadharNumber || 'N/A'], ['PAN Number', viewing.panNumber || 'N/A'], ['Commission', `${viewing.commissionPercentage}%`], ['Status', viewing.isActive ? 'Active' : 'Inactive']].map(([label, val]) => (
                       <div key={label} className="flex justify-between py-2 border-b border-gray-100">
                         <span className="text-sm text-gray-500">{label}</span>
                         <span className={`text-sm font-medium ${label === 'Status' ? (viewing.isActive ? 'text-green-600' : 'text-gray-500') : label === 'Commission' ? 'text-orange-600' : 'text-gray-900'}`}>{val}</span>
@@ -1185,8 +1185,8 @@ export default function CreateAgent() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {[
-                    { label: 'Aadhar Number *', name: 'aadhar', type: 'text' },
-                    { label: 'PAN Number *', name: 'pan', type: 'text' },
+                    { label: 'Aadhar Number *', name: 'aadharNumber', type: 'text' },
+                    { label: 'PAN Number *', name: 'panNumber', type: 'text' },
                     { label: 'Commission % *', name: 'commissionPercentage', type: 'number' },
                   ].map(({ label, name, type }) => (
                     <div key={name} className="space-y-1.5">

@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { getDashboardStats as fetchStatsAPI } from '../apis/admin';
 
+const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') + '/uploads/';
+
 const AdminDashboard = () => {
    const { admin } = useAuth();
    const navigate = useNavigate();
@@ -651,10 +653,19 @@ const AdminDashboard = () => {
                               <td className="py-3 px-4">
                                  <span className="text-sm font-mono">{booking._id.slice(-6)}</span>
                               </td>
-                              <td className="py-3 px-4">
+                               <td className="py-3 px-4">
                                  <div className="flex items-center gap-2">
-                                    <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                                       <Users size={14} className="text-gray-600" />
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border border-gray-100 italic">
+                                       {booking.user?.image ? (
+                                          <img 
+                                             src={`${IMAGE_BASE_URL}${booking.user?.image}`} 
+                                             alt="User" 
+                                             className="w-full h-full object-cover"
+                                             onError={(e) => { e.target.parentElement.innerHTML = '<svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" size="14" class="text-gray-600" height="14" width="14" xmlns="http://www.w3.org/2000/svg"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>'; }}
+                                          />
+                                       ) : (
+                                          <Users size={14} className="text-gray-600" />
+                                       )}
                                     </div>
                                     <span className="text-sm font-medium">{booking.passengerDetails.name}</span>
                                  </div>
