@@ -8,6 +8,8 @@ import Sidebar from "../pages/Sidebar";
 import Header from "./Header";
 
 const DashboardLayout = () => {
+
+  // hfjeedjf
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // ✅ Auth: admin object + logout
