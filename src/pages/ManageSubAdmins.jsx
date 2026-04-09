@@ -6,7 +6,7 @@ import {
     registerSubAdmin, getAllAdmins, deleteAdmin, updateAdminPermissions
 } from "../apis/admin";
 import {
-    UserPlus, Shield, Mail, Trash2, Key, CheckCircle, AlertCircle, 
+    UserPlus, Shield, Mail, Trash2, Key, CheckCircle, AlertCircle,
     ChevronLeft, ChevronRight, RefreshCw, X, ShieldCheck, Lock, UserX, Eye, EyeOff, Edit, Camera, User, Power
 } from 'lucide-react';
 import Swal from "sweetalert2";
@@ -298,11 +298,11 @@ export default function ManageSubAdmins() {
                                         <div className="flex items-center gap-3">
                                             <div className="w-10 h-10 rounded-full overflow-hidden border border-blue-100 bg-blue-50 flex items-center justify-center text-blue-600 font-bold shadow-sm">
                                                 {admin.image ? (
-                                                     <img 
-                                                        src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/uploads/${admin.image}`} 
+                                                    <img
+                                                        src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/uploads/${admin.image}`}
                                                         alt={admin.name}
                                                         className="w-full h-full object-cover"
-                                                     />
+                                                    />
                                                 ) : admin.role === 'SuperAdmin' ? (
                                                     <Shield size={20} />
                                                 ) : (
@@ -316,9 +316,8 @@ export default function ManageSubAdmins() {
                                         </div>
                                     </td>
                                     <td className="px-6 py-5">
-                                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${
-                                            admin.role === 'SuperAdmin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
-                                        }`}>
+                                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${admin.role === 'SuperAdmin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                                            }`}>
                                             {admin.role}
                                         </span>
                                     </td>
@@ -342,7 +341,7 @@ export default function ManageSubAdmins() {
                                     <td className="px-6 py-5">
                                         <div className="flex items-center justify-center gap-2">
                                             {can('STAFF_VIEW') && (
-                                                <button 
+                                                <button
                                                     onClick={() => setViewAdmin(admin)}
                                                     className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                                                     title="Quick View"
@@ -351,7 +350,7 @@ export default function ManageSubAdmins() {
                                                 </button>
                                             )}
                                             {can('STAFF_MANAGE') && (
-                                                <button 
+                                                <button
                                                     onClick={() => admin.role !== 'SuperAdmin' && handleUpdatePermissions(admin._id, { isActive: !admin.isActive })}
                                                     className={`p-2 rounded-lg transition-colors ${admin.role === 'SuperAdmin' ? 'text-gray-300 cursor-not-allowed' : admin.isActive !== false ? 'text-green-600 hover:bg-green-50' : 'text-red-600 hover:bg-red-50'}`}
                                                     title={admin.isActive !== false ? "Suspend Staff" : "Activate Staff"}
@@ -361,7 +360,7 @@ export default function ManageSubAdmins() {
                                                 </button>
                                             )}
                                             {can('STAFF_MANAGE') && (
-                                                <button 
+                                                <button
                                                     onClick={() => admin.role !== 'SuperAdmin' && setShowPermissionModal(admin)}
                                                     className={`p-2 rounded-lg transition-colors ${admin.role === 'SuperAdmin' ? 'text-gray-300 cursor-not-allowed' : 'text-orange-600 hover:bg-orange-50'}`}
                                                     title="Edit Permissions"
@@ -371,7 +370,7 @@ export default function ManageSubAdmins() {
                                                 </button>
                                             )}
                                             {can('STAFF_MANAGE') && (
-                                                <button 
+                                                <button
                                                     onClick={() => admin.role !== 'SuperAdmin' && handleDelete(admin._id, admin.name)}
                                                     className={`p-2 rounded-lg transition-colors ${admin.role === 'SuperAdmin' ? 'text-gray-300 cursor-not-allowed' : 'text-red-600 hover:bg-red-50'}`}
                                                     title="Delete Staff"
@@ -419,12 +418,12 @@ export default function ManageSubAdmins() {
                                                     </>
                                                 )}
                                             </div>
-                                            <input 
+                                            <input
                                                 type="file" hidden accept="image/*"
-                                                onChange={(e) => setCreateForm({...createForm, image: e.target.files[0]})}
+                                                onChange={(e) => setCreateForm({ ...createForm, image: e.target.files[0] })}
                                             />
                                             {createForm.image && (
-                                                <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:bg-red-600 border-2 border-white" onClick={(e) => { e.preventDefault(); setCreateForm({...createForm, image: null}); }}>
+                                                <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:bg-red-600 border-2 border-white" onClick={(e) => { e.preventDefault(); setCreateForm({ ...createForm, image: null }); }}>
                                                     <X size={14} />
                                                 </div>
                                             )}
@@ -437,36 +436,36 @@ export default function ManageSubAdmins() {
                                             <label className="text-xs font-bold text-gray-500 flex items-center gap-1">
                                                 <Shield size={14} /> Full Name
                                             </label>
-                                            <input 
+                                            <input
                                                 type="text" required
                                                 className="w-full h-12 px-4 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-corporate"
                                                 placeholder="Enter full name"
                                                 value={createForm.name}
-                                                onChange={(e) => setCreateForm({...createForm, name: e.target.value})}
+                                                onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
                                             />
                                         </div>
                                         <div className="space-y-1.5">
                                             <label className="text-xs font-bold text-gray-500 flex items-center gap-1">
                                                 <Mail size={14} /> Email Address
                                             </label>
-                                            <input 
+                                            <input
                                                 type="email" required
                                                 className="w-full h-12 px-4 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-corporate"
                                                 placeholder="e.g. staff@admin.com"
                                                 value={createForm.email}
-                                                onChange={(e) => setCreateForm({...createForm, email: e.target.value})}
+                                                onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
                                             />
                                         </div>
                                         <div className="space-y-1.5 md:col-span-2">
                                             <label className="text-xs font-bold text-gray-500 flex items-center gap-1">
                                                 <Key size={14} /> Secret Password
                                             </label>
-                                            <input 
+                                            <input
                                                 type="password" required
                                                 className="w-full h-12 px-4 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-corporate"
                                                 placeholder="Enter strong password"
                                                 value={createForm.password}
-                                                onChange={(e) => setCreateForm({...createForm, password: e.target.value})}
+                                                onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
                                             />
                                         </div>
                                     </div>
@@ -479,7 +478,7 @@ export default function ManageSubAdmins() {
                                             {createForm.permissions.length} Selected
                                         </span>
                                     </div>
-                                    
+
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         {PERMISSIONS_GROUPS.map((group, gIdx) => (
                                             <div key={gIdx} className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100">
@@ -489,18 +488,16 @@ export default function ManageSubAdmins() {
                                                 </h4>
                                                 <div className="grid grid-cols-1 gap-2">
                                                     {group.permissions.map(p => (
-                                                        <div 
+                                                        <div
                                                             key={p.id}
                                                             onClick={() => togglePermissionInCreate(p.id)}
-                                                            className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center gap-2 ${
-                                                                createForm.permissions.includes(p.id) 
-                                                                ? 'bg-blue-600 border-blue-600 text-white shadow-md' 
-                                                                : 'bg-white border-gray-200 hover:border-blue-200'
-                                                            }`}
+                                                            className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center gap-2 ${createForm.permissions.includes(p.id)
+                                                                    ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                                                                    : 'bg-white border-gray-200 hover:border-blue-200'
+                                                                }`}
                                                         >
-                                                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
-                                                                createForm.permissions.includes(p.id) ? 'bg-white border-white text-blue-600' : 'bg-white border-gray-300'
-                                                            }`}>
+                                                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${createForm.permissions.includes(p.id) ? 'bg-white border-white text-blue-600' : 'bg-white border-gray-300'
+                                                                }`}>
                                                                 {createForm.permissions.includes(p.id) && <CheckCircle size={10} />}
                                                             </div>
                                                             <span className={`text-xs font-bold ${createForm.permissions.includes(p.id) ? 'text-white' : 'text-gray-600'}`}>
@@ -517,13 +514,13 @@ export default function ManageSubAdmins() {
                         </div>
 
                         <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex items-center justify-end gap-3">
-                            <button 
+                            <button
                                 onClick={() => setShowCreateModal(false)}
                                 className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700"
                             >
                                 Cancel
                             </button>
-                            <button 
+                            <button
                                 type="submit" form="createForm"
                                 disabled={loading}
                                 className="px-8 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 shadow-lg disabled:opacity-50"
@@ -539,7 +536,7 @@ export default function ManageSubAdmins() {
             {showPermissionModal && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
                     <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in fade-in duration-300">
-                         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+                        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
                             <div>
                                 <h2 className="text-xl font-bold text-gray-900">Modifying Access: {showPermissionModal.name}</h2>
                                 <p className="text-xs text-gray-500">Enable or restrict system modules for this user.</p>
@@ -548,7 +545,7 @@ export default function ManageSubAdmins() {
                                 <X size={20} className="text-gray-400" />
                             </button>
                         </div>
-                        
+
                         <div className="p-6 bg-blue-50/30 border-b border-gray-100 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${showPermissionModal.isActive !== false ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
@@ -559,8 +556,8 @@ export default function ManageSubAdmins() {
                                     <p className="text-[11px] text-gray-500">Toggle account availability in system.</p>
                                 </div>
                             </div>
-                            <div 
-                                onClick={() => setShowPermissionModal({...showPermissionModal, isActive: !showPermissionModal.isActive})}
+                            <div
+                                onClick={() => setShowPermissionModal({ ...showPermissionModal, isActive: !showPermissionModal.isActive })}
                                 className={`w-14 h-7 rounded-full p-1 cursor-pointer transition-all duration-300 ${showPermissionModal.isActive !== false ? 'bg-green-600' : 'bg-gray-300'}`}
                             >
                                 <div className={`w-5 h-5 bg-white rounded-full shadow-sm transition-all duration-300 transform ${showPermissionModal.isActive !== false ? 'translate-x-7' : 'translate-x-0'}`} />
@@ -572,31 +569,31 @@ export default function ManageSubAdmins() {
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
                                     <Shield size={10} /> Staff Name
                                 </label>
-                                <input 
+                                <input
                                     className="w-full h-10 px-4 rounded-xl border border-gray-100 bg-gray-50 focus:bg-white transition-all text-sm font-medium"
                                     value={showPermissionModal.name}
-                                    onChange={(e) => setShowPermissionModal({...showPermissionModal, name: e.target.value})}
+                                    onChange={(e) => setShowPermissionModal({ ...showPermissionModal, name: e.target.value })}
                                 />
                             </div>
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
                                     <Mail size={10} /> Email Access
                                 </label>
-                                <input 
+                                <input
                                     className="w-full h-10 px-4 rounded-xl border border-gray-100 bg-gray-50 focus:bg-white transition-all text-sm font-medium"
                                     value={showPermissionModal.email}
-                                    onChange={(e) => setShowPermissionModal({...showPermissionModal, email: e.target.value})}
+                                    onChange={(e) => setShowPermissionModal({ ...showPermissionModal, email: e.target.value })}
                                 />
                             </div>
                             <div className="space-y-1.5">
                                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
                                     <Key size={10} /> Password
                                 </label>
-                                <input 
+                                <input
                                     type="text"
                                     className="w-full h-10 px-4 rounded-xl border border-gray-100 bg-gray-50 focus:bg-white transition-all text-sm font-mono"
                                     value={showPermissionModal.password}
-                                    onChange={(e) => setShowPermissionModal({...showPermissionModal, password: e.target.value})}
+                                    onChange={(e) => setShowPermissionModal({ ...showPermissionModal, password: e.target.value })}
                                 />
                             </div>
                         </div>
@@ -612,24 +609,22 @@ export default function ManageSubAdmins() {
                                         {group.permissions.map(p => {
                                             const isAssigned = showPermissionModal.permissions.includes(p.id);
                                             return (
-                                                <div 
+                                                <div
                                                     key={p.id}
                                                     onClick={() => {
-                                                        const updated = isAssigned 
+                                                        const updated = isAssigned
                                                             ? showPermissionModal.permissions.filter(perm => perm !== p.id)
                                                             : [...showPermissionModal.permissions, p.id];
-                                                        setShowPermissionModal({...showPermissionModal, permissions: updated});
+                                                        setShowPermissionModal({ ...showPermissionModal, permissions: updated });
                                                     }}
-                                                    className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                                                        isAssigned ? 'bg-white border-blue-600 shadow-sm' : 'bg-white/50 border-gray-100 opacity-60'
-                                                    }`}
+                                                    className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${isAssigned ? 'bg-white border-blue-600 shadow-sm' : 'bg-white/50 border-gray-100 opacity-60'
+                                                        }`}
                                                 >
                                                     <span className={`text-xs font-bold ${isAssigned ? 'text-blue-700' : 'text-gray-500'}`}>
                                                         {p.label}
                                                     </span>
-                                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                                                        isAssigned ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-300'
-                                                    }`}>
+                                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isAssigned ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-300'
+                                                        }`}>
                                                         {isAssigned ? <CheckCircle size={14} /> : <div className="w-1.5 h-1.5 rounded-full bg-current" />}
                                                     </div>
                                                 </div>
@@ -639,11 +634,11 @@ export default function ManageSubAdmins() {
                                 </div>
                             ))}
                         </div>
-                        
+
                         <div className="p-6 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50">
                             <button onClick={() => setShowPermissionModal(null)} className="px-6 py-2 text-sm font-bold text-gray-500">Close</button>
-                            <button 
-                                onClick={() => handleUpdatePermissions(showPermissionModal._id, { 
+                            <button
+                                onClick={() => handleUpdatePermissions(showPermissionModal._id, {
                                     name: showPermissionModal.name,
                                     email: showPermissionModal.email,
                                     password: showPermissionModal.password,
@@ -666,7 +661,7 @@ export default function ManageSubAdmins() {
                     <div className="bg-white rounded-[2.5rem] w-full max-w-lg shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] overflow-hidden animate-in zoom-in duration-300">
                         {/* Header Gradient */}
                         <div className="h-32 bg-gradient-to-br from-indigo-600 via-blue-600 to-indigo-700 relative">
-                            <button 
+                            <button
                                 onClick={() => setViewAdmin(null)}
                                 className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white backdrop-blur-md transition-all"
                             >
@@ -674,11 +669,10 @@ export default function ManageSubAdmins() {
                             </button>
                             {/* Status Badge */}
                             <div className="absolute top-6 left-6">
-                                <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-md border ${
-                                    viewAdmin.isActive !== false 
-                                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' 
-                                    : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
-                                }`}>
+                                <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest backdrop-blur-md border ${viewAdmin.isActive !== false
+                                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                                        : 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                                    }`}>
                                     {viewAdmin.isActive !== false ? "Active Session" : "Account Suspended"}
                                 </span>
                             </div>
@@ -688,8 +682,8 @@ export default function ManageSubAdmins() {
                         <div className="px-8 -mt-16 relative">
                             <div className="w-32 h-32 rounded-[2rem] bg-white p-1 shadow-2xl border-4 border-white overflow-hidden group">
                                 {viewAdmin.image ? (
-                                    <img 
-                                        src={`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/uploads/${viewAdmin.image}`} 
+                                    <img
+                                        src={`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'}/uploads/${viewAdmin.image}`}
                                         className="w-full h-full object-cover rounded-[1.8rem]"
                                         alt={viewAdmin.name}
                                     />
@@ -705,7 +699,7 @@ export default function ManageSubAdmins() {
                         <div className="px-8 pt-6 pb-4">
                             <h3 className="text-2xl font-black text-gray-900 tracking-tight">{viewAdmin.name}</h3>
                             <p className="text-sm font-bold text-indigo-600">{viewAdmin.email}</p>
-                            
+
                             <div className="mt-6 flex items-center gap-4 py-3 px-4 bg-gray-50 rounded-2xl border border-gray-100">
                                 <div className="p-2 bg-white rounded-xl shadow-sm border border-gray-100">
                                     <Key size={16} className="text-gray-400" />
@@ -725,7 +719,7 @@ export default function ManageSubAdmins() {
                                     {viewAdmin.permissions.length} Modules
                                 </span>
                             </div>
-                            
+
                             <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
                                 {viewAdmin.permissions.length > 0 ? (
                                     viewAdmin.permissions.map(pId => {
