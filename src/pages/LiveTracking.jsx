@@ -101,7 +101,7 @@ const DriverCard = ({ driver, onSelect, address }) => {
             />
           ) : driver.image ? (
             <img
-              src={`${import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '')}/uploads/${driver.image}`}
+              src={`${import.meta.env.VITE_API_BASE_URL?.replace(/\/api\/?$/, '').replace(/\/$/, '')}/uploads/${driver.image}`}
               alt={driver.name}
               className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
               onError={(e) => {
@@ -575,7 +575,7 @@ const DriverDetailModal = ({ driver, isOpen, onClose, address, pickupAddress, dr
             <div className="flex items-start gap-4">
               {driver.image ? (
                 <img
-                  src={`${import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '')}/uploads/${driver.image}`}
+                  src={`${import.meta.env.VITE_API_BASE_URL?.replace(/\/api\/?$/, '').replace(/\/$/, '')}/uploads/${driver.image}`}
                   alt={driver.name}
                   className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md"
                   onError={(e) => {
