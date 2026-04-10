@@ -115,7 +115,8 @@ export default function ManageUsers() {
     return admin?.permissions?.includes(permission);
   };
 
-  const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') + '/uploads/';
+  const BASE = import.meta.env.VITE_API_BASE_URL || '';
+  const IMAGE_BASE_URL = BASE.replace(/\/api\/?$/, '').replace(/\/$/, '') + '/uploads/';
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState([]);
   const [fetching, setFetching] = useState(true);

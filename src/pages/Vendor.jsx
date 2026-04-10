@@ -322,7 +322,8 @@ export default function VendorManagement() {
     return admin?.permissions?.includes(permission);
   };
 
-  const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') + '/uploads/';
+acah  const BASE = import.meta.env.VITE_API_BASE_URL || '';
+  const IMAGE_BASE_URL = BASE.replace(/\/api\/?$/, '').replace(/\/$/, '') + '/uploads/';
 
   // State Management
   const [vendors, setVendors] = useState([]);
