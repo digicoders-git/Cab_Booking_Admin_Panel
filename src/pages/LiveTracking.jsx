@@ -877,16 +877,17 @@ export default function LiveTracking() {
         if (driverExists) {
           return prev.map(d => {
             if (d.driverId === driverId) {
+              const updatedLocation = { ...d.location };
+              if (latitude !== undefined && latitude !== null) updatedLocation.latitude = latitude;
+              if (longitude !== undefined && longitude !== null) updatedLocation.longitude = longitude;
+              updatedLocation.lastUpdated = new Date().toISOString();
+
               return {
                 ...d,
-                location: { 
-                    ...d.location, 
-                    latitude, 
-                    longitude, 
-                    lastUpdated: new Date().toISOString() 
-                },
+                location: updatedLocation,
                 ...(status && { status }),
-                heading: heading || d.heading || 0
+                heading: heading !== undefined ? heading : (d.heading || 0),
+                ...(data.hasOwnProperty('currentTrip') && { currentTrip: data.currentTrip })
               };
             }
             return d;

@@ -322,7 +322,7 @@ export default function VendorManagement() {
     return admin?.permissions?.includes(permission);
   };
 
-acah  const BASE = import.meta.env.VITE_API_BASE_URL || '';
+  const BASE = import.meta.env.VITE_API_BASE_URL || '';
   const IMAGE_BASE_URL = BASE.replace(/\/api\/?$/, '').replace(/\/$/, '') + '/uploads/';
 
   // State Management
