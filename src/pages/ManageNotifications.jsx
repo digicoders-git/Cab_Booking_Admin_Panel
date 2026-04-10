@@ -558,15 +558,13 @@ export default function ManageNotifications() {
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border border-gray-100">
-                            {n.createdBy?.image ? (
+                            {n.createdBy?.image && (
                               <img 
                                 src={`${IMAGE_BASE_URL}${n.createdBy?.image}`} 
                                 alt="Profile" 
                                 className="w-full h-full object-cover"
-                                onError={(e) => { e.target.parentElement.innerHTML = '<svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 448 512" size="14" class="text-blue-600" height="14" width="14" xmlns="http://www.w3.org/2000/svg"><path d="M224 256c70.7 0 128-57.3 128-128S294.7 0 224 0 96 57.3 96 128s57.3 128 128 128zm89.6 32h-16.7c-22.2 10.2-46.9 16-72.9 16s-50.6-5.8-72.9-16h-16.7C60.2 288 0 348.2 0 422.4V464c0 26.5 21.5 48 48 48h352c26.5 0 48-21.5 48-48v-41.6c0-74.2-60.2-134.4-134.4-134.4z"></path></svg>'; }}
+                                onError={(e) => { e.target.style.display = 'none'; }}
                               />
-                            ) : (
-                              <FaUser size={14} className="text-blue-600" />
                             )}
                           </div>
                           <div>
