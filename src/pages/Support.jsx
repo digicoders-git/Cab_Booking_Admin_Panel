@@ -15,7 +15,8 @@ import {
 } from 'recharts';
 import Swal from 'sweetalert2';
 
-const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') + '/uploads/';
+const BASE = import.meta.env.VITE_API_BASE_URL || '';
+const IMAGE_BASE_URL = BASE.replace(/\/api\/?$/, '').replace(/\/$/, '') + '/uploads/';
 
 // Stat Card Component
 const StatCard = ({ label, value, icon: Icon, color }) => (
@@ -111,7 +112,7 @@ const AdminReplyModal = ({ ticket, isOpen, onClose, onSubmit, loading }) => {
 };
 
 // Ticket Detail Modal
-const TicketDetailModal = ({ ticket, isOpen, onClose, onReplyClick }) => {
+const TicketDetailModal = ({ ticket, isOpen, onClose, onReplyClick, can }) => {
   if (!isOpen || !ticket) return null;
 
   const getStatusBadge = (status) => {
@@ -577,7 +578,7 @@ export default function Support() {
         </div>
       </div>
 
-      <TicketDetailModal ticket={viewTicket} isOpen={!!viewTicket} onClose={() => setViewTicket(null)} onReplyClick={setReplyTicket} />
+      <TicketDetailModal ticket={viewTicket} isOpen={!!viewTicket} onClose={() => setViewTicket(null)} onReplyClick={setReplyTicket} can={can} />
       <AdminReplyModal ticket={replyTicket} isOpen={!!replyTicket} onClose={() => setReplyTicket(null)} onSubmit={handleAdminReply} loading={replying} />
     </div>
   );

@@ -114,7 +114,7 @@ export default function ManageUsers() {
     if (admin?.role === 'SuperAdmin') return true;
     return admin?.permissions?.includes(permission);
   };
-  
+
   const IMAGE_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') + '/uploads/';
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState([]);
@@ -122,6 +122,7 @@ export default function ManageUsers() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [viewing, setViewing] = useState(null);
+  const [viewingImage, setViewingImage] = useState(null);
   const [isEditing, setIsEditing] = useState(null);
   const [editForm, setEditForm] = useState({ name: "", email: "" });
   const [showFilters, setShowFilters] = useState(false);
@@ -441,9 +442,9 @@ export default function ManageUsers() {
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border border-gray-100">
                                 {u.image ? (
-                                  <img 
-                                    src={`${IMAGE_BASE_URL}${u.image}`} 
-                                    alt={u.name} 
+                                  <img
+                                    src={`${IMAGE_BASE_URL}${u.image}`}
+                                    alt={u.name}
                                     className="w-full h-full object-cover"
                                     onError={(e) => { e.target.parentElement.innerHTML = '<svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" size="18" class="text-blue-600" height="18" width="18" xmlns="http://www.w3.org/2000/svg"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>'; }}
                                   />
@@ -459,7 +460,6 @@ export default function ManageUsers() {
                           </td>
                           <td className="py-4 px-6">
                             <p className="text-sm text-gray-900">{u.phone || '—'}</p>
-                            <p className="text-xs text-gray-500">{u.email}</p>
                           </td>
                           <td className="py-4 px-6">
                             <p className="text-sm text-gray-900">{new Date(u.createdAt).toLocaleDateString()}</p>
@@ -518,15 +518,10 @@ export default function ManageUsers() {
                                       <span className="text-xs font-medium text-gray-900">{u._id}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                      <span className="text-xs text-gray-500">Verified:</span>
-                                      <span className={`text-xs font-medium ${u.isVerified ? 'text-green-600' : 'text-red-600'}`}>
-                                        {u.isVerified ? 'Yes' : 'No'}
-                                      </span>
+                                      <span className="text-xs text-gray-500">Member Since:</span>
+                                      <span className="text-xs font-medium text-gray-900">{new Date(u.createdAt).toLocaleDateString()}</span>
                                     </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-xs text-gray-500">Last Login:</span>
-                                      <span className="text-xs font-medium text-gray-900">{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString() : 'Never'}</span>
-                                    </div>
+
                                   </div>
                                 </div>
                                 <div>
@@ -540,10 +535,7 @@ export default function ManageUsers() {
                                       <span className="text-xs text-gray-500">Total Spent:</span>
                                       <span className="text-xs font-medium text-green-600">₹{u.totalSpent || 0}</span>
                                     </div>
-                                    <div className="flex justify-between">
-                                      <span className="text-xs text-gray-500">Member Since:</span>
-                                      <span className="text-xs font-medium text-gray-900">{new Date(u.createdAt).toLocaleDateString()}</span>
-                                    </div>
+
                                   </div>
                                 </div>
                               </div>
@@ -770,99 +762,107 @@ export default function ManageUsers() {
 
       {/* View Modal */}
       {viewing && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border border-gray-100 italic">
-                  {viewing.image ? (
-                    <img 
-                      src={`${IMAGE_BASE_URL}${viewing.image}`} 
-                      alt={viewing.name} 
-                      className="w-full h-full object-cover"
-                      onError={(e) => { e.target.parentElement.innerHTML = '<svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" size="24" class="text-blue-600" height="24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>'; }}
-                    />
-                  ) : (
-                    <User size={24} className="text-blue-600" />
-                  )}
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">{viewing.name}</h2>
-                  <p className="text-sm text-gray-500">User ID: {viewing._id?.slice(-6)}</p>
-                </div>
-              </div>
-              <button onClick={() => setViewing(null)} className="p-2 hover:bg-gray-100 rounded-lg">
-                <X size={20} className="text-gray-500" />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
+
+            {/* Gradient Banner */}
+            <div className="relative h-28 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600">
+              <button
+                onClick={() => setViewing(null)}
+                className="absolute top-3 right-3 p-1.5 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+              >
+                <X size={16} className="text-white" />
               </button>
             </div>
 
-            <div className="p-6">
-              {/* Profile Image Section */}
-              {viewing.image && (
-                <div className="flex justify-center mb-8">
-                  <div className="w-32 h-32 rounded-2xl overflow-hidden border-4 border-gray-50 shadow-md">
-                    <img 
-                      src={`${IMAGE_BASE_URL}${viewing.image}`} 
-                      alt={viewing.name} 
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Quick Stats */}
-              <div className="grid grid-cols-3 gap-4 mb-8">
-                <div className="p-4 bg-blue-50 rounded-xl">
-                  <p className="text-xs text-gray-500 mb-1">Status</p>
-                  <p className={`text-lg font-bold ${viewing.isActive ? 'text-green-600' : 'text-red-600'}`}>
-                    {viewing.isActive ? 'Active' : 'Inactive'}
-                  </p>
-                </div>
-                <div className="p-4 bg-purple-50 rounded-xl">
-                  <p className="text-xs text-gray-500 mb-1">Verified</p>
-                  <p className={`text-lg font-bold ${viewing.isVerified ? 'text-green-600' : 'text-orange-600'}`}>
-                    {viewing.isVerified ? 'Yes' : 'No'}
-                  </p>
-                </div>
-                <div className="p-4 bg-orange-50 rounded-xl">
-                  <p className="text-xs text-gray-500 mb-1">Member Since</p>
-                  <p className="text-lg font-bold text-gray-900">{new Date(viewing.createdAt).toLocaleDateString()}</p>
-                </div>
+            {/* Avatar — overlaps banner */}
+            <div className="flex flex-col items-center -mt-14 px-6 relative z-10">
+              <div className="w-24 h-24 rounded-full border-4 border-white shadow-xl overflow-hidden bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center relative z-10">
+                {viewing.image ? (
+                  <img
+                    src={`${IMAGE_BASE_URL}${viewing.image}`}
+                    alt={viewing.name}
+                    className="w-full h-full object-cover cursor-pointer"
+                    onClick={(e) => { e.stopPropagation(); setViewingImage(`${IMAGE_BASE_URL}${viewing.image}`); }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      e.currentTarget.parentElement.innerHTML += '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+                    }}
+                  />
+                ) : (
+                  <User size={40} className="text-indigo-400" />
+                )}
               </div>
 
-              <div className="space-y-4">
-                <div className="flex justify-between py-3 border-b border-gray-100">
-                  <span className="text-sm text-gray-500">Email</span>
-                  <span className="text-sm font-medium text-gray-900">{viewing.email}</span>
-                </div>
-                <div className="flex justify-between py-3 border-b border-gray-100">
-                  <span className="text-sm text-gray-500">Phone</span>
-                  <span className="text-sm font-medium text-gray-900">{viewing.phone || 'Not provided'}</span>
-                </div>
-                <div className="flex justify-between py-3 border-b border-gray-100">
-                  <span className="text-sm text-gray-500">Total Bookings</span>
-                  <span className="text-sm font-medium text-blue-600">{viewing.totalBookings || 0}</span>
-                </div>
-                <div className="flex justify-between py-3 border-b border-gray-100">
-                  <span className="text-sm text-gray-500">Total Spent</span>
-                  <span className="text-sm font-medium text-green-600">₹{viewing.totalSpent || 0}</span>
-                </div>
-                <div className="flex justify-between py-3 border-b border-gray-100">
-                  <span className="text-sm text-gray-500">Last Login</span>
-                  <span className="text-sm font-medium text-gray-900">{viewing.lastLogin ? new Date(viewing.lastLogin).toLocaleString() : 'Never'}</span>
-                </div>
+              {/* Name & ID */}
+              <h2 className="mt-3 text-xl font-bold text-gray-900">{viewing.name}</h2>
+              <p className="text-xs text-gray-400 mb-4">ID: #{viewing._id?.slice(-8)}</p>
+
+              {/* Status + Verified badges */}
+              <div className="flex items-center gap-2 mb-6">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${viewing.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
+                  }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${viewing.isActive ? 'bg-green-500' : 'bg-red-500'}`} />
+                  {viewing.isActive ? 'Active' : 'Inactive'}
+                </span>
+                {viewing.isVerified && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
+                    <CheckCircle size={11} />
+                    Verified
+                  </span>
+                )}
               </div>
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+            {/* Info Rows */}
+            <div className="px-6 pb-4 space-y-2">
+              {[
+                { label: 'Email', value: viewing.email, icon: Mail },
+                { label: 'Phone', value: viewing.phone || 'Not provided', icon: Phone },
+                { label: 'Joined', value: new Date(viewing.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }), icon: Calendar },
+                { label: 'Total Bookings', value: viewing.totalBookings || 0, icon: Calendar, highlight: 'blue' },
+                { label: 'Total Spent', value: `₹${viewing.totalSpent || 0}`, icon: DollarSign, highlight: 'green' },
+              ].map(({ label, value, icon: Icon, highlight }) => (
+                <div key={label} className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-2xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-white rounded-xl shadow-sm flex items-center justify-center">
+                      <Icon size={14} className="text-indigo-400" />
+                    </div>
+                    <span className="text-sm text-gray-500">{label}</span>
+                  </div>
+                  <span className={`text-sm font-semibold ${highlight === 'blue' ? 'text-blue-600' : highlight === 'green' ? 'text-green-600' : 'text-gray-800'
+                    }`}>{value}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 pb-6 pt-2">
               <button
                 onClick={() => setViewing(null)}
-                className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl text-sm font-semibold hover:opacity-90 transition-opacity"
               >
                 Close
               </button>
-
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Image Fullscreen Preview */}
+      {viewingImage && (
+        <div
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+          onClick={() => setViewingImage(null)}
+        >
+          <div className="relative max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setViewingImage(null)}
+              className="absolute -top-3 -right-3 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg z-10"
+            >
+              <X size={16} className="text-gray-700" />
+            </button>
+            <img src={viewingImage} alt="Profile" className="w-full rounded-2xl shadow-2xl object-contain max-h-[80vh]" />
           </div>
         </div>
       )}
