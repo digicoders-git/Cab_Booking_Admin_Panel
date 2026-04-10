@@ -380,6 +380,10 @@ export default function CreateAgent() {
     }
   };
 
+  const imagePreview = useMemo(() => image ? URL.createObjectURL(image) : null, [image]);
+  const aadharPreview = useMemo(() => aadhar ? URL.createObjectURL(aadhar) : null, [aadhar]);
+  const panPreview = useMemo(() => pan ? URL.createObjectURL(pan) : null, [pan]);
+
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingId(null);
@@ -1230,11 +1234,11 @@ export default function CreateAgent() {
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   {[
-                    { label: 'Profile Image', file: image, setter: setImage, accent: 'blue', existingUrl: editingAgent?.image ? `${IMAGE_BASE_URL}${editingAgent.image}` : null },
-                    { label: 'Aadhar Card', file: aadhar, setter: setAadhar, accent: 'indigo', existingUrl: editingAgent?.documents?.aadhar ? `${IMAGE_BASE_URL}${editingAgent.documents.aadhar}` : null },
-                    { label: 'PAN Card', file: pan, setter: setPan, accent: 'green', existingUrl: editingAgent?.documents?.pan ? `${IMAGE_BASE_URL}${editingAgent.documents.pan}` : null },
-                  ].map(({ label, file, setter, accent, existingUrl }) => {
-                    const previewSrc = file ? URL.createObjectURL(file) : existingUrl;
+                    { label: 'Profile Image', file: image, setter: setImage, accent: 'blue', existingUrl: editingAgent?.image ? `${IMAGE_BASE_URL}${editingAgent.image}` : null, preview: imagePreview },
+                    { label: 'Aadhar Card', file: aadhar, setter: setAadhar, accent: 'indigo', existingUrl: editingAgent?.documents?.aadhar ? `${IMAGE_BASE_URL}${editingAgent.documents.aadhar}` : null, preview: aadharPreview },
+                    { label: 'PAN Card', file: pan, setter: setPan, accent: 'green', existingUrl: editingAgent?.documents?.pan ? `${IMAGE_BASE_URL}${editingAgent.documents.pan}` : null, preview: panPreview },
+                  ].map(({ label, file, setter, accent, existingUrl, preview }) => {
+                    const previewSrc = preview || existingUrl;
                     return (
                       <div key={label} className="space-y-2">
                         <label className="text-xs font-medium text-gray-500">{label}</label>
