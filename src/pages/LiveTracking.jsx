@@ -58,11 +58,6 @@ const StatCard = ({ label, value, icon: Icon, color }) => (
 
 // Driver Card
 const DriverCard = ({ driver, onSelect, address }) => {
-  const [imgError, setImgError] = React.useState(false);
-
-  const BASE = import.meta.env.VITE_API_BASE_URL || '';
-  const IMAGE_BASE_URL = BASE.replace(/\/api\/?$/, '').replace(/\/$/, '') + '/uploads/';
-
   const getStatusColor = (status) => {
     switch (status?.toLowerCase()) {
       case 'idle':
@@ -94,25 +89,30 @@ const DriverCard = ({ driver, onSelect, address }) => {
     >
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3 flex-1">
-          {!imgError && (driver.carInfo?.carCategoryImage && driver.carInfo.carCategoryImage !== 'null') ? (
+          {driver.carInfo?.carCategoryImage && driver.carInfo.carCategoryImage !== 'null' ? (
             <img
               src={driver.carInfo.carCategoryImage}
               alt="Car"
               className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
-              onError={() => setImgError(true)}
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextElementSibling.style.display = 'flex';
+              }}
             />
-          ) : !imgError && driver.image ? (
+          ) : driver.image ? (
             <img
-              src={`${IMAGE_BASE_URL}${driver.image}`}
+              src={`${import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '')}/uploads/${driver.image}`}
               alt={driver.name}
               className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-md"
-              onError={() => setImgError(true)}
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.nextElementSibling.style.display = 'flex';
+              }}
             />
-          ) : (
-            <div className="w-12 h-12 rounded-full flex items-center justify-center text-white" style={{ backgroundColor: vehicleColor }}>
-              <VehicleIcon size={20} color="white" />
-            </div>
-          )}
+          ) : null}
+          <div className="w-12 h-12 rounded-full flex items-center justify-center text-white" style={{ backgroundColor: vehicleColor, display: (driver.carInfo?.carCategoryImage && driver.carInfo.carCategoryImage !== 'null') || driver.image ? 'none' : 'flex' }}>
+            <VehicleIcon size={20} color="white" />
+          </div>
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-gray-900 truncate">{driver.name}</h3>
             <p className="text-xs text-gray-500">{driver.phone}</p>
@@ -575,7 +575,7 @@ const DriverDetailModal = ({ driver, isOpen, onClose, address, pickupAddress, dr
             <div className="flex items-start gap-4">
               {driver.image ? (
                 <img
-                  src={`${import.meta.env.VITE_API_BASE_URL?.replace(/\/api\/?$/, '').replace(/\/$/, '')}/uploads/${driver.image}`}
+                  src={`${import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '')}/uploads/${driver.image}`}
                   alt={driver.name}
                   className="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md"
                   onError={(e) => {
