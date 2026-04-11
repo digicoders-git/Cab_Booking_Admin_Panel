@@ -3,11 +3,12 @@ import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useFont } from "../context/FontContext";
 import {
-    registerSubAdmin, getAllAdmins, deleteAdmin, updateAdminPermissions
+    registerSubAdmin, getAllAdmins, deleteAdmin, updateAdminPermissions, getDashboardStats
 } from "../apis/admin";
 import {
     UserPlus, Shield, Mail, Trash2, Key, CheckCircle, AlertCircle,
-    ChevronLeft, ChevronRight, RefreshCw, X, ShieldCheck, Lock, UserX, Eye, EyeOff, Edit, Camera, User, Power
+    ChevronLeft, ChevronRight, RefreshCw, X, ShieldCheck, Lock, UserX, Eye, EyeOff, Edit, Camera, User, Power,
+    Building2, CheckCircle2, Users, Wallet, Search, Activity, Settings
 } from 'lucide-react';
 import Swal from "sweetalert2";
 
@@ -109,6 +110,24 @@ const PERMISSIONS_GROUPS = [
 // Flat list for logical checks
 const PERMISSIONS_LIST = PERMISSIONS_GROUPS.flatMap(g => g.permissions);
 
+const StatCard = ({ icon: Icon, title, value, trend, bgColor, iconColor }) => (
+    <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 relative group overflow-hidden transition-all hover:shadow-md">
+        <div className="flex justify-between items-start mb-4">
+            <div className={`p-3 rounded-xl ${bgColor} shadow-sm border border-black/5`}>
+                <Icon className={iconColor} size={22} />
+            </div>
+            <div className="px-2 py-1 bg-green-50 rounded-full flex items-center gap-1 border border-green-100">
+                <span className="text-[10px] font-black text-green-600">{trend}</span>
+            </div>
+        </div>
+        <div className="space-y-1">
+            <h3 className="text-2xl font-black text-gray-900 tracking-tight">{value}</h3>
+            <p className="text-[11px] font-black text-gray-400 uppercase tracking-widest">{title}</p>
+        </div>
+        <div className={`absolute bottom-0 left-0 h-1 w-0 group-hover:w-full transition-all duration-500 ${iconColor.replace('text', 'bg')}`} />
+    </div>
+);
+
 export default function ManageSubAdmins() {
     const { themeColors, theme } = useTheme();
     const { admin: loggedInAdmin } = useAuth();
@@ -128,6 +147,16 @@ export default function ManageSubAdmins() {
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [showPermissionModal, setShowPermissionModal] = useState(null);
     const [viewAdmin, setViewAdmin] = useState(null);
+    const [stats, setStats] = useState({
+        totalVendors: 0,
+        activeVendors: 0,
+        totalDrivers: 0,
+        totalCommission: 0
+    });
+    const [currentPage, setCurrentPage] = useState(1);
+    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [activeTab, setActiveTab] = useState("all");
+    const [searchQuery, setSearchQuery] = useState("");
 
     const [createForm, setCreateForm] = useState({
         name: "",
@@ -139,7 +168,49 @@ export default function ManageSubAdmins() {
 
     useEffect(() => {
         fetchAdmins();
+        fetchStats();
     }, []);
+
+    const fetchStats = async () => {
+        try {
+            const res = await getDashboardStats();
+            // We use the local 'admins' list for more relevant page stats
+        } catch (err) {
+            console.error("Error fetching stats:", err);
+        }
+    };
+
+    const filteredAdmins = useMemo(() => {
+        let list = admins;
+        if (activeTab === "active") list = list.filter(a => a.isActive !== false);
+        if (activeTab === "inactive") list = list.filter(a => a.isActive === false);
+        
+        if (searchQuery.trim()) {
+            const lowQuery = searchQuery.toLowerCase();
+            list = list.filter(a => 
+                a.name?.toLowerCase().includes(lowQuery) || 
+                a.email?.toLowerCase().includes(lowQuery)
+            );
+        }
+        return list;
+    }, [admins, activeTab, searchQuery]);
+
+    const paginatedAdmins = useMemo(() => {
+        const start = (currentPage - 1) * rowsPerPage;
+        return filteredAdmins.slice(start, start + rowsPerPage);
+    }, [filteredAdmins, currentPage, rowsPerPage]);
+
+    const totalPages = Math.ceil(filteredAdmins.length / rowsPerPage);
+    useEffect(() => { setCurrentPage(1); }, [filteredAdmins.length, rowsPerPage]);
+
+    // Derived stats from the admins list
+    const staffStats = useMemo(() => {
+        const total = admins.length;
+        const active = admins.filter(a => a.isActive !== false).length;
+        const subAdmins = admins.filter(a => a.role === 'SubAdmin').length;
+        const suspended = admins.filter(a => a.isActive === false).length;
+        return { total, active, subAdmins, suspended };
+    }, [admins]);
 
     const fetchAdmins = async () => {
         try {
@@ -243,7 +314,7 @@ export default function ManageSubAdmins() {
     return (
         <div className="min-h-screen p-4 sm:p-8">
             {/* Header Section */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-12 gap-4 py-6">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
                         <ShieldCheck className="text-blue-600" size={28} />
@@ -268,17 +339,117 @@ export default function ManageSubAdmins() {
                 </div>
             </div>
 
+            {/* Statistics Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <StatCard 
+                    icon={Shield} 
+                    title="Total Staff" 
+                    value={staffStats.total} 
+                    trend="Total" 
+                    bgColor="bg-blue-50" 
+                    iconColor="text-blue-600" 
+                />
+                <StatCard 
+                    icon={CheckCircle2} 
+                    title="Active Sessions" 
+                    value={staffStats.active} 
+                    trend="Alive" 
+                    bgColor="bg-emerald-50" 
+                    iconColor="text-emerald-600" 
+                />
+                <StatCard 
+                    icon={Users} 
+                    title="Sub-Admins" 
+                    value={staffStats.subAdmins} 
+                    trend="Managed" 
+                    bgColor="bg-indigo-50" 
+                    iconColor="text-indigo-600" 
+                />
+                <StatCard 
+                    icon={UserX} 
+                    title="Suspended" 
+                    value={staffStats.suspended} 
+                    trend="Paused" 
+                    bgColor="bg-rose-50" 
+                    iconColor="text-rose-600" 
+                />
+            </div>
+
             {/* List Section */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                {/* Tabs & Search Row */}
+                <div className="px-6 border-b border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4 py-2">
+                    <div className="flex items-center gap-6 overflow-x-auto w-full md:w-auto">
+                        {[
+                            { id: "all", label: "All Staff", count: staffStats.total, icon: Shield },
+                            { id: "active", label: "Active", count: staffStats.active, icon: CheckCircle2, color: 'text-green-600' },
+                            { id: "inactive", label: "Inactive", count: staffStats.suspended, icon: UserX, color: 'text-red-600' }
+                        ].map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`flex items-center gap-2 py-5 text-[11px] font-black uppercase tracking-widest transition-all border-b-2 relative whitespace-nowrap ${
+                                activeTab === tab.id ? 'border-blue-600 text-blue-600 font-black' : 'border-transparent text-gray-600 hover:text-gray-900'
+                            }`}
+                        >
+                            <tab.icon size={14} className={activeTab === tab.id ? 'text-blue-600' : tab.color || ''} />
+                            <span>{tab.label}</span>
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black border ${
+                                activeTab === tab.id ? 'bg-blue-600 text-white border-blue-700' : 'bg-gray-100 text-gray-900 border-gray-200'
+                            }`}>
+                                {tab.count}
+                            </span>
+                        </button>
+                        ))}
+                    </div>
+
+                    {/* Integrated Search Bar */}
+                    <div className="relative w-full md:w-64 py-2 md:py-0">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                        <input 
+                            type="text"
+                            placeholder="Filter by name/email..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full pl-9 pr-4 py-2 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-4 focus:ring-blue-500/5 focus:border-blue-200 focus:bg-white transition-all text-xs font-bold shadow-inner"
+                        />
+                    </div>
+                </div>
+
                 <div className="overflow-x-auto">
                     <table className="w-full text-left">
                         <thead>
-                            <tr className="bg-gray-50/50 border-b border-gray-200">
-                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Staff Member</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Role</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase">Secret Password</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase text-center">Actions</th>
+                            <tr className="bg-gray-50 border-b border-gray-200">
+                                <th className="text-left py-4 px-6 text-xs font-bold text-gray-600 uppercase whitespace-nowrap tracking-wider">
+                                    <div className="flex items-center gap-2">
+                                        <Users size={14} className="text-blue-500" />
+                                        Staff Member
+                                    </div>
+                                </th>
+                                <th className="text-left py-4 px-6 text-xs font-bold text-gray-600 uppercase whitespace-nowrap tracking-wider">
+                                    <div className="flex items-center gap-2">
+                                        <Shield size={14} className="text-indigo-500" />
+                                        Access Role
+                                    </div>
+                                </th>
+                                <th className="text-left py-4 px-6 text-xs font-bold text-gray-600 uppercase whitespace-nowrap tracking-wider">
+                                    <div className="flex items-center gap-2">
+                                        <Activity size={14} className="text-emerald-500" />
+                                        Status
+                                    </div>
+                                </th>
+                                <th className="text-left py-4 px-6 text-xs font-bold text-gray-600 uppercase whitespace-nowrap tracking-wider">
+                                    <div className="flex items-center gap-2">
+                                        <Key size={14} className="text-amber-500" />
+                                        Password
+                                    </div>
+                                </th>
+                                <th className="text-center py-4 px-6 text-xs font-bold text-gray-600 uppercase whitespace-nowrap tracking-wider">
+                                    <div className="flex items-center justify-center gap-2">
+                                        <Settings size={14} className="text-rose-500" />
+                                        Actions
+                                    </div>
+                                </th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -297,54 +468,56 @@ export default function ManageSubAdmins() {
                                         No sub-admins found. Create your first staff member.
                                     </td>
                                 </tr>
-                            ) : admins.map((admin) => (
-                                <tr key={admin._id} className="hover:bg-gray-50/50 transition-colors">
-                                    <td className="px-6 py-5">
+                            ) : paginatedAdmins.map((admin) => (
+                                <tr key={admin._id} className="hover:bg-gray-50 transition-colors cursor-pointer group">
+                                    <td className="py-4 px-6">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full overflow-hidden border border-blue-100 bg-blue-50 flex items-center justify-center text-blue-600 font-bold shadow-sm">
+                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-100 to-indigo-100 flex items-center justify-center overflow-hidden border border-blue-50 shadow-sm group-hover:scale-105 transition-transform">
                                                 {admin.image ? (
                                                     <img
                                                         src={`${IMAGE_BASE_URL}${admin.image}`}
                                                         alt={admin.name}
                                                         className="w-full h-full object-cover"
                                                     />
-                                                ) : admin.role === 'SuperAdmin' ? (
-                                                    <Shield size={20} />
                                                 ) : (
-                                                    <span className="text-sm">{admin.name.charAt(0)}</span>
+                                                    <Shield size={18} className="text-blue-600" />
                                                 )}
                                             </div>
                                             <div>
-                                                <p className="font-semibold text-gray-900 leading-tight">{admin.name}</p>
-                                                <p className="text-[11px] text-gray-500 font-medium">{admin.email}</p>
+                                                <p className="text-sm font-black text-gray-900 leading-none mb-1">{admin.name}</p>
+                                                <p className="text-xs text-gray-600 font-bold">{admin.email}</p>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-5">
-                                        <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider ${admin.role === 'SuperAdmin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
-                                            }`}>
+                                    <td className="py-4 px-6">
+                                        <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest ${
+                                            admin.role === 'SuperAdmin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                                        }`}>
                                             {admin.role}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-5">
+                                    <td className="py-4 px-6">
                                         {admin.isActive !== false ? (
-                                            <span className="flex items-center gap-1.5 text-xs text-green-600 font-medium">
-                                                <CheckCircle size={14} /> Active
+                                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-green-100 text-green-700 flex items-center gap-1.5 w-fit">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                                ACTIVE
                                             </span>
                                         ) : (
-                                            <span className="flex items-center gap-1.5 text-xs text-red-600 font-medium">
-                                                <UserX size={14} /> Inactive
+                                            <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-gray-100 text-gray-500 flex items-center gap-1.5 w-fit">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                                                INACTIVE
                                             </span>
                                         )}
                                     </td>
-                                    <td className="px-6 py-5">
-                                        <div className="flex items-center gap-2 text-xs font-mono text-gray-600 bg-gray-50 px-2 py-1 rounded border border-gray-100 w-fit">
-                                            <Key size={12} className="text-gray-400" />
-                                            {admin.password}
+                                    <td className="py-4 px-6">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs font-mono text-indigo-600 bg-indigo-50 px-2 py-1 rounded border border-indigo-100/50">
+                                                {admin.password}
+                                            </span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-5">
-                                        <div className="flex items-center justify-center gap-2">
+                                    <td className="py-4 px-6">
+                                        <div className="flex items-center justify-center gap-1">
                                             {can('STAFF_VIEW') && (
                                                 <button
                                                     onClick={() => setViewAdmin(admin)}
@@ -390,6 +563,53 @@ export default function ManageSubAdmins() {
                             ))}
                         </tbody>
                     </table>
+                </div>
+
+                {/* Pagination Controls */}
+                <div className="px-6 py-4 bg-gray-50/30 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Rows:</span>
+                            <select
+                                value={rowsPerPage}
+                                onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                                className="bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold text-gray-700 outline-none focus:ring-2 focus:ring-blue-500/20"
+                            >
+                                {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map(n => (
+                                    <option key={n} value={n}>{n} rows</option>
+                                ))}
+                            </select>
+                        </div>
+                        <p className="text-xs font-bold text-gray-500">
+                            Showing <span className="text-blue-600">{filteredAdmins.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}</span> to <span className="text-blue-600">{Math.min(filteredAdmins.length, currentPage * rowsPerPage)}</span> of {filteredAdmins.length} staff
+                        </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-xs font-black text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 transition-all shadow-sm active:scale-95"
+                        >
+                            <ChevronLeft size={16} />
+                            PREVIOUS
+                        </button>
+
+                        <div className="px-4 py-2 bg-blue-50 rounded-xl border border-blue-100">
+                            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">
+                                PAGE {currentPage} OF {totalPages || 1}
+                            </span>
+                        </div>
+
+                        <button
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages || totalPages === 0}
+                            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white text-xs font-black text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-gray-50 transition-all shadow-sm active:scale-95"
+                        >
+                            NEXT
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -710,7 +930,7 @@ export default function ManageSubAdmins() {
                                     <Key size={16} className="text-gray-400" />
                                 </div>
                                 <div>
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Master Key (Password)</p>
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Secret Password</p>
                                     <p className="font-mono text-sm text-gray-700 font-bold">{viewAdmin.password}</p>
                                 </div>
                             </div>

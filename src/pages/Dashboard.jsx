@@ -627,7 +627,10 @@ const AdminDashboard = () => {
                      <h3 className="text-lg font-semibold text-gray-800">Recent Bookings</h3>
                      <p className="text-sm text-gray-500">Latest ride requests</p>
                   </div>
-                  <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                  <button 
+                     onClick={() => navigate('/bookings/manage')}
+                     className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                  >
                      View All →
                   </button>
                </div>
