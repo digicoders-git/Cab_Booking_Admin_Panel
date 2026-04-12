@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useFont } from "../context/FontContext";
 
 // APIs
-import { getAllFleetCars } from "../apis/fleetCar";
+import { getAllFleetCars, updateFleetCar } from "../apis/fleetCar";
 import { getAllFleetDrivers, updateFleetDriver, deleteFleetDriver, toggleDriverApproval } from "../apis/fleetDriver";
 import { getAllFleetAssignments } from "../apis/fleetAssignment";
 import { getAllCarCategories } from "../apis/carCategory";
@@ -15,7 +15,7 @@ import {
   FaSearch, FaBuilding, FaTag, FaCheckCircle, FaTimesCircle, FaChevronLeft, FaChevronRight,
   FaPlus, FaUserTie, FaCalendarAlt, FaEnvelope, FaPhone, FaEye, FaToggleOn, FaToggleOff, FaTimes,
   FaPlayCircle, FaHistory, FaRoute, FaEdit, FaTrash, FaDownload, FaFilter, FaPrint,
-  FaChartPie, FaChartBar, FaChartLine, FaChartArea, FaGasPump, FaCogs, FaChair, FaPallet, FaWrench, FaShieldAlt, FaCreditCard, FaClock
+  FaChartPie, FaChartBar, FaChartLine, FaChartArea, FaGasPump, FaCogs, FaChair, FaPallet, FaWrench, FaShieldAlt, FaCreditCard, FaClock, FaCircle
 } from "react-icons/fa";
 import {
   Activity, PieChart as PieChartIcon, BarChart3, TrendingUp, DollarSign, Target, Gauge, Zap, Clock, MapPin, Mail, Phone, User, Users, Wallet, Briefcase
@@ -258,10 +258,30 @@ function CarsTab({ cars, categories, themeColors, theme, borderColor, textColorS
                   <td className="px-5 py-3 whitespace-nowrap"><span className="text-xs font-medium text-orange-600">₹{category.privateRatePerKm || "0"}/km</span></td>
                   <td className="px-5 py-3 whitespace-nowrap"><span className="text-xs font-medium text-purple-600">₹{category.sharedRatePerSeatPerKm || "0"}/km</span></td>
                   <td className="px-5 py-3 whitespace-nowrap">
-                    {c.isActive ?
-                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-[10px] font-medium">Active</span> :
-                      <span className="px-2 py-1 bg-gray-100 text-gray-500 rounded-full text-[10px] font-medium">Inactive</span>
-                    }
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        {c.isActive ?
+                          <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[9px] font-bold uppercase">Active</span> :
+                          <span className="px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full text-[9px] font-bold uppercase">Inactive</span>
+                        }
+                        {can('FLEET_EDIT') && (
+                          <button onClick={() => updateFleetCar(c._id, { isActive: !c.isActive }).then(fetchData)} className={c.isActive ? 'text-green-500' : 'text-gray-300'}>
+                            {c.isActive ? <FaToggleOn size={16} /> : <FaToggleOff size={16} />}
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {c.isApproved ?
+                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[9px] font-bold uppercase tracking-tight">Market Approved</span> :
+                          <span className="px-2 py-0.5 bg-orange-100 text-orange-700 rounded-full text-[9px] font-bold uppercase tracking-tight">Market Pending</span>
+                        }
+                        {can('FLEET_EDIT') && (
+                          <button onClick={() => updateFleetCar(c._id, { isApproved: !c.isApproved }).then(fetchData)} className={c.isApproved ? 'text-blue-500' : 'text-gray-300'}>
+                            {c.isApproved ? <FaCheckCircle size={14} /> : <FaCircle size={10} className="opacity-30" />}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </td>
                 </tr>
               );

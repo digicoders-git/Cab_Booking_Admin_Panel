@@ -12,7 +12,7 @@ import {
 } from 'recharts';
 import {
   FaPlus, FaEdit, FaTrash, FaSyncAlt, FaSearch, FaCar,
-  FaCheckCircle, FaUsers, FaTachometerAlt,
+  FaCheckCircle, FaUsers, FaTachometerAlt, FaTag,
   FaImage, FaTimes, FaToggleOn, FaToggleOff, FaArrowRight,
   FaChartPie, FaChartBar, FaChartLine
 } from "react-icons/fa";
@@ -112,6 +112,7 @@ export default function ManageCarCategories() {
     sharedRatePerSeatPerKm: "0",
     avgSpeedKmH: "30",
     seatLayout: ["Front", "Back-Left", "Back-Middle", "Back-Right"],
+    bulkBookingBasePrice: "0",
     image: null
   });
 
@@ -213,7 +214,7 @@ export default function ManageCarCategories() {
         toast.success(editingCategory ? "Category Updated" : "Category Created");
         setIsModalOpen(false);
         setEditingCategory(null);
-        setFormData({ name: "", seatCapacity: "4", baseFare: "0", privateRatePerKm: "0", sharedRatePerSeatPerKm: "0", avgSpeedKmH: "30", seatLayout: ["Front", "Back-Left", "Back-Middle", "Back-Right"], image: null });
+        setFormData({ name: "", seatCapacity: "4", baseFare: "0", privateRatePerKm: "0", sharedRatePerSeatPerKm: "0", avgSpeedKmH: "30", seatLayout: ["Front", "Back-Left", "Back-Middle", "Back-Right"], bulkBookingBasePrice: "0", image: null });
         fetchData();
       } else {
         toast.error(res.message);
@@ -260,6 +261,7 @@ export default function ManageCarCategories() {
       sharedRatePerSeatPerKm: c.sharedRatePerSeatPerKm,
       avgSpeedKmH: c.avgSpeedKmH,
       seatLayout: layout || ["Front", "Back-Left", "Back-Middle", "Back-Right"],
+      bulkBookingBasePrice: c.bulkBookingBasePrice || "0",
       image: null
     });
     setIsModalOpen(true);
@@ -545,6 +547,10 @@ export default function ManageCarCategories() {
                   <span className="text-xs text-orange-600 block">Shared</span>
                   <span className="text-sm font-bold text-orange-700">₹{c.sharedRatePerSeatPerKm}</span>
                 </div>
+                <div className="text-center p-2 bg-purple-50 rounded-lg">
+                  <span className="text-xs text-purple-600 block">Bulk Rate/km</span>
+                  <span className="text-sm font-bold text-purple-700">₹{c.bulkBookingBasePrice || 0}</span>
+                </div>
               </div>
 
               {/* Actions */}
@@ -667,6 +673,20 @@ export default function ManageCarCategories() {
                       onChange={(e) => setFormData({ ...formData, sharedRatePerSeatPerKm: e.target.value })}
                       required
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-500 block mb-2">Bulk Rate per KM</label>
+                  <div className="relative">
+                    <FaTag className="absolute left-4 top-1/2 -translate-y-1/2 text-pink-500" />
+                    <input
+                      type="number"
+                      value={formData.bulkBookingBasePrice}
+                      onChange={(e) => setFormData({ ...formData, bulkBookingBasePrice: e.target.value })}
+                      className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 pl-12 pr-4 text-sm font-bold focus:ring-2 ring-pink-500"
+                      placeholder="Rate per KM (e.g. 15)"
+                      required
                     />
                   </div>
                 </div>

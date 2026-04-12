@@ -1,403 +1,569 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useTheme } from "../context/ThemeContext";
-import { useAuth } from "../context/AuthContext";
-import { useFont } from "../context/FontContext";
-import {
-  getAllServiceAreas, createServiceArea, updateServiceArea, deleteServiceArea
-} from "../apis/serviceArea";
-import {
-  FaPlus, FaEdit, FaTrash, FaSyncAlt, FaSearch, FaMapMarkedAlt,
-  FaCheckCircle, FaTimes, FaToggleOn, FaToggleOff, FaArrowRight,
-  FaMapMarkerAlt, FaGlobe
-} from "react-icons/fa";
-import { TrendingUp, Activity, MapPin, Search as SearchIcon, ShieldCheck } from 'lucide-react';
+import { 
+  Plus, Edit2, Trash2, X, Search, MapPin, Globe, Target, 
+  Shield, Zap, Circle, Navigation, Activity, CheckCircle, XCircle 
+} from "lucide-react";
+import { FaEdit, FaTrashAlt, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { Toaster, toast } from "sonner";
 import Swal from "sweetalert2";
+import { 
+  getAllServiceAreas, createServiceArea, updateServiceArea, deleteServiceArea 
+} from "../apis/serviceArea";
 
-const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-
-// Stat Card Component
-const StatCard = ({ icon: Icon, label, value, color }) => (
-  <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all group">
-    <div className="flex items-start justify-between mb-4">
-      <div className={`p-3 rounded-xl bg-${color}-50 group-hover:scale-110 transition-transform`}>
-        <Icon className={`text-${color}-600`} size={24} />
-      </div>
-    </div>
-    <p className="text-2xl font-bold text-gray-900 mb-1">{value}</p>
-    <p className="text-sm text-gray-500">{label}</p>
-  </div>
-);
-
-export default function ManageServiceAreas() {
-  const { themeColors } = useTheme();
-  const { admin } = useAuth();
-  const { currentFont } = useFont();
-
-  const can = (permission) => {
-    if (admin?.role === 'SuperAdmin') return true;
-    return admin?.permissions?.includes(permission);
-  };
-
-  const [loading, setLoading] = useState(true);
-  const [fetching, setFetching] = useState(true);
-  const [areas, setAreas] = useState([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingArea, setEditingArea] = useState(null);
-
+const ManageServiceAreas = () => {
+  const [data, setData] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [editId, setEditId] = useState(null);
+  const [activeTab, setActiveTab] = useState("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  
   const [formData, setFormData] = useState({
     cityName: "",
-    pincodes: [],
-    searchInput: ""
+    centerLat: null,
+    centerLng: null,
+    radiusKm: 50,
+    isActive: true
   });
 
-  const searchInputRef = useRef(null);
-  const autocomplete = useRef(null);
+  const [loading, setLoading] = useState(false);
+  const searchRef = useRef(null);
+
+  // --- 1. DATA FETCHING ---
+  const fetchData = async () => {
+    try {
+      const res = await getAllServiceAreas();
+      if (res.success) {
+        setData(res.areas || []);
+      }
+    } catch (err) {
+      console.error("Fetch Error:", err);
+    }
+  };
 
   useEffect(() => {
-    fetchData();
     loadGoogleMapsScript();
+    fetchData();
   }, []);
 
+  // --- 2. GOOGLE MAPS LOGIC ---
+  useEffect(() => {
+    if (showModal) {
+      const timer = setTimeout(() => {
+        initAutocomplete();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [showModal]);
+
   const loadGoogleMapsScript = () => {
-    if (window.google && window.google.maps && window.google.maps.places) return;
-    if (document.getElementById("google-maps-script")) return;
+    if (window.google || document.getElementById("google-maps-main-script")) return;
     const script = document.createElement("script");
-    script.id = "google-maps-script";
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
+    script.id = "google-maps-main-script";
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&libraries=places`;
     script.async = true;
-    script.defer = true;
     document.head.appendChild(script);
   };
 
-  useEffect(() => {
-    if (isModalOpen) {
-        const timer = setTimeout(() => {
-          if (!window.google || !window.google.maps || !window.google.maps.places || !searchInputRef.current) return;
-          
-          autocomplete.current = new window.google.maps.places.Autocomplete(searchInputRef.current, {
-             types: ["geocode"] 
-          });
+  const initAutocomplete = () => {
+    if (!window.google || !searchRef.current) return;
 
-          autocomplete.current.addListener("place_changed", () => {
-             const place = autocomplete.current.getPlace();
-             if (!place.address_components) return;
-
-             const components = place.address_components;
-             
-             const district = components.find(c => c.types.includes("administrative_area_level_2"))?.long_name;
-             const locality = components.find(c => c.types.includes("locality"))?.long_name;
-             const cleanName = (n) => n ? n.replace(/ Division/gi, "").replace(/ Mandal/gi, "").trim() : "";
-             let pincode = components.find(c => c.types.includes("postal_code"))?.long_name;
-             const finalCity = cleanName(locality || district || place.name);
-
-             if (!pincode && window.google && window.google.maps && window.google.maps.places) {
-                // 🚀 SMART GPO HUNTER: Secondary search for District Head Post Office
-                const service = new window.google.maps.places.PlacesService(document.createElement('div'));
-                service.textSearch({ query: `${finalCity} Head Post Office` }, (results, status) => {
-                    if (status === window.google.maps.places.PlacesServiceStatus.OK && results[0]) {
-                        const address = results[0].formatted_address || "";
-                        const matchedPin = address.match(/\b\d{6}\b/);
-                        if (matchedPin) {
-                            setFormData(prev => ({ ...prev, cityName: finalCity, pincodes: [matchedPin[0]] }));
-                            toast.success(`GPO Hunter: Found ${matchedPin[0]} for ${finalCity}`);
-                        }
-                    } else {
-                        setFormData({ cityName: finalCity, pincodes: [], searchInput: "" });
-                        toast.warning(`Detected ${finalCity}, but Pincode is elusive. Please try a specific area.`);
-                    }
-                });
-             } else {
-                setFormData({
-                    cityName: finalCity,
-                    pincodes: pincode ? [pincode] : [],
-                    searchInput: "" 
-                });
-                if (pincode) toast.success(`Detected ${finalCity} (${pincode})`);
-             }
-          });
-        }, 500);
-        return () => clearTimeout(timer);
-    } else {
-        autocomplete.current = null;
-        setFormData({ cityName: "", pincodes: [], searchInput: "" });
+    if (!document.getElementById("google-autocomplete-style")) {
+      const style = document.createElement('style');
+      style.id = "google-autocomplete-style";
+      style.innerHTML = `.pac-container { z-index: 99999 !important; border-radius: 12px; margin-top: 5px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid #eee; }`;
+      document.head.appendChild(style);
     }
-  }, [isModalOpen]);
 
-  const fetchData = async () => {
-    try {
-      setFetching(true);
-      const res = await getAllServiceAreas();
-      if (res.success) setAreas(res.areas || []);
-    } catch (err) {
-      toast.error("Failed to fetch service areas");
-    } finally {
-      setFetching(false);
-      setLoading(false);
-    }
+    const autocomplete = new window.google.maps.places.Autocomplete(searchRef.current, {
+      types: ["(cities)"],
+      componentRestrictions: { country: "in" }
+    });
+
+    autocomplete.addListener("place_changed", () => {
+      const place = autocomplete.getPlace();
+      if (!place.geometry) return;
+
+      setFormData(prev => ({
+        ...prev,
+        cityName: place.name || place.formatted_address,
+        centerLat: place.geometry.location.lat(),
+        centerLng: place.geometry.location.lng()
+      }));
+      
+      toast.success(`City Center Locked!`);
+    });
   };
 
-  const filteredAreas = useMemo(() => {
-    return areas.filter(a =>
-      a.cityName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      a.pincodes?.some(p => p.includes(searchQuery))
-    );
-  }, [areas, searchQuery]);
-
+  // --- 3. FORM OPERATIONS ---
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.cityName) return toast.error("Please search for a location first");
-
-    // 1. --- CITY NAME DUPLICATE CHECK ---
-    const lowerCity = formData.cityName.trim().toLowerCase();
-    const cityExists = areas.find(a => 
-      a.cityName.toLowerCase() === lowerCity && (!editingArea || a._id !== editingArea._id)
-    );
-
-    if (cityExists) {
-      return Swal.fire({
-        title: 'City Already Registered!',
-        text: `${formData.cityName} is already in your service list.`,
-        icon: 'warning',
-        confirmButtonColor: '#3B82F6'
-      });
+    if (!formData.centerLat || !formData.centerLng) {
+      return toast.error("Please select a city from the search suggestions");
     }
 
-    // 2. --- PINCODE CONFLICT DETECTION ---
-    const conflictingPin = formData.pincodes.find(pin => 
-        areas.some(area => area.pincodes.includes(pin) && (!editingArea || area._id !== editingArea._id))
-    );
-
-    if (conflictingPin) {
-        const ownerArea = areas.find(a => a.pincodes.includes(conflictingPin));
-        return Swal.fire({
-            title: 'Pincode Already Exists!',
-            text: `Pincode ${conflictingPin} is already active under "${ownerArea.cityName}".`,
-            icon: 'error',
-            confirmButtonColor: '#EF4444'
-        });
-    }
-
-    const payload = { cityName: formData.cityName, pincodes: formData.pincodes };
-
+    setLoading(true);
     try {
-      setLoading(true);
-      const res = editingArea ? await updateServiceArea(editingArea._id, payload) : await createServiceArea(payload);
+      const payload = { ...formData };
+
+      const res = editId 
+        ? await updateServiceArea(editId, payload) 
+        : await createServiceArea(payload);
+
       if (res.success) {
-        toast.success(editingArea ? "Updated" : "Created");
-        setIsModalOpen(false);
-        setEditingArea(null);
-        setFormData({ cityName: "", pincodes: [], searchInput: "" });
+        toast.success(editId ? "Service Area Updated" : "New Operational City Added");
+        setShowModal(false);
+        resetForm();
         fetchData();
       } else {
         toast.error(res.message);
       }
     } catch (err) {
-      toast.error("Operation Failed");
+      toast.error("Operation failed");
     } finally {
       setLoading(false);
     }
   };
 
+  const resetForm = () => {
+    setFormData({
+      cityName: "",
+      centerLat: null,
+      centerLng: null,
+      radiusKm: 50,
+      isActive: true
+    });
+    setEditId(null);
+  };
+
+  const handleEdit = (item) => {
+    setEditId(item._id);
+    setFormData({
+      cityName: item.cityName,
+      centerLat: item.centerLat,
+      centerLng: item.centerLng,
+      radiusKm: item.radiusKm || 50,
+      isActive: item.isActive
+    });
+    setShowModal(true);
+  };
+
   const handleDelete = async (id) => {
-    const res = await Swal.fire({ title: "Remove Service Area?", text: "Bookings from this city will be blocked.", icon: "warning", showCancelButton: true, confirmButtonColor: "#EF4444", confirmButtonText: "Remove" });
-    if (res.isConfirmed) {
-      const resp = await deleteServiceArea(id);
-      if (resp.success) {
-        toast.success("Service Area Removed");
+    const result = await Swal.fire({
+      title: 'Delete Service Area?',
+      text: "All rides in this city will be instantly blocked!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+      confirmButtonText: 'Yes, Delete it!',
+      cancelButtonText: 'Cancel',
+      reverseButtons: true
+    });
+
+    if (!result.isConfirmed) return;
+    
+    try {
+      const res = await deleteServiceArea(id);
+      if (res.success) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Deleted!',
+          text: 'Service area has been removed',
+          timer: 2000,
+          showConfirmButton: false
+        });
         fetchData();
       }
+    } catch (err) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: 'Failed to delete service area',
+        confirmButtonColor: '#EF4444'
+      });
     }
   };
 
-  const startEdit = (a) => {
-    setEditingArea(a);
-    setFormData({ cityName: a.cityName, pincodes: a.pincodes || [], manualInput: "" });
-    setIsModalOpen(true);
-  };
+  const toggleStatus = async (item) => {
+    const result = await Swal.fire({
+      title: item.isActive ? 'Deactivate Service?' : 'Activate Service?',
+      text: item.isActive ? 'Rides will be blocked in this city' : 'Rides will be enabled in this city',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: item.isActive ? '#F59E0B' : '#10B981',
+      cancelButtonColor: '#6B7280',
+      confirmButtonText: item.isActive ? 'Yes, Deactivate' : 'Yes, Activate',
+      cancelButtonText: 'Cancel',
+      reverseButtons: true
+    });
 
-  const handleToggle = async (a) => {
-    const res = await updateServiceArea(a._id, { isActive: !a.isActive });
-    if (res.success) {
-      toast.success(`${a.cityName} ${!a.isActive ? 'Activated' : 'Suspended'}`);
-      fetchData();
+    if (!result.isConfirmed) return;
+    
+    try {
+      const res = await updateServiceArea(item._id, { isActive: !item.isActive });
+      if (res.success) {
+        Swal.fire({
+          icon: 'success',
+          title: item.isActive ? 'Deactivated!' : 'Activated!',
+          text: item.isActive ? 'Service is now inactive' : 'Service is now active',
+          timer: 2000,
+          showConfirmButton: false
+        });
+        fetchData();
+      }
+    } catch (err) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Error!',
+        text: 'Failed to update status',
+        confirmButtonColor: '#EF4444'
+      });
     }
   };
 
-  if (loading && areas.length === 0) {
-    return (
-      <div className="flex h-[80vh] items-center justify-center flex-col gap-4">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-sm font-medium text-gray-500">Loading Regions...</p>
-      </div>
-    );
-  }
+  // Filtering Logic
+  const filteredData = useMemo(() => {
+    if (activeTab === "active") return data.filter(i => i.isActive);
+    if (activeTab === "inactive") return data.filter(i => !i.isActive);
+    return data;
+  }, [data, activeTab]);
+
+  // Pagination Logic
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return filteredData.slice(start, start + rowsPerPage);
+  }, [filteredData, currentPage, rowsPerPage]);
+
+  const totalPages = Math.ceil(filteredData.length / rowsPerPage);
+
+  useEffect(() => { setCurrentPage(1); }, [activeTab, rowsPerPage]);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6" style={{ fontFamily: currentFont }}>
-      <Toaster richColors position="top-right" />
+    <div className="p-6 bg-[#F9FAFB] min-h-screen text-gray-800">
+      <Toaster 
+        richColors 
+        position="top-right" 
+        expand={true}
+        closeButton
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: 'white',
+            color: '#333',
+            border: '1px solid #e5e7eb',
+            fontSize: '14px',
+            fontWeight: '500'
+          }
+        }}
+      />
 
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center gap-2 mb-2">
-          <div className="w-1 h-6 bg-blue-600 rounded-full"></div>
-          <span className="text-xs font-semibold text-blue-600 uppercase tracking-wider">Service Management</span>
+      {/* Header Section */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Service Areas</h1>
+          <p className="text-sm text-gray-500 mt-1">Define operational cities and service coverage radius</p>
         </div>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Serviceable Regions</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage cities and pincodes where your cabs operate</p>
+        <button
+          onClick={() => { resetForm(); setShowModal(true); }}
+          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-semibold shadow-lg shadow-blue-600/20 flex items-center gap-2 active:scale-95 text-sm"
+        >
+          <Plus size={16} /> New Service City
+        </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all group">
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 rounded-xl bg-blue-50 group-hover:scale-110 transition-transform">
+              <Globe className="text-blue-600" size={24} />
+            </div>
           </div>
-          <div className="flex gap-3">
-            {can('CAT_MANAGE') && (
-              <button
-                onClick={() => { setEditingArea(null); setIsModalOpen(true); }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 shadow-lg"
-              >
-                <FaPlus size={14} />
-                <span>Add Active City</span>
-              </button>
-            )}
-            <button onClick={fetchData} className="p-3 border border-gray-300 rounded-lg bg-white shadow-sm hover:bg-gray-50">
-              <FaSyncAlt className={fetching ? "animate-spin" : ""} />
+          <p className="text-2xl font-bold text-gray-900 mb-1">{data.length}</p>
+          <p className="text-sm text-gray-500">Total Cities</p>
+        </div>
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all group">
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 rounded-xl bg-green-50 group-hover:scale-110 transition-transform">
+              <Shield className="text-green-600" size={24} />
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-gray-900 mb-1">{data.filter(i => i.isActive).length}</p>
+          <p className="text-sm text-gray-500">Active Cities</p>
+        </div>
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all group">
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 rounded-xl bg-orange-50 group-hover:scale-110 transition-transform">
+              <Zap className="text-orange-600" size={24} />
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-gray-900 mb-1">{data.filter(i => !i.isActive).length}</p>
+          <p className="text-sm text-gray-500">Inactive Cities</p>
+        </div>
+        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all group">
+          <div className="flex items-start justify-between mb-4">
+            <div className="p-3 rounded-xl bg-indigo-50 group-hover:scale-110 transition-transform">
+              <Navigation className="text-indigo-600" size={24} />
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-gray-900 mb-1">LIVE</p>
+          <p className="text-sm text-gray-500">System Status</p>
+        </div>
+      </div>
+
+      {/* Main Table Container */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        {/* Tab Filters */}
+        <div className="px-6 py-2 border-b border-gray-200 flex items-center gap-4 overflow-x-auto">
+          {[
+            { id: "all", label: "All Cities", icon: Globe },
+            { id: "active", label: "Active", icon: CheckCircle, count: data.filter(i => i.isActive).length },
+            { id: "inactive", label: "Inactive", icon: XCircle, count: data.filter(i => !i.isActive).length }
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 py-4 text-xs font-medium transition-all border-b-2 ${activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+            >
+              <tab.icon size={14} />
+              <span>{tab.label}</span>
+              {tab.count !== undefined && (
+                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                  }`}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">City Name</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Service Radius</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">GPS Center</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Status</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {filteredData.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="px-6 py-16 text-center">
+                    <Globe size={40} className="mx-auto text-gray-300 mb-3" />
+                    <p className="text-gray-400 font-medium">No service areas found</p>
+                    <p className="text-gray-300 text-sm mt-1">Add a new city to get started</p>
+                  </td>
+                </tr>
+              ) : (
+                paginatedData.map((item) => (
+                  <tr key={item._id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="font-semibold text-gray-900 text-sm">{item.cityName}</div>
+                      <div className="flex items-center gap-1 text-xs text-gray-400 mt-0.5">
+                        <Circle size={6} className="text-blue-400 fill-blue-400" />
+                        Operational Hub
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="inline-flex items-center px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold border border-blue-100">
+                        {item.radiusKm || 50} km
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="text-xs text-gray-500 font-mono">
+                        {item.centerLat?.toFixed(4)}, {item.centerLng?.toFixed(4)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <button
+                        onClick={() => toggleStatus(item)}
+                        className="inline-flex items-center gap-1.5 transition-all"
+                        title={item.isActive ? 'Click to Deactivate' : 'Click to Activate'}
+                      >
+                        {item.isActive ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                            <CheckCircle size={12} /> Active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-500 rounded-full text-xs font-semibold">
+                            <XCircle size={12} /> Inactive
+                          </span>
+                        )}
+                      </button>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handleEdit(item)}
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <FaEdit size={15} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item._id)}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete"
+                        >
+                          <FaTrashAlt size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Rows per page:</span>
+            <select
+              value={rowsPerPage}
+              onChange={(e) => setRowsPerPage(Number(e.target.value))}
+              className="px-2 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            >
+              {[10, 20, 30, 50, 100].map(n => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+            <span className="text-sm text-gray-500">
+              Showing {filteredData.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}–{Math.min(currentPage * rowsPerPage, filteredData.length)} of {filteredData.length}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <FaChevronLeft size={14} /> Previous
+            </button>
+            <span className="text-sm text-gray-500">Page {currentPage} of {totalPages || 1}</span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages || totalPages === 0}
+              className="flex items-center gap-1 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Next <FaChevronRight size={14} />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <StatCard icon={FaGlobe} label="Total Cities" value={areas.length} color="blue" />
-        <StatCard icon={ShieldCheck} label="Operational Areas" value={areas.filter(a => a.isActive).length} color="green" />
-        <StatCard icon={MapPin} label="Total Pincodes" value={areas.reduce((acc, a) => acc + a.pincodes.length, 0)} color="orange" />
-      </div>
+      {/* Modal Interface */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
 
-      {/* Search */}
-      <div className="relative mb-8">
-        <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search for an operational city or pincode..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 outline-none shadow-sm"
-        />
-      </div>
-
-      {/* Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredAreas.map(a => (
-          <div key={a._id} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-all">
-            <div className="flex justify-between items-start mb-4">
+            {/* Modal Header */}
+            <div className="px-6 py-5 border-b border-gray-100">
               <div className="flex items-center gap-3">
-                <div className="p-3 bg-blue-50 text-blue-600 rounded-xl font-bold">
-                  {a.cityName.charAt(0)}
+                <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+                  <Globe size={20} className="text-blue-600" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-gray-900">{a.cityName}</h3>
-                  <span className={`text-[10px] font-bold uppercase ${a.isActive ? 'text-green-600' : 'text-red-600'}`}>
-                    {a.isActive ? 'Online' : 'Service Suspended'}
-                  </span>
+                  <h2 className="text-lg font-bold text-gray-900">{editId ? 'Edit Service Area' : 'Add Service City'}</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">Define operational city and coverage radius</p>
                 </div>
               </div>
-              <div className="flex gap-1">
-                <button onClick={() => startEdit(a)} className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 shadow-sm"><FaEdit /></button>
-                <button onClick={() => handleDelete(a._id)} className="p-2 hover:bg-red-50 rounded-lg text-red-400 shadow-sm"><FaTrash /></button>
-              </div>
+              <button 
+                onClick={() => setShowModal(false)} 
+                className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X size={18} className="text-gray-400" />
+              </button>
             </div>
 
-            <div className="mb-4">
-               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Pincodes Supported</p>
-               <div className="flex flex-wrap gap-1.5">
-                  {a.pincodes.length > 0 ? a.pincodes.map((pin, i) => (
-                    <span key={i} className="px-2 py-1 bg-gray-50 border border-gray-100 rounded text-xs font-mono text-gray-600">
-                      {pin}
-                    </span>
-                  )) : <span className="text-xs text-gray-400 italic">No specific pincodes added.</span>}
-               </div>
-            </div>
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="p-6 space-y-5">
 
-            <div className="flex items-center justify-between pt-4 border-t border-gray-50">
-                <div className="flex items-center gap-2">
-                   <button onClick={() => handleToggle(a)}>
-                      {a.isActive ? <FaToggleOn className="text-green-500 text-2xl" /> : <FaToggleOff className="text-gray-300 text-2xl" />}
-                   </button>
-                   <span className="text-xs font-bold text-gray-500">{a.isActive ? 'Live' : 'Paused'}</span>
+              {/* Search Location */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Search City</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                  <input
+                    type="text"
+                    ref={searchRef}
+                    placeholder="Type city name (e.g. Mumbai, Delhi, Pune)"
+                    className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all"
+                  />
                 </div>
-            </div>
+              </div>
+
+              {/* City Name + Radius */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">City Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.cityName}
+                    onChange={(e) => setFormData({ ...formData, cityName: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all"
+                    placeholder="Enter city name"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Radius (KM) *</label>
+                  <input
+                    type="number"
+                    step="1"
+                    min="1"
+                    required
+                    value={formData.radiusKm === 0 ? '' : formData.radiusKm}
+                    onChange={(e) => setFormData({ ...formData, radiusKm: e.target.value === '' ? '' : parseInt(e.target.value) })}
+                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none text-sm text-center font-semibold transition-all"
+                    placeholder="50"
+                  />
+                </div>
+              </div>
+
+              {/* GPS Info */}
+              {formData.centerLat && (
+                <div className="p-3 bg-green-50 rounded-lg border border-green-200 flex items-center gap-3">
+                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+                    <Target className="text-green-600" size={16} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-green-700">Location Captured</p>
+                    <p className="text-xs text-green-600 font-mono mt-0.5">
+                      {formData.centerLat.toFixed(4)}, {formData.centerLng.toFixed(4)}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Footer Buttons */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 py-2.5 text-sm font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-[2] py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold text-sm shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Saving...' : (editId ? 'Update City' : 'Add City')}
+                </button>
+              </div>
+            </form>
           </div>
-        ))}
-      </div>
-
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[999]">
-           <div className="bg-white rounded-[2rem] w-full max-w-lg overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-              
-              {/* Clean Header */}
-              <div className="p-8 pb-4 text-center">
-                 <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-blue-100">
-                    <MapPin size={28} />
-                 </div>
-                 <h2 className="text-2xl font-bold text-gray-900">Add Service Region</h2>
-                 <p className="text-sm text-gray-500 mt-1">Search or type location to detect area details</p>
-                 <button onClick={() => setIsModalOpen(false)} className="absolute right-6 top-6 p-2 text-gray-400 hover:text-gray-600 transition-colors">
-                    <FaTimes size={18} />
-                 </button>
-              </div>
-
-              {/* Simple Form */}
-              <form onSubmit={handleSubmit} className="p-8 pt-4 space-y-6">
-                 <div>
-                    <label className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 block">Search Location</label>
-                    <div className="relative">
-                       <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300" />
-                       <input 
-                        ref={searchInputRef}
-                        type="text"
-                        className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:bg-white focus:border-blue-500 transition-all font-medium text-gray-700"
-                        placeholder="Search City, Village or Pincode..."
-                       />
-                    </div>
-                 </div>
-
-                 {/* Clean Result Card */}
-                 {formData.cityName ? (
-                     <div className="p-6 bg-gray-50 rounded-2xl border border-gray-100 flex justify-between items-center animate-in slide-in-from-top-2">
-                        <div>
-                            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Detected City</p>
-                            <h4 className="text-xl font-bold text-gray-900">{formData.cityName}</h4>
-                        </div>
-                        {formData.pincodes.length > 0 && (
-                            <div className="text-right">
-                                <p className="text-[10px] font-bold text-gray-400 uppercase mb-1">Pincode</p>
-                                <div className="text-xl font-mono font-bold text-blue-600">
-                                    {formData.pincodes[0]}
-                                </div>
-                            </div>
-                        )}
-                     </div>
-                 ) : (
-                    <div className="py-8 text-center border border-dashed border-gray-200 rounded-2xl bg-gray-50/50">
-                        <Activity className="mx-auto text-gray-200 mb-2" size={32} />
-                        <p className="text-[11px] font-bold text-gray-400 uppercase italic">Waiting for search...</p>
-                    </div>
-                 )}
-
-                 <div className="pt-4 flex items-center gap-4">
-                    <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 text-sm font-semibold text-gray-400 hover:text-gray-600 transition-colors border border-transparent hover:bg-gray-50 rounded-xl">Discard</button>
-                    <button 
-                        type="submit" 
-                        disabled={loading || !formData.cityName} 
-                        className="flex-[2] py-4 bg-blue-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-blue-500/20 hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:shadow-none"
-                    >
-                       {loading ? 'Saving...' : (editingArea ? 'Update Service' : 'Confirm Service')}
-                    </button>
-                 </div>
-              </form>
-           </div>
         </div>
       )}
     </div>
   );
-}
+};
+
+export default ManageServiceAreas;
