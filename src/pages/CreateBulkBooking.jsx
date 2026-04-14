@@ -2,11 +2,13 @@ import React, { useState, useEffect, useRef } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import { getAllCarCategories } from "../apis/carCategory";
-import { createBulkBooking, getMyCreatedRequests, cancelBulkBooking } from "../apis/bulkBooking";
+import { createBulkBooking, getMyCreatedRequests, cancelBulkBooking, deleteBulkBooking } from "../apis/bulkBooking";
 import {
   FaCar, FaCalendarAlt, FaClock, FaMapMarkerAlt,
   FaPlus, FaMinus, FaChevronRight, FaCheckCircle,
-  FaPercentage, FaWallet, FaInfoCircle, FaTrash, FaSyncAlt, FaTimes
+  FaPercentage, FaWallet, FaInfoCircle, FaTrash, FaSyncAlt, FaTimes,
+  FaMapPin, FaRoad, FaTag, FaCircle, FaCheckDouble, FaHourglassEnd,
+  FaEdit, FaTrashAlt
 } from "react-icons/fa";
 import { Toaster, toast } from "sonner";
 import Swal from "sweetalert2";
@@ -37,15 +39,62 @@ export default function CreateBulkBooking() {
   const [myRequests, setMyRequests] = useState([]);
   const [fetchingRequests, setFetchingRequests] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   const pickupRef = useRef();
   const dropRef = useRef();
 
   useEffect(() => {
     fetchCategories();
-    initAutocomplete();
+    loadGoogleMapsScript();
     fetchMyRequests();
   }, []);
+
+  // Re-initialize autocomplete when modal opens
+  useEffect(() => {
+    if (showBookingModal && window.google && window.google.maps) {
+      // Small delay to ensure refs are ready
+      setTimeout(() => {
+        initAutocomplete();
+      }, 100);
+    }
+  }, [showBookingModal]);
+
+  const loadGoogleMapsScript = () => {
+    // Check if script already loaded
+    if (window.google && window.google.maps) {
+      initAutocomplete();
+      return;
+    }
+
+    // Check if script is already being loaded
+    if (document.querySelector('script[src*="maps.googleapis.com"]')) {
+      // Wait for it to load
+      const checkGoogle = setInterval(() => {
+        if (window.google && window.google.maps) {
+          clearInterval(checkGoogle);
+          initAutocomplete();
+        }
+      }, 100);
+      return;
+    }
+
+    // Load the script
+    const script = document.createElement('script');
+    const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places`;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      initAutocomplete();
+    };
+    script.onerror = () => {
+      console.error('Failed to load Google Maps script');
+      toast.error('Failed to load Google Maps. Please refresh the page.');
+    };
+    document.head.appendChild(script);
+  };
 
   const fetchMyRequests = async () => {
     try {
@@ -66,21 +115,82 @@ export default function CreateBulkBooking() {
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, Cancel It',
+      cancelButtonText: 'No, Keep It'
     });
 
     if (result.isConfirmed) {
-      const res = await cancelBulkBooking(id);
-      if (res.success) {
-        toast.success("Request Cancelled");
-        fetchMyRequests();
-      } else {
-        toast.error(res.message);
+      try {
+        const res = await cancelBulkBooking(id);
+        
+        if (res.success) {
+          toast.success(res.message || "Booking cancelled successfully");
+          fetchMyRequests();
+        } else {
+          if (res.message.includes('Not authorized')) {
+            toast.error("You are not authorized to cancel this booking");
+          } else if (res.message.includes('Ongoing') || res.message.includes('Completed')) {
+            toast.error("Cannot cancel an ongoing or completed ride");
+          } else if (res.message.includes('not found')) {
+            toast.error("Booking not found");
+          } else {
+            toast.error(res.message || "Failed to cancel booking");
+          }
+        }
+      } catch (err) {
+        toast.error("Something went wrong. Please try again.");
+      }
+    }
+  };
+
+  const handleDeleteRequest = async (id) => {
+    const result = await Swal.fire({
+      title: 'Delete Permanently?',
+      text: "This booking will be permanently deleted from database. This action cannot be undone!",
+      icon: 'error',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, Delete It',
+      cancelButtonText: 'No, Keep It'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const res = await deleteBulkBooking(id);
+        
+        if (res.success) {
+          toast.success(res.message || "Bulk booking record deleted successfully from database.");
+          fetchMyRequests();
+        } else {
+          if (res.message.includes('Only Admins')) {
+            toast.error("Only Admins are allowed to delete bookings permanently.");
+          } else if (res.message.includes('Ongoing')) {
+            toast.error("Cannot delete a Ongoing ride. Please cancel it first or wait for completion.");
+          } else if (res.message.includes('not found')) {
+            toast.error("Booking not found");
+          } else {
+            toast.error(res.message || "Failed to delete booking");
+          }
+        }
+      } catch (err) {
+        toast.error("Something went wrong. Please try again.");
       }
     }
   };
 
   const initAutocomplete = () => {
-    if (!window.google) return;
+    if (!window.google || !window.google.maps) {
+      console.warn('Google Maps not loaded yet');
+      return;
+    }
+    
+    if (!pickupRef.current || !dropRef.current) {
+      console.warn('Refs not ready yet');
+      return;
+    }
+
     const options = { componentRestrictions: { country: "in" }, fields: ["formatted_address", "geometry"] };
 
     const pickupAutocomplete = new window.google.maps.places.Autocomplete(pickupRef.current, options);
@@ -228,11 +338,28 @@ export default function CreateBulkBooking() {
             pickup: "", drop: "", date: "", time: "",
             days: 1, distance: 0, notes: "", offeredPrice: 0, priceModifier: 0
           });
+          // Close modal
+          setShowBookingModal(false);
         }
       }
     } catch (err) {
       toast.error("Process failed");
     }
+  };
+
+  // Pagination calculations
+  const totalPages = Math.ceil(myRequests.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentRequests = myRequests.slice(startIndex, endIndex);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
+
+  const handleItemsPerPageChange = (value) => {
+    setItemsPerPage(value);
+    setCurrentPage(1);
   };
 
   return (
@@ -458,7 +585,7 @@ export default function CreateBulkBooking() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
-              {myRequests.length === 0 ? (
+              {currentRequests.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
@@ -471,20 +598,38 @@ export default function CreateBulkBooking() {
                   </td>
                 </tr>
               ) : (
-                myRequests.map((req) => (
+                currentRequests.map((req) => (
                   <tr key={req._id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-4">
                       <div className="flex flex-col gap-1.5">
-                        <p className="text-xs font-bold text-gray-900 line-clamp-1">
-                          {req.pickup.address.split(',')[0]} → {req.drop.address.split(',')[0]}
-                        </p>
-                        <div className="flex items-center gap-2 text-[10px] text-gray-500 font-semibold">
-                          <FaCalendarAlt size={9} /> 
-                          <span>{new Date(req.pickupDateTime).toLocaleDateString('en-GB')}</span>
+                        <div className="flex items-center gap-2">
+                          <FaMapPin className="text-red-500 flex-shrink-0" size={12} />
+                          <p className="text-xs font-bold text-gray-900 line-clamp-1">
+                            {req.pickup.address.split(',')[0]}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 ml-4">
+                          <FaChevronRight className="text-gray-300 flex-shrink-0" size={10} />
+                          <FaMapPin className="text-green-500 flex-shrink-0" size={12} />
+                          <p className="text-xs font-bold text-gray-900 line-clamp-1">
+                            {req.drop.address.split(',')[0]}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3 text-[10px] text-gray-500 font-semibold mt-1 ml-4">
+                          <div className="flex items-center gap-1">
+                            <FaCalendarAlt size={9} className="text-blue-500" />
+                            <span>{new Date(req.pickupDateTime).toLocaleDateString('en-GB')}</span>
+                          </div>
                           <span className="text-gray-300">•</span>
-                          <span>{req.numberOfDays}D</span>
+                          <div className="flex items-center gap-1">
+                            <FaClock size={9} className="text-purple-500" />
+                            <span>{req.numberOfDays}D</span>
+                          </div>
                           <span className="text-gray-300">•</span>
-                          <span>{req.totalDistance}km</span>
+                          <div className="flex items-center gap-1">
+                            <FaRoad size={9} className="text-orange-500" />
+                            <span>{req.totalDistance}km</span>
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -493,8 +638,9 @@ export default function CreateBulkBooking() {
                         {req.carsRequired.map((car, idx) => (
                           <span 
                             key={idx} 
-                            className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-blue-700 text-[10px] font-bold rounded border border-blue-100"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 text-[10px] font-bold rounded border border-blue-100"
                           >
+                            <FaCar size={10} />
                             {car.quantity}× {car.category?.name}
                           </span>
                         ))}
@@ -502,30 +648,48 @@ export default function CreateBulkBooking() {
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-extrabold text-gray-900">₹{req.offeredPrice.toLocaleString()}</span>
-                        <span className="text-[10px] text-gray-500 font-semibold">Total Price</span>
+                        <div className="flex items-center gap-1.5">
+                          <FaTag className="text-green-600" size={12} />
+                          <span className="text-sm font-extrabold text-gray-900">₹{req.offeredPrice.toLocaleString()}</span>
+                        </div>
+                        <span className="text-[10px] text-gray-500 font-semibold ml-5">Total Price</span>
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                        req.status === 'Marketplace' ? 'bg-orange-50 text-orange-700 border border-orange-200' :
-                        req.status === 'Accepted' ? 'bg-green-50 text-green-700 border border-green-200' :
-                        req.status === 'Cancelled' ? 'bg-red-50 text-red-700 border border-red-200' :
-                        'bg-gray-50 text-gray-700 border border-gray-200'
-                      }`}>
-                        {req.status}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {req.status === 'Marketplace' && <FaCircle className="text-orange-500" size={8} />}
+                        {req.status === 'Accepted' && <FaCheckDouble className="text-green-600" size={12} />}
+                        {req.status === 'Cancelled' && <FaTimes className="text-red-600" size={12} />}
+                        {req.status === 'Completed' && <FaCheckCircle className="text-blue-600" size={12} />}
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                          req.status === 'Marketplace' ? 'bg-orange-50 text-orange-700 border border-orange-200' :
+                          req.status === 'Accepted' ? 'bg-green-50 text-green-700 border border-green-200' :
+                          req.status === 'Cancelled' ? 'bg-red-50 text-red-700 border border-red-200' :
+                          'bg-gray-50 text-gray-700 border border-gray-200'
+                        }`}>
+                          {req.status}
+                        </span>
+                      </div>
                     </td>
-                    <td className="px-4 py-4 text-right">
-                      {req.status === 'Marketplace' && (
+                    <td className="px-4 py-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        {(req.status === 'Marketplace' || req.status === 'Accepted') && (
+                          <button 
+                            onClick={() => handleCancelRequest(req._id)} 
+                            className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                            title="Cancel Request"
+                          >
+                            <FaTimes size={15} />
+                          </button>
+                        )}
                         <button 
-                          onClick={() => handleCancelRequest(req._id)} 
-                          className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-all border border-red-100"
-                          title="Cancel Request"
+                          onClick={() => handleDeleteRequest(req._id)} 
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Delete Permanently"
                         >
-                          <FaTrash size={11} />
+                          <FaTrashAlt size={14} />
                         </button>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -533,6 +697,90 @@ export default function CreateBulkBooking() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {myRequests.length > 0 && (
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 px-4">
+            {/* Items per page */}
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-gray-600">Show:</span>
+              <select
+                value={itemsPerPage}
+                onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 bg-white hover:border-blue-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={30}>30</option>
+                <option value={40}>40</option>
+                <option value={50}>50</option>
+                <option value={60}>60</option>
+                <option value={70}>70</option>
+                <option value={80}>80</option>
+                <option value={90}>90</option>
+                <option value={100}>100</option>
+              </select>
+              <span className="text-xs text-gray-500 font-medium">
+                Showing {startIndex + 1}-{Math.min(endIndex, myRequests.length)} of {myRequests.length}
+              </span>
+            </div>
+
+            {/* Page numbers */}
+            <div className="flex items-center gap-2">
+              {/* Previous button */}
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                Previous
+              </button>
+
+              {/* Page numbers */}
+              <div className="flex items-center gap-1">
+                {[...Array(totalPages)].map((_, index) => {
+                  const page = index + 1;
+                  // Show first page, last page, current page, and pages around current
+                  if (
+                    page === 1 ||
+                    page === totalPages ||
+                    (page >= currentPage - 1 && page <= currentPage + 1)
+                  ) {
+                    return (
+                      <button
+                        key={page}
+                        onClick={() => handlePageChange(page)}
+                        className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
+                          currentPage === page
+                            ? 'bg-blue-600 text-white shadow-lg'
+                            : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    );
+                  } else if (page === currentPage - 2 || page === currentPage + 2) {
+                    return (
+                      <span key={page} className="text-gray-400 px-1">
+                        ...
+                      </span>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+
+              {/* Next button */}
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

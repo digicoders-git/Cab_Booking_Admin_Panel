@@ -53,3 +53,12 @@ export const cancelBulkBooking = async (id) => {
         return err.response?.data || { success: false, message: "Network Error" };
     }
 };
+
+export const deleteBulkBooking = async (id) => {
+    try {
+        const res = await http.delete(`/api/bulk-bookings/delete/${id}`);
+        return res.data;
+    } catch (err) {
+        return err.response?.data || { success: false, message: "Network Error" };
+    }
+};

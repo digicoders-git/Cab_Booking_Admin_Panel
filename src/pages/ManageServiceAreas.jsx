@@ -76,7 +76,7 @@ const ManageServiceAreas = () => {
     }
 
     const autocomplete = new window.google.maps.places.Autocomplete(searchRef.current, {
-      types: ["(cities)"],
+      types: ["geocode"],
       componentRestrictions: { country: "in" }
     });
 
@@ -86,7 +86,7 @@ const ManageServiceAreas = () => {
 
       setFormData(prev => ({
         ...prev,
-        cityName: place.name || place.formatted_address,
+        cityName: place.name || place.formatted_address || place.address_components?.[0]?.long_name,
         centerLat: place.geometry.location.lat(),
         centerLng: place.geometry.location.lng()
       }));
