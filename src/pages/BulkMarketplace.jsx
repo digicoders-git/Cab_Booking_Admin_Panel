@@ -1,36 +1,30 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useFont } from "../context/FontContext";
 import { getBulkMarketplace, acceptBulkBooking } from "../apis/bulkBooking";
-import { 
-  FaRoute, FaCar, FaMapMarkerAlt, FaCalendarAlt, 
-  FaClock, FaUsers, FaArrowRight, FaSyncAlt, 
-  FaInfoCircle, FaCheckCircle, FaWallet, FaTag, FaGavel
+import {
+  FaRoute, FaCar, FaCalendarAlt, FaClock,
+  FaGavel, FaRoad, FaUser, FaPhone, FaMapMarkerAlt
 } from "react-icons/fa";
 import { Toaster, toast } from "sonner";
 import Swal from "sweetalert2";
 
 export default function BulkMarketplace() {
-  const { themeColors, theme } = useTheme();
+  const { themeColors } = useTheme();
   const { currentFont } = useFont();
-  const { admin } = useAuth();
   const [loading, setLoading] = useState(true);
   const [deals, setDeals] = useState([]);
   const [fetching, setFetching] = useState(false);
 
-  useEffect(() => {
-    fetchMarketplace();
-  }, []);
+  useEffect(() => { fetchMarketplace(); }, []);
 
   const fetchMarketplace = async () => {
     try {
       setFetching(true);
       const res = await getBulkMarketplace();
-      if (res.success) {
-        setDeals(res.bookings || []);
-      }
-    } catch (err) {
+      if (res.success) setDeals(res.bookings || []);
+    } catch {
       toast.error("Failed to fetch marketplace deals");
     } finally {
       setLoading(false);
@@ -40,16 +34,15 @@ export default function BulkMarketplace() {
 
   const handleAccept = async (id, price) => {
     const result = await Swal.fire({
-      title: 'Accept this Bulk Deal?',
-      html: `<p class="text-sm">You are accepting this deal for <strong class="text-green-600">₹${price}</strong>. Once accepted, you must fulfill all car requirements.</p>`,
-      icon: 'question',
+      title: "Accept this Bulk Deal?",
+      html: `<p style="font-size:14px">Locking deal for <strong style="color:#16a34a">₹${price.toLocaleString()}</strong>. You must fulfill all vehicle requirements.</p>`,
+      icon: "question",
       showCancelButton: true,
-      confirmButtonText: 'Yes, Accept & Lock',
-      confirmButtonColor: '#3B82F6',
+      confirmButtonText: "Yes, Accept & Lock",
+      confirmButtonColor: "#2563eb",
       background: themeColors.surface,
-      color: themeColors.text
+      color: themeColors.text,
     });
-
     if (result.isConfirmed) {
       try {
         const res = await acceptBulkBooking(id);
@@ -68,122 +61,174 @@ export default function BulkMarketplace() {
   if (loading) {
     return (
       <div className="flex h-[80vh] items-center justify-center flex-col gap-4">
-        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-gray-500 font-medium">Loading Marketplace...</p>
+        <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <p className="text-gray-500 font-semibold text-sm">Loading Marketplace...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-6 min-h-screen bg-gray-50" style={{ fontFamily: currentFont }}>
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6" style={{ fontFamily: currentFont }}>
       <Toaster richColors position="top-right" />
-      
+
       {/* Header */}
-      <div className="mb-8 flex justify-between items-center">
+      <div className="mb-8 flex items-center justify-between ps-2">
         <div>
-          <h1 className="text-3xl font-black text-gray-900 flex items-center gap-3">
-            <FaGavel className="text-blue-600" /> Bulk Marketplace
-          </h1>
-          <p className="text-sm text-gray-500 mt-1 uppercase tracking-widest font-bold">Exclusive Deals for Approved Fleets</p>
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
+              <FaGavel className="text-white text-base" />
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-gray-900">Bulk Marketplace</h1>
+          </div>
+          <p className="text-[10px] text-gray-400 uppercase tracking-widest font-bold ps-1">
+            Live Deals · Approved Fleets Only
+          </p>
         </div>
-        <button 
-          onClick={fetchMarketplace}
-          className="p-3 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all shadow-sm"
-        >
-          <FaSyncAlt className={fetching ? "animate-spin" : ""} />
-        </button>
+        <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2.5 shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          <span className="text-xs font-black text-gray-700">{deals.length} Live Deal{deals.length !== 1 ? "s" : ""}</span>
+        </div>
       </div>
 
+      {/* Empty State */}
       {deals.length === 0 ? (
-        <div className="bg-white rounded-3xl p-20 border border-dashed border-gray-300 text-center">
-          <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
+        <div className="bg-white rounded-3xl border border-dashed border-gray-200 py-24 text-center">
+          <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-5">
             <FaRoute className="text-gray-300 text-3xl" />
           </div>
-          <h3 className="text-xl font-bold text-gray-400">No Live Deals Found</h3>
-          <p className="text-sm text-gray-500 mt-2">Check back later for new bulk booking requests.</p>
+          <h3 className="text-lg font-bold text-gray-400">No Live Deals Right Now</h3>
+          <p className="text-sm text-gray-400 mt-1">Check back later for new bulk booking requests.</p>
+          <button onClick={fetchMarketplace} className="mt-6 px-6 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 transition-all">
+            Refresh
+          </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
           {deals.map((deal) => (
-            <div key={deal._id} className="bg-white rounded-3xl border border-gray-200 overflow-hidden hover:shadow-2xl transition-all group">
-              <div className="p-6 sm:p-8">
-                {/* Header Info */}
-                <div className="flex justify-between items-start mb-6">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center font-black">
-                      #{deal._id.slice(-4).toUpperCase()}
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-2 py-0.5 rounded">New Request</span>
-                      <p className="text-xs text-gray-400 mt-1 font-bold">{new Date(deal.createdAt).toLocaleString()}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Offered Price</p>
-                    <p className="text-3xl font-black text-green-600">₹{deal.offeredPrice.toLocaleString()}</p>
-                  </div>
-                </div>
-
-                {/* Route */}
-                <div className="relative pl-6 space-y-6 mb-8 border-l-2 border-dashed border-gray-200">
-                  <div>
-                    <FaMapMarkerAlt className="absolute -left-[9px] top-0 text-green-500 bg-white" />
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Pickup</p>
-                    <p className="text-sm font-bold text-gray-800">{deal.pickup.address}</p>
-                  </div>
-                  <div>
-                    <FaMapMarkerAlt className="absolute -left-[9px] bottom-0 text-red-500 bg-white" />
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Drop Off</p>
-                    <p className="text-sm font-bold text-gray-800">{deal.drop.address}</p>
-                  </div>
-                </div>
-
-                {/* Requirements & Schedule */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
-                  <div className="bg-gray-50 p-3 rounded-2xl">
-                    <FaCalendarAlt className="text-blue-600 mb-1" size={12} />
-                    <p className="text-[9px] font-black text-gray-400 uppercase">Date</p>
-                    <p className="text-xs font-bold text-gray-900">{new Date(deal.pickupDateTime).toLocaleDateString()}</p>
-                  </div>
-                  <div className="bg-gray-50 p-3 rounded-2xl">
-                    <FaClock className="text-blue-600 mb-1" size={12} />
-                    <p className="text-[9px] font-black text-gray-400 uppercase">Time</p>
-                    <p className="text-xs font-bold text-gray-900">{new Date(deal.pickupDateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                  </div>
-                  <div className="bg-gray-50 p-3 rounded-2xl">
-                    <FaUsers className="text-blue-600 mb-1" size={12} />
-                    <p className="text-[9px] font-black text-gray-400 uppercase">Duration</p>
-                    <p className="text-xs font-bold text-gray-900">{deal.numberOfDays} Day(s)</p>
-                  </div>
-                </div>
-
-                {/* Specific Cars Requested */}
-                <div className="mb-8">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Vehicle Requirements</p>
-                  <div className="flex flex-wrap gap-2">
-                    {deal.carsRequired.map((car, idx) => (
-                      <div key={idx} className="flex items-center gap-3 bg-blue-50/50 border border-blue-100 rounded-xl px-4 py-2">
-                        <FaCar className="text-blue-600" size={14} />
-                        <span className="text-sm font-black text-blue-700">{car.quantity}x</span>
-                        <span className="text-xs font-bold text-gray-700">{car.category?.name || "Standard Cab"}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Action Button */}
-                <button 
-                  onClick={() => handleAccept(deal._id, deal.offeredPrice)}
-                  className="w-full py-4 bg-blue-600 text-white font-black text-sm uppercase tracking-widest rounded-2xl hover:bg-blue-700 hover:shadow-xl transition-all flex items-center justify-center gap-3 group"
-                >
-                  Accept Deal Now
-                  <FaArrowRight className="group-hover:translate-x-1 transition-transform" />
-                </button>
-              </div>
-            </div>
+            <DealCard key={deal._id} deal={deal} onAccept={handleAccept} />
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function DealCard({ deal, onAccept }) {
+  const timeAgo = (date) => {
+    const diff = Math.floor((Date.now() - new Date(date)) / 60000);
+    if (diff < 1) return "Just now";
+    if (diff < 60) return `${diff}m ago`;
+    if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
+    return `${Math.floor(diff / 1440)}d ago`;
+  };
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden flex flex-col">
+
+      {/* Top Bar */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-5 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+            <span className="text-white text-xs font-black">#{deal._id.slice(-4).toUpperCase()}</span>
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+              <span className="text-xs font-black text-white/90 uppercase tracking-widest">Live</span>
+            </div>
+            <p className="text-xs text-white/60 font-semibold mt-0.5">{timeAgo(deal.createdAt)}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-xs font-bold text-white/70 uppercase tracking-widest mb-0.5">Offered Price</p>
+          <p className="text-3xl font-black text-white">₹{deal.offeredPrice.toLocaleString()}</p>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="p-5 flex flex-col gap-4 flex-1">
+
+        {/* Requester Info */}
+        <div className="flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+          <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+            <span className="text-white text-base font-black">{deal.createdBy?.name?.charAt(0)?.toUpperCase() || "?"}</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5">
+              <FaUser size={11} className="text-blue-500" />
+              <p className="text-sm font-bold text-gray-800 truncate">{deal.createdBy?.name || "Unknown"}</p>
+            </div>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <FaPhone size={10} className="text-blue-400" />
+              <p className="text-xs text-gray-500 font-semibold">{deal.createdBy?.phone || "—"}</p>
+            </div>
+          </div>
+          <span className="text-xs font-bold text-blue-600 bg-white border border-blue-200 px-2.5 py-1 rounded-full uppercase">Requester</span>
+        </div>
+
+        {/* Route */}
+        <div className="flex gap-3">
+          <div className="flex flex-col items-center pt-1.5">
+            <div className="w-2.5 h-2.5 rounded-full bg-green-500 ring-2 ring-green-100 flex-shrink-0" />
+            <div className="w-px flex-1 my-1" style={{ background: "repeating-linear-gradient(to bottom,#d1d5db 0,#d1d5db 4px,transparent 4px,transparent 8px)" }} />
+            <div className="w-2.5 h-2.5 rounded-full bg-red-500 ring-2 ring-red-100 flex-shrink-0" />
+          </div>
+          <div className="flex flex-col gap-2 flex-1 min-w-0">
+            <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-2.5">
+              <p className="text-xs font-black text-green-600 uppercase tracking-widest mb-0.5">Pickup</p>
+              <p className="text-sm font-bold text-gray-800 truncate">{deal.pickup.address}</p>
+            </div>
+            <div className="bg-red-50 border border-red-100 rounded-xl px-3 py-2.5">
+              <p className="text-xs font-black text-red-500 uppercase tracking-widest mb-0.5">Drop Off</p>
+              <p className="text-sm font-bold text-gray-800 truncate">{deal.drop.address}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-2">
+          <div className="bg-blue-50 rounded-xl p-3 text-center border border-blue-100">
+            <FaCalendarAlt className="text-blue-500 mx-auto mb-1.5" size={13} />
+            <p className="text-xs font-bold text-gray-400 uppercase">Date</p>
+            <p className="text-sm font-black text-gray-800 mt-0.5">
+              {new Date(deal.pickupDateTime).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+            </p>
+          </div>
+          <div className="bg-purple-50 rounded-xl p-3 text-center border border-purple-100">
+            <FaClock className="text-purple-500 mx-auto mb-1.5" size={13} />
+            <p className="text-xs font-bold text-gray-400 uppercase">Days</p>
+            <p className="text-sm font-black text-gray-800 mt-0.5">{deal.numberOfDays}D</p>
+          </div>
+          <div className="bg-orange-50 rounded-xl p-3 text-center border border-orange-100">
+            <FaRoad className="text-orange-500 mx-auto mb-1.5" size={13} />
+            <p className="text-xs font-bold text-gray-400 uppercase">Distance</p>
+            <p className="text-sm font-black text-gray-800 mt-0.5">{deal.totalDistance} km</p>
+          </div>
+        </div>
+
+        {/* Vehicles */}
+        <div>
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Vehicles Required</p>
+          <div className="flex flex-wrap gap-2">
+            {deal.carsRequired.map((car, idx) => (
+              <div key={idx} className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                <FaCar className="text-blue-500" size={13} />
+                <span className="text-sm font-black text-blue-600">{car.quantity}×</span>
+                <span className="text-sm font-semibold text-gray-700">{car.category?.name || "Standard Cab"}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Notes */}
+        {deal.notes && (
+          <div className="bg-yellow-50 border border-yellow-100 rounded-xl px-3 py-2.5">
+            <p className="text-xs font-bold text-yellow-600 uppercase tracking-widest mb-1">Note</p>
+            <p className="text-sm text-gray-600 font-medium">{deal.notes}</p>
+          </div>
+        )}
+
+      </div>
     </div>
   );
 }

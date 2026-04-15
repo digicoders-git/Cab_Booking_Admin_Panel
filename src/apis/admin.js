@@ -11,7 +11,10 @@ export const getAdminProfile = async () => {
 };
 
 export const updateAdminProfile = async (data) => {
-    const response = await http.put(`/api/admin/profile-update`, data);
+    const isFormData = data instanceof FormData;
+    const response = await http.put(`/api/admin/profile-update`, data, {
+        headers: isFormData ? { "Content-Type": "multipart/form-data" } : {}
+    });
     return response.data;
 };
 

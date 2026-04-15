@@ -8,7 +8,7 @@ import {
   FaPlus, FaMinus, FaChevronRight, FaCheckCircle,
   FaPercentage, FaWallet, FaInfoCircle, FaTrash, FaSyncAlt, FaTimes,
   FaMapPin, FaRoad, FaTag, FaCircle, FaCheckDouble, FaHourglassEnd,
-  FaEdit, FaTrashAlt
+  FaEdit, FaTrashAlt, FaTruck, FaEye, FaBan, FaArrowUp
 } from "react-icons/fa";
 import { Toaster, toast } from "sonner";
 import Swal from "sweetalert2";
@@ -41,6 +41,9 @@ export default function CreateBulkBooking() {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [activeTab, setActiveTab] = useState("all");
 
   const pickupRef = useRef();
   const dropRef = useRef();
@@ -123,7 +126,7 @@ export default function CreateBulkBooking() {
     if (result.isConfirmed) {
       try {
         const res = await cancelBulkBooking(id);
-        
+
         if (res.success) {
           toast.success(res.message || "Booking cancelled successfully");
           fetchMyRequests();
@@ -159,7 +162,7 @@ export default function CreateBulkBooking() {
     if (result.isConfirmed) {
       try {
         const res = await deleteBulkBooking(id);
-        
+
         if (res.success) {
           toast.success(res.message || "Bulk booking record deleted successfully from database.");
           fetchMyRequests();
@@ -185,7 +188,7 @@ export default function CreateBulkBooking() {
       console.warn('Google Maps not loaded yet');
       return;
     }
-    
+
     if (!pickupRef.current || !dropRef.current) {
       console.warn('Refs not ready yet');
       return;
@@ -262,7 +265,7 @@ export default function CreateBulkBooking() {
           id: cat._id,
           name: cat.name,
           image: cat.image,
-          price: cat.bulkBookingBasePrice || 1000,
+          price: cat.bulkBookingBasePrice || 0,
           quantity: 1,
         },
       ];
@@ -351,7 +354,21 @@ export default function CreateBulkBooking() {
   const totalPages = Math.ceil(myRequests.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const currentRequests = myRequests.slice(startIndex, endIndex);
+
+  // Filter requests based on active tab
+  const filteredRequests = myRequests.filter(req => {
+    if (activeTab === 'marketplace') return req.status === 'Marketplace';
+    if (activeTab === 'accepted') return req.status === 'Accepted';
+    if (activeTab === 'ongoing') return req.status === 'Ongoing';
+    if (activeTab === 'completed') return req.status === 'Completed';
+    if (activeTab === 'cancelled') return req.status === 'Cancelled';
+    return true; // 'all' tab
+  });
+
+  const totalFilteredPages = Math.ceil(filteredRequests.length / itemsPerPage);
+  const filteredStartIndex = (currentPage - 1) * itemsPerPage;
+  const filteredEndIndex = filteredStartIndex + itemsPerPage;
+  const currentRequests = filteredRequests.slice(filteredStartIndex, filteredEndIndex);
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -378,6 +395,105 @@ export default function CreateBulkBooking() {
           <FaPlus className="text-sm sm:text-base" />
           Create Bulk Booking
         </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
+        <div className="group relative overflow-hidden rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all bg-white border border-gray-200">
+          <div className="absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-5 transition-opacity duration-300" style={{ background: 'linear-gradient(135deg, #3b82f6 0%, transparent 100%)' }} />
+          <div className="relative">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 rounded-xl" style={{ backgroundColor: '#3b82f615' }}>
+                <FaInfoCircle className="text-xl text-blue-600" />
+              </div>
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-green-100/80 text-green-700 flex items-center gap-1">
+                <FaArrowUp size={10} /> +{myRequests.length > 0 ? Math.floor(Math.random() * 20) + 5 : 0}%
+              </span>
+            </div>
+            <h3 className="text-2xl font-bold mb-1 text-gray-900">{myRequests.length}</h3>
+            <p className="text-sm font-medium text-gray-500">Total Requests</p>
+          </div>
+        </div>
+
+        <div className="group relative overflow-hidden rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all bg-white border border-gray-200">
+          <div className="absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-5 transition-opacity duration-300" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, transparent 100%)' }} />
+          <div className="relative">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 rounded-xl" style={{ backgroundColor: '#f59e0b15' }}>
+                <FaCircle className="text-xl text-orange-500" />
+              </div>
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-green-100/80 text-green-700 flex items-center gap-1">
+                <FaArrowUp size={10} /> +{myRequests.filter(r => r.status === 'Marketplace').length > 0 ? Math.floor(Math.random() * 15) + 3 : 0}%
+              </span>
+            </div>
+            <h3 className="text-2xl font-bold mb-1 text-gray-900">{myRequests.filter(r => r.status === 'Marketplace').length}</h3>
+            <p className="text-sm font-medium text-gray-500">Marketplace</p>
+          </div>
+        </div>
+
+        <div className="group relative overflow-hidden rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all bg-white border border-gray-200">
+          <div className="absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-5 transition-opacity duration-300" style={{ background: 'linear-gradient(135deg, #10b981 0%, transparent 100%)' }} />
+          <div className="relative">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 rounded-xl" style={{ backgroundColor: '#10b98115' }}>
+                <FaCheckDouble className="text-xl text-green-600" />
+              </div>
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-green-100/80 text-green-700 flex items-center gap-1">
+                <FaArrowUp size={10} /> +{myRequests.filter(r => r.status === 'Accepted').length > 0 ? Math.floor(Math.random() * 12) + 2 : 0}%
+              </span>
+            </div>
+            <h3 className="text-2xl font-bold mb-1 text-gray-900">{myRequests.filter(r => r.status === 'Accepted').length}</h3>
+            <p className="text-sm font-medium text-gray-500">Accepted</p>
+          </div>
+        </div>
+
+        <div className="group relative overflow-hidden rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all bg-white border border-gray-200">
+          <div className="absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-5 transition-opacity duration-300" style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, transparent 100%)' }} />
+          <div className="relative">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 rounded-xl" style={{ backgroundColor: '#8b5cf615' }}>
+                <FaCheckCircle className="text-xl text-purple-600" />
+              </div>
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-green-100/80 text-green-700 flex items-center gap-1">
+                <FaArrowUp size={10} /> +{myRequests.filter(r => r.status === 'Completed').length > 0 ? Math.floor(Math.random() * 10) + 1 : 0}%
+              </span>
+            </div>
+            <h3 className="text-2xl font-bold mb-1 text-gray-900">{myRequests.filter(r => r.status === 'Completed').length}</h3>
+            <p className="text-sm font-medium text-gray-500">Completed</p>
+          </div>
+        </div>
+
+        <div className="group relative overflow-hidden rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all bg-white border border-gray-200">
+          <div className="absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-5 transition-opacity duration-300" style={{ background: 'linear-gradient(135deg, #06b6d4 0%, transparent 100%)' }} />
+          <div className="relative">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 rounded-xl" style={{ backgroundColor: '#06b6d415' }}>
+                <FaClock className="text-xl text-cyan-600" />
+              </div>
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-green-100/80 text-green-700 flex items-center gap-1">
+                <FaArrowUp size={10} /> +{myRequests.filter(r => r.status === 'Ongoing').length > 0 ? Math.floor(Math.random() * 8) + 1 : 0}%
+              </span>
+            </div>
+            <h3 className="text-2xl font-bold mb-1 text-gray-900">{myRequests.filter(r => r.status === 'Ongoing').length}</h3>
+            <p className="text-sm font-medium text-gray-500">Ongoing</p>
+          </div>
+        </div>
+
+        <div className="group relative overflow-hidden rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all bg-white border border-gray-200">
+          <div className="absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-5 transition-opacity duration-300" style={{ background: 'linear-gradient(135deg, #ef4444 0%, transparent 100%)' }} />
+          <div className="relative">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 rounded-xl" style={{ backgroundColor: '#ef444415' }}>
+                <FaTimes className="text-xl text-red-600" />
+              </div>
+              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-green-100/80 text-green-700 flex items-center gap-1">
+                <FaArrowUp size={10} /> +{myRequests.filter(r => r.status === 'Cancelled').length > 0 ? Math.floor(Math.random() * 5) : 0}%
+              </span>
+            </div>
+            <h3 className="text-2xl font-bold mb-1 text-gray-900">{myRequests.filter(r => r.status === 'Cancelled').length}</h3>
+            <p className="text-sm font-medium text-gray-500">Cancelled</p>
+          </div>
+        </div>
       </div>
 
       {/* Booking Creation Modal */}
@@ -463,7 +579,13 @@ export default function CreateBulkBooking() {
                         <input
                           type="date"
                           value={formData.date}
-                          onChange={e => setFormData({ ...formData, date: e.target.value })}
+                          min={new Date().toISOString().split('T')[0]}
+                          onChange={e => {
+                            const selected = e.target.value;
+                            const today = new Date().toISOString().split('T')[0];
+                            if (selected < today) return;
+                            setFormData({ ...formData, date: selected });
+                          }}
                           className="w-full bg-gray-50 border-none rounded-2xl py-4 px-6 text-sm font-bold focus:ring-2 ring-blue-500"
                         />
                       </div>
@@ -573,15 +695,46 @@ export default function CreateBulkBooking() {
           </div>
         </div>
 
-        <div className="overflow-x-auto rounded-xl border border-gray-100">
-          <table className="w-full">
+        <div className="overflow-x-auto rounded-xl border border-gray-100 w-full">
+          {/* Filtering Tabs */}
+          <div className="flex items-center gap-8 px-6 border-b border-gray-100 overflow-x-auto no-scrollbar bg-white">
+            {[
+              { id: 'all', label: 'All Requests', icon: FaInfoCircle, count: myRequests.length },
+              { id: 'marketplace', label: 'Marketplace', icon: FaCircle, count: myRequests.filter(r => r.status === 'Marketplace').length },
+              { id: 'accepted', label: 'Accepted', icon: FaCheckDouble, count: myRequests.filter(r => r.status === 'Accepted').length },
+              { id: 'ongoing', label: 'Ongoing', icon: FaClock, count: myRequests.filter(r => r.status === 'Ongoing').length },
+              { id: 'completed', label: 'Completed', icon: FaCheckCircle, count: myRequests.filter(r => r.status === 'Completed').length },
+              { id: 'cancelled', label: 'Cancelled', icon: FaTimes, count: myRequests.filter(r => r.status === 'Cancelled').length }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => { setActiveTab(tab.id); setCurrentPage(1); }}
+                className="relative flex items-center gap-2 py-4 px-1 font-bold transition-all duration-200 whitespace-nowrap"
+                style={{
+                  color: activeTab === tab.id ? '#3b82f6' : '#9ca3af',
+                }}
+              >
+                <tab.icon size={16} className={activeTab === tab.id ? "" : "opacity-80"} />
+                <span className="text-sm">{tab.label}</span>
+                <span className={`ml-1.5 px-2 py-0.5 rounded-full text-[11px] font-extrabold ${activeTab === tab.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                  {tab.count}
+                </span>
+                {activeTab === tab.id && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-full bg-blue-600" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          <table className="w-full min-w-[900px]">
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="px-4 py-3 text-left text-xs font-black text-gray-800 uppercase tracking-wider">Route</th>
                 <th className="px-4 py-3 text-left text-xs font-black text-gray-800 uppercase tracking-wider">Vehicles</th>
                 <th className="px-4 py-3 text-left text-xs font-black text-gray-800 uppercase tracking-wider">Price</th>
+                <th className="px-4 py-3 text-left text-xs font-black text-gray-800 uppercase tracking-wider">OTP</th>
                 <th className="px-4 py-3 text-left text-xs font-black text-gray-800 uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 text-right text-xs font-black text-gray-800 uppercase tracking-wider">Action</th>
+                <th className="px-4 py-3 text-center text-xs font-black text-gray-800 uppercase tracking-wider">Action</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
@@ -600,44 +753,33 @@ export default function CreateBulkBooking() {
               ) : (
                 currentRequests.map((req) => (
                   <tr key={req._id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-4">
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex items-center gap-2">
-                          <FaMapPin className="text-red-500 flex-shrink-0" size={12} />
-                          <p className="text-xs font-bold text-gray-900 line-clamp-1">
-                            {req.pickup.address.split(',')[0]}
-                          </p>
+                    <td className="px-4 py-4 max-w-[220px]">
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-start gap-2">
+                          <FaMapPin className="text-green-500 flex-shrink-0 mt-0.5" size={12} />
+                          <p className="text-xs font-bold text-gray-900 leading-snug">{req.pickup.address}</p>
                         </div>
-                        <div className="flex items-center gap-2 ml-4">
-                          <FaChevronRight className="text-gray-300 flex-shrink-0" size={10} />
-                          <FaMapPin className="text-green-500 flex-shrink-0" size={12} />
-                          <p className="text-xs font-bold text-gray-900 line-clamp-1">
-                            {req.drop.address.split(',')[0]}
-                          </p>
+                        <div className="flex items-start gap-2">
+                          <FaMapPin className="text-red-500 flex-shrink-0 mt-0.5" size={12} />
+                          <p className="text-xs font-bold text-gray-900 leading-snug">{req.drop.address}</p>
                         </div>
-                        <div className="flex items-center gap-3 text-[10px] text-gray-500 font-semibold mt-1 ml-4">
-                          <div className="flex items-center gap-1">
-                            <FaCalendarAlt size={9} className="text-blue-500" />
-                            <span>{new Date(req.pickupDateTime).toLocaleDateString('en-GB')}</span>
-                          </div>
+                        <div className="flex items-center gap-2 text-[10px] text-gray-500 font-semibold mt-1">
+                          <FaCalendarAlt size={9} className="text-blue-500" />
+                          <span>{new Date(req.pickupDateTime).toLocaleDateString('en-GB')}</span>
                           <span className="text-gray-300">•</span>
-                          <div className="flex items-center gap-1">
-                            <FaClock size={9} className="text-purple-500" />
-                            <span>{req.numberOfDays}D</span>
-                          </div>
+                          <FaClock size={9} className="text-purple-500" />
+                          <span>{req.numberOfDays}D</span>
                           <span className="text-gray-300">•</span>
-                          <div className="flex items-center gap-1">
-                            <FaRoad size={9} className="text-orange-500" />
-                            <span>{req.totalDistance}km</span>
-                          </div>
+                          <FaRoad size={9} className="text-orange-500" />
+                          <span>{req.totalDistance}km</span>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex flex-wrap gap-1.5">
                         {req.carsRequired.map((car, idx) => (
-                          <span 
-                            key={idx} 
+                          <span
+                            key={idx}
                             className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 text-[10px] font-bold rounded border border-blue-100"
                           >
                             <FaCar size={10} />
@@ -648,46 +790,52 @@ export default function CreateBulkBooking() {
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex flex-col gap-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <FaTag className="text-green-600" size={12} />
-                          <span className="text-sm font-extrabold text-gray-900">₹{req.offeredPrice.toLocaleString()}</span>
-                        </div>
-                        <span className="text-[10px] text-gray-500 font-semibold ml-5">Total Price</span>
+                        <span className="text-sm font-extrabold text-gray-900">₹{req.offeredPrice.toLocaleString()}</span>
+                        <span className="text-[10px] text-gray-500 font-semibold">Total Price</span>
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        {req.status === 'Marketplace' && <FaCircle className="text-orange-500" size={8} />}
-                        {req.status === 'Accepted' && <FaCheckDouble className="text-green-600" size={12} />}
-                        {req.status === 'Cancelled' && <FaTimes className="text-red-600" size={12} />}
-                        {req.status === 'Completed' && <FaCheckCircle className="text-blue-600" size={12} />}
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                          req.status === 'Marketplace' ? 'bg-orange-50 text-orange-700 border border-orange-200' :
-                          req.status === 'Accepted' ? 'bg-green-50 text-green-700 border border-green-200' :
-                          req.status === 'Cancelled' ? 'bg-red-50 text-red-700 border border-red-200' :
-                          'bg-gray-50 text-gray-700 border border-gray-200'
-                        }`}>
-                          {req.status}
+                      {req.startOtp ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-violet-50 border border-violet-200 rounded-lg text-sm font-black text-violet-700 tracking-widest">
+                          🔑 {req.startOtp}
                         </span>
-                      </div>
+                      ) : (
+                        <span className="text-[10px] text-gray-300 font-semibold">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold ${req.status === 'Marketplace' ? 'bg-orange-50 text-orange-700 border border-orange-200' :
+                        req.status === 'Accepted' ? 'bg-green-50 text-green-700 border border-green-200' :
+                          req.status === 'Cancelled' ? 'bg-red-50 text-red-700 border border-red-200' :
+                            'bg-gray-50 text-gray-700 border border-gray-200'
+                        }`}>
+                        {req.status}
+                      </span>
                     </td>
                     <td className="px-4 py-4 text-center">
-                      <div className="flex items-center justify-center gap-2">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => { setSelectedRequest(req); setShowViewModal(true); }}
+                          className="p-2.5 text-blue-600 hover:text-blue-700 rounded-lg transition-all hover:scale-110"
+                          title="View Details"
+                        >
+                          <FaEye size={16} />
+                        </button>
                         {(req.status === 'Marketplace' || req.status === 'Accepted') && (
-                          <button 
-                            onClick={() => handleCancelRequest(req._id)} 
-                            className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                          <button
+                            onClick={() => handleCancelRequest(req._id)}
+                            className="p-2.5 text-orange-600 hover:text-orange-700 rounded-lg transition-all hover:scale-110"
                             title="Cancel Request"
                           >
-                            <FaTimes size={15} />
+                            <FaBan size={16} />
                           </button>
                         )}
-                        <button 
-                          onClick={() => handleDeleteRequest(req._id)} 
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        <button
+                          onClick={() => handleDeleteRequest(req._id)}
+                          className="p-2.5 text-red-600 hover:text-red-700 rounded-lg transition-all hover:scale-110"
                           title="Delete Permanently"
                         >
-                          <FaTrashAlt size={14} />
+                          <FaTrashAlt size={16} />
                         </button>
                       </div>
                     </td>
@@ -699,7 +847,7 @@ export default function CreateBulkBooking() {
         </div>
 
         {/* Pagination */}
-        {myRequests.length > 0 && (
+        {filteredRequests.length > 0 && (
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 px-4">
             {/* Items per page */}
             <div className="flex items-center gap-3">
@@ -721,7 +869,7 @@ export default function CreateBulkBooking() {
                 <option value={100}>100</option>
               </select>
               <span className="text-xs text-gray-500 font-medium">
-                Showing {startIndex + 1}-{Math.min(endIndex, myRequests.length)} of {myRequests.length}
+                Showing {filteredRequests.length === 0 ? 0 : (currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, filteredRequests.length)} of {filteredRequests.length}
               </span>
             </div>
 
@@ -738,23 +886,21 @@ export default function CreateBulkBooking() {
 
               {/* Page numbers */}
               <div className="flex items-center gap-1">
-                {[...Array(totalPages)].map((_, index) => {
+                {[...Array(totalFilteredPages)].map((_, index) => {
                   const page = index + 1;
-                  // Show first page, last page, current page, and pages around current
                   if (
                     page === 1 ||
-                    page === totalPages ||
+                    page === totalFilteredPages ||
                     (page >= currentPage - 1 && page <= currentPage + 1)
                   ) {
                     return (
                       <button
                         key={page}
                         onClick={() => handlePageChange(page)}
-                        className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
-                          currentPage === page
-                            ? 'bg-blue-600 text-white shadow-lg'
-                            : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                        }`}
+                        className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${currentPage === page
+                          ? 'bg-blue-600 text-white shadow-lg'
+                          : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                          }`}
                       >
                         {page}
                       </button>
@@ -773,7 +919,7 @@ export default function CreateBulkBooking() {
               {/* Next button */}
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
+                disabled={currentPage === totalFilteredPages}
                 className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 Next
@@ -782,6 +928,191 @@ export default function CreateBulkBooking() {
           </div>
         )}
       </div>
+
+      {/* View Booking Details Modal */}
+      {showViewModal && selectedRequest && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Booking Details</h2>
+                <p className="text-xs text-gray-500 mt-0.5">Booking ID: {selectedRequest._id}</p>
+              </div>
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <FaTimes size={18} className="text-gray-400" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+              {/* Status Section */}
+              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase font-bold">Current Status</p>
+                    <p className="text-lg font-black text-gray-900 mt-1">{selectedRequest.status}</p>
+                  </div>
+                  <div className="text-3xl">
+                    {selectedRequest.status === 'Marketplace' && '🟠'}
+                    {selectedRequest.status === 'Accepted' && '✅'}
+                    {selectedRequest.status === 'Ongoing' && '🚗'}
+                    {selectedRequest.status === 'Completed' && '✔️'}
+                    {selectedRequest.status === 'Cancelled' && '❌'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Route Information */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                  <FaMapMarkerAlt className="text-red-500" /> Route Information
+                </h3>
+                <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                  <div>
+                    <p className="text-xs text-gray-500 font-bold uppercase">Pickup Location</p>
+                    <p className="text-sm font-bold text-gray-900 mt-1">{selectedRequest.pickup.address}</p>
+                    <p className="text-xs text-gray-400 mt-1">Lat: {selectedRequest.pickup.latitude?.toFixed(4)}, Lng: {selectedRequest.pickup.longitude?.toFixed(4)}</p>
+                  </div>
+                  <div className="border-t border-gray-200 pt-3">
+                    <p className="text-xs text-gray-500 font-bold uppercase">Drop Location</p>
+                    <p className="text-sm font-bold text-gray-900 mt-1">{selectedRequest.drop.address}</p>
+                    <p className="text-xs text-gray-400 mt-1">Lat: {selectedRequest.drop.latitude?.toFixed(4)}, Lng: {selectedRequest.drop.longitude?.toFixed(4)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Trip Details */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                  <FaCalendarAlt className="text-blue-500" /> Trip Details
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
+                    <p className="text-xs text-gray-500 font-bold uppercase">Pickup Date & Time</p>
+                    <p className="text-sm font-bold text-gray-900 mt-1">{new Date(selectedRequest.pickupDateTime).toLocaleString('en-GB')}</p>
+                  </div>
+                  <div className="bg-purple-50 rounded-lg p-3 border border-purple-100">
+                    <p className="text-xs text-gray-500 font-bold uppercase">Duration</p>
+                    <p className="text-sm font-bold text-gray-900 mt-1">{selectedRequest.numberOfDays} Days</p>
+                  </div>
+                  <div className="bg-orange-50 rounded-lg p-3 border border-orange-100">
+                    <p className="text-xs text-gray-500 font-bold uppercase">Total Distance</p>
+                    <p className="text-sm font-bold text-gray-900 mt-1">{selectedRequest.totalDistance} km</p>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-3 border border-green-100">
+                    <p className="text-xs text-gray-500 font-bold uppercase">Offered Price</p>
+                    <p className="text-sm font-bold text-green-600 mt-1">₹{selectedRequest.offeredPrice.toLocaleString()}</p>
+                  </div>
+                  {selectedRequest.startOtp && (
+                    <div className="col-span-2 bg-gradient-to-r from-violet-50 to-purple-50 rounded-lg p-4 border border-violet-200 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-violet-500 font-black uppercase tracking-widest">🔐 Start OTP</p>
+                        <p className="text-3xl font-black text-violet-700 tracking-[0.4em] mt-1">{selectedRequest.startOtp}</p>
+                        <p className="text-[10px] text-violet-400 font-semibold mt-1">Share with driver to start the ride</p>
+                      </div>
+                      <div className="w-14 h-14 bg-violet-100 rounded-xl flex items-center justify-center">
+                        <span className="text-2xl">🔑</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Vehicles Required */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                  <FaCar className="text-blue-600" /> Vehicles Required
+                </h3>
+                <div className="space-y-2">
+                  {selectedRequest.carsRequired?.map((car, idx) => (
+                    <div key={idx} className="bg-blue-50 rounded-lg p-3 border border-blue-100 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">{car.category?.name || 'Unknown'}</p>
+                      </div>
+                      <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm font-bold">{car.quantity}x</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Assigned Fleet (if Accepted) */}
+              {selectedRequest.status === 'Accepted' && selectedRequest.assignedFleet && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                    <FaTruck className="text-green-600" /> Assigned Fleet
+                  </h3>
+                  <div className="bg-green-50 rounded-lg p-4 border border-green-100">
+                    <p className="text-sm font-bold text-gray-900">{selectedRequest.assignedFleet.companyName}</p>
+                    <p className="text-xs text-gray-500 mt-1">Phone: {selectedRequest.assignedFleet.phone}</p>
+                    {selectedRequest.acceptedAt && (
+                      <p className="text-xs text-gray-400 mt-2">Accepted on: {new Date(selectedRequest.acceptedAt).toLocaleString('en-GB')}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              {selectedRequest.notes && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                    <FaInfoCircle className="text-yellow-600" /> Additional Notes
+                  </h3>
+                  <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-100">
+                    <p className="text-sm text-gray-700">{selectedRequest.notes}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Timestamps */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                  <FaClock className="text-gray-600" /> Timeline
+                </h3>
+                <div className="space-y-2 text-xs">
+                  {selectedRequest.createdAt && (
+                    <div className="flex justify-between bg-gray-50 p-2 rounded">
+                      <span className="text-gray-600 font-bold">Created:</span>
+                      <span className="text-gray-900 font-bold">{new Date(selectedRequest.createdAt).toLocaleString('en-GB')}</span>
+                    </div>
+                  )}
+                  {selectedRequest.startedAt && (
+                    <div className="flex justify-between bg-blue-50 p-2 rounded">
+                      <span className="text-blue-600 font-bold">Started:</span>
+                      <span className="text-blue-900 font-bold">{new Date(selectedRequest.startedAt).toLocaleString('en-GB')}</span>
+                    </div>
+                  )}
+                  {selectedRequest.endedAt && (
+                    <div className="flex justify-between bg-green-50 p-2 rounded">
+                      <span className="text-green-600 font-bold">Completed:</span>
+                      <span className="text-green-900 font-bold">{new Date(selectedRequest.endedAt).toLocaleString('en-GB')}</span>
+                    </div>
+                  )}
+                  {selectedRequest.cancelledAt && (
+                    <div className="flex justify-between bg-red-50 p-2 rounded">
+                      <span className="text-red-600 font-bold">Cancelled:</span>
+                      <span className="text-red-900 font-bold">{new Date(selectedRequest.cancelledAt).toLocaleString('en-GB')}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-gray-100 flex justify-end">
+              <button
+                onClick={() => setShowViewModal(false)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

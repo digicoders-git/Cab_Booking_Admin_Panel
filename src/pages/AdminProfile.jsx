@@ -87,16 +87,26 @@ export default function AdminProfile() {
     e.preventDefault();
     try {
       setUpdating(true);
-      const res = await updateAdminProfile({
-        name: profile.name,
-        email: profile.email,
-      });
+      const formData = new FormData();
+      formData.append("name", profile.name);
+      formData.append("email", profile.email);
+      formData.append("phone", profile.phone);
+
+      const res = await updateAdminProfile(formData);
 
       if (res.success) {
         toast.success("Profile updated successfully");
+        setProfile(prev => ({
+          ...prev,
+          name: res.admin.name || prev.name,
+          email: res.admin.email || prev.email,
+          phone: res.admin.phone || prev.phone,
+        }));
         if (admin) {
-          setLoginData({ ...admin, name: profile.name, email: profile.email });
+          setLoginData({ ...admin, name: res.admin.name, email: res.admin.email, phone: res.admin.phone });
         }
+      } else {
+        toast.error(res.message || "Update failed");
       }
     } catch (error) {
       toast.error(error?.response?.data?.message || "Update failed");
