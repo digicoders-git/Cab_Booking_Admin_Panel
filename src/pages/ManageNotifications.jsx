@@ -205,6 +205,7 @@ export default function ManageNotifications() {
     { id: "driver", label: "Driver Network", icon: FaUserTie },
     { id: "user", label: "User Base", icon: FaUser },
     { id: "vendor", label: "Vendor Hub", icon: FaStore },
+    { id: "subadmin", label: "SubAdmin Hub", icon: FaUsers },
   ];
 
   // Advanced Statistics
@@ -226,8 +227,9 @@ export default function ManageNotifications() {
     const driver = notifications.filter(n => n.targetRoles?.includes("driver") || n.recipientModel === "Driver").length;
     const user = notifications.filter(n => n.targetRoles?.includes("user") || n.recipientModel === "User").length;
     const vendor = notifications.filter(n => n.targetRoles?.includes("vendor") || n.recipientModel === "Vendor").length;
+    const subadmin = notifications.filter(n => n.targetRoles?.includes("subadmin") || n.recipientModel === "SubAdmin").length;
 
-    return { total, active, inactive, today, thisWeek, everyone, fleet, driver, user, vendor };
+    return { total, active, inactive, today, thisWeek, everyone, fleet, driver, user, vendor, subadmin };
   }, [notifications]);
 
   // Chart 1: Notification Status - Pie Chart
@@ -321,6 +323,8 @@ export default function ManageNotifications() {
       list = list.filter(n => n.targetRoles?.includes("user") || n.recipientModel === "User");
     } else if (activeTab === "vendor") {
       list = list.filter(n => n.targetRoles?.includes("vendor") || n.recipientModel === "Vendor");
+    } else if (activeTab === "subadmin") {
+      list = list.filter(n => n.targetRoles?.includes("subadmin") || n.recipientModel === "SubAdmin");
     }
 
     // Search Filtering
@@ -523,7 +527,8 @@ export default function ManageNotifications() {
                       tab.id === "fleet" ? stats.fleet :
                         tab.id === "driver" ? stats.driver :
                           tab.id === "user" ? stats.user :
-                            stats.vendor}
+                          tab.id === "vendor" ? stats.vendor :
+                            stats.subadmin}
                 </span>
               </button>
             ))}
@@ -895,7 +900,7 @@ export default function ManageNotifications() {
 
                 {form.targetType === 'role' && (
                   <div className="flex flex-wrap gap-2">
-                    {['agent', 'driver', 'admin', 'user', 'vendor'].map(role => (
+                    {['fleet', 'agent', 'driver', 'admin', 'user', 'vendor', 'subadmin'].map(role => (
                       <button
                         key={role}
                         type="button"
@@ -911,7 +916,7 @@ export default function ManageNotifications() {
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                           }`}
                       >
-                        {role.charAt(0).toUpperCase() + role.slice(1)}
+                        {role === 'fleet' ? 'Fleet' : role.charAt(0).toUpperCase() + role.slice(1)}
                       </button>
                     ))}
                   </div>
@@ -928,9 +933,12 @@ export default function ManageNotifications() {
                       >
                         <option value="User">User</option>
                         <option value="Driver">Driver</option>
+                        <option value="Fleet">Fleet</option>
                         <option value="Agent">Agent</option>
                         <option value="Vendor">Vendor</option>
+                        <option value="SubAdmin">SubAdmin</option>
                       </select>
+
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-medium text-gray-500">Recipient ID</label>
