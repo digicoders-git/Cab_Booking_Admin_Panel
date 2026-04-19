@@ -305,7 +305,14 @@ export default function ManageDrivers() {
       d.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (d.carDetails?.carNumber || d.carNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       d.phone?.includes(searchQuery) ||
-      d.email?.toLowerCase().includes(searchQuery.toLowerCase())
+      d.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.pincode?.includes(searchQuery) ||
+      d.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.documents?.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.documents?.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.state?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.documents?.state?.toLowerCase().includes(searchQuery.toLowerCase())
     );
   }, [drivers, searchQuery, activeTab]);
 
@@ -680,8 +687,9 @@ export default function ManageDrivers() {
           <StatCard icon={FaCheckCircle} label="Approved" value={stats.approved} color="green" subtitle={`${((stats.approved / stats.total) * 100 || 0).toFixed(1)}% approval`} />
           <StatCard icon={FaSyncAlt} label="Pending" value={stats.pending} color="orange" subtitle="Awaiting approval" />
           <StatCard icon={FaBan} label="Rejected" value={stats.rejected} color="red" subtitle="Denied access" />
-          <StatCard icon={FaCircle} label="Online" value={stats.online} color="purple" subtitle="Currently active" />
-          <StatCard icon={FaStar} label="Avg Rating" value={stats.avgRating} color="yellow" subtitle="Out of 5.0" />
+          <StatCard icon={FaCircle} label="Online" value={stats.online} color="green" subtitle="Currently active" />
+          <StatCard icon={FaCircle} label="Offline" value={stats.total - stats.online} color="gray" subtitle="Currently inactive" />
+
         </div>
 
 
@@ -715,6 +723,26 @@ export default function ManageDrivers() {
                 </span>
               </button>
             ))}
+
+            {/* Inline Search Bar */}
+            <div className="ml-auto flex items-center gap-2 shrink-0">
+              <div className="relative">
+                <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={12} />
+                <input
+                  type="text"
+                  placeholder="Search pincode, address..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 w-48"
+                />
+              </div>
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")}
+                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+                  <FaTimes size={12} />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Driver Table */}
@@ -726,6 +754,8 @@ export default function ManageDrivers() {
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Contact</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Vehicle</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Location</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Pincode</th>
+                  <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Online</th>
                   <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Rating</th>
                   <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase">Earnings</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Password</th>
@@ -766,6 +796,16 @@ export default function ManageDrivers() {
                       <td className="py-3 px-4">
                         <p className="text-sm text-gray-900">{d.city || '—'}</p>
                         <p className="text-xs text-gray-500">{d.state || '—'}</p>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className="text-sm font-mono text-gray-900">{d.pincode || '—'}</span>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                          d.isOnline ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                        }`}>
+                          {d.isOnline ? 'Online' : 'Offline'}
+                        </span>
                       </td>
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center gap-1">
