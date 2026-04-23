@@ -372,27 +372,82 @@ export default function ManageBookings() {
         <div class="text-left space-y-4 py-2" style="font-family: inherit;">
           <div class="grid grid-cols-2 gap-4">
             <div>
-              <p class="text-[9px] font-black uppercase opacity-40">Passenger</p>
-              <p class="text-xs font-bold">${booking.passengerDetails?.name || 'N/A'}</p>
+              <p class="text-[10px] font-black uppercase text-gray-400">Passenger Name</p>
+              <p class="text-sm font-black text-gray-800">${booking.passengerDetails?.name || 'N/A'}</p>
             </div>
             <div>
-              <p class="text-[9px] font-black uppercase opacity-40">Contact</p>
-              <p class="text-xs font-bold">${booking.passengerDetails?.phone || 'N/A'}</p>
+              <p class="text-[10px] font-black uppercase text-gray-400">Mobile Number</p>
+              <p class="text-sm font-black text-gray-800">${booking.passengerDetails?.phone || 'N/A'}</p>
             </div>
           </div>
-          <div>
-            <p class="text-[9px] font-black uppercase opacity-40">Route</p>
-            <p class="text-[10px] font-bold mt-1"><span class="text-green-500">FROM:</span> ${booking.pickup?.address}</p>
-            <p class="text-[10px] font-bold mt-0.5"><span class="text-red-500">TO:</span> ${booking.drop?.address}</p>
-          </div>
-          <div class="border-t pt-3 flex justify-between items-center">
+          <div class="grid grid-cols-2 gap-4 border-y-2 border-gray-100 py-3 bg-gray-50/50 px-2 rounded-xl">
             <div>
-              <p class="text-[9px] font-black uppercase opacity-40">Vehicle</p>
-              <p class="text-xs font-black uppercase text-primary">${booking.carCategory?.name} (${booking.rideType})</p>
+              <p class="text-[10px] font-black uppercase text-gray-400">Booking Date</p>
+              <p class="text-[11px] font-black text-blue-700 underline underline-offset-2">${new Date(booking.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+            </div>
+            <div>
+              <p class="text-[10px] font-black uppercase text-gray-400">Completion Date</p>
+              <p class="text-[11px] font-black text-emerald-700 underline underline-offset-2">${booking.tripData?.endedAt ? new Date(booking.tripData.endedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'NOT COMPLETED'}</p>
+            </div>
+          </div>
+          <div class="bg-white p-3 rounded-2xl border-2 border-dashed border-gray-100">
+            <p class="text-[10px] font-black uppercase text-gray-400 mb-2">Detailed Route Itinerary</p>
+            <div class="space-y-2">
+               <div class="pb-1 border-b border-gray-50">
+                  <p class="text-[10px] font-black text-green-600 tracking-tight">🏁 START: ${booking.pickup?.address}</p>
+                  <p class="text-[9px] font-black text-gray-500 ml-4 italic bg-gray-50 px-2 py-0.5 rounded inline-block mt-0.5">Wait: ${booking.tripData?.waitingTimeMin || 0}m (₹${booking.tripData?.waitingCharges || 0})</p>
+               </div>
+               ${(booking.stops || []).map((s, i) => `
+                 <div class="pb-2 border-b border-dashed border-gray-100 ml-3 pt-1">
+                    <p class="text-[10px] font-black text-gray-800 italic">📍 STOP ${i+1}: ${s.address}</p>
+                    <div class="flex gap-4 mt-1">
+                       <span class="text-[9px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded ring-1 ring-orange-200">WAIT: ${s.waitingTimeMin || 0} min</span>
+                       <span class="text-[9px] font-black text-orange-700 bg-orange-100 px-2 py-0.5 rounded ring-1 ring-orange-300">FEE: ₹${s.waitingCharges || 0}</span>
+                    </div>
+                 </div>
+               `).join('')}
+               <p class="text-[10px] font-black text-red-600 mt-2 tracking-tight">🏁 END: ${booking.drop?.address}</p>
+            </div>
+          </div>
+
+          ${booking.assignedDriver ? `
+            <div class="bg-blue-50/50 p-4 rounded-2xl border-2 border-blue-100 flex items-center gap-4 shadow-inner">
+              <div class="w-14 h-14 bg-white rounded-xl border-2 border-blue-200 flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
+                ${booking.assignedDriver.image ? `
+                  <img src="${IMAGE_BASE_URL}${booking.assignedDriver.image}" 
+                       class="w-full h-full object-cover" 
+                       onerror="this.src='https://cdn-icons-png.flaticon.com/512/3135/3135715.png'" />
+                ` : `
+                  <span class="text-2xl">👨‍✈️</span>
+                `}
+              </div>
+              <div class="flex-1">
+                <p class="text-[10px] font-black uppercase text-blue-400 leading-none mb-1.5">Trip Captain Assigned</p>
+                <p class="text-sm font-black text-gray-900 leading-tight uppercase tracking-tight">${booking.assignedDriver.name}</p>
+                <div class="flex gap-4 mt-2 text-[9px] font-black uppercase tracking-widest">
+                  <span class="text-blue-700 bg-blue-100 px-2 py-1 rounded border border-blue-200">📞 ${booking.assignedDriver.phone || 'N/A'}</span>
+                  <span class="text-purple-700 bg-purple-100 px-2 py-1 rounded border border-purple-200">🆔 ${booking.assignedDriver.carDetails?.carNumber || 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+          ` : `
+            <div class="bg-red-50 p-4 rounded-2xl border-2 border-red-100 text-center shadow-inner">
+               <p class="text-[10px] font-black text-red-600 uppercase tracking-widest animate-pulse">Waiting for Pilot Assignment</p>
+            </div>
+          `}
+
+          <div class="border-t-4 border-double pt-4 flex justify-between items-end bg-gray-50/30 p-2 rounded-b-2xl">
+            <div>
+              <p class="text-[10px] font-black uppercase text-gray-400 mb-1">Vehicle Details</p>
+              <p class="text-sm font-black uppercase text-blue-600 tracking-tight">${booking.carCategory?.name} • ${booking.rideType}</p>
+              <p class="text-[9px] font-mono text-gray-400 mt-1 uppercase">ID: ${booking._id?.toUpperCase()}</p>
             </div>
             <div class="text-right">
-              <p class="text-[9px] font-black uppercase opacity-40">Fare</p>
-              <p class="text-sm font-black">₹${booking.fareEstimate?.toLocaleString('en-IN')}</p>
+              ${booking.actualFare > booking.fareEstimate ? `
+                 <p class="text-[9px] font-black text-white uppercase mb-2 bg-orange-600 px-2 py-1 rounded shadow-sm inline-block tracking-tighter">WAITING FEES INCLUDED</p>
+              ` : ''}
+              <p class="text-[10px] font-black uppercase text-gray-500 leading-none mb-2">Total Journey Cost</p>
+              <p class="text-4xl font-black text-green-600 tracking-tighter leading-none drop-shadow-sm">₹${(booking.actualFare || booking.fareEstimate)?.toLocaleString('en-IN')}</p>
             </div>
           </div>
         </div>
@@ -519,8 +574,10 @@ export default function ManageBookings() {
                       onClick={() => toggleRowExpansion(b._id)}
                     >
                       <td className="py-4 px-6">
-                        <span className="text-xs font-mono text-blue-600">#{b._id?.slice(-8).toUpperCase()}</span>
-                        <div className="text-xs text-gray-500">{new Date(b.createdAt).toLocaleDateString()}</div>
+                        <span className="text-xs font-mono text-blue-600 font-bold">#{b._id?.slice(-8).toUpperCase()}</span>
+                        <div className="text-[10px] text-gray-500 font-medium">
+                           {new Date(b.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} | {new Date(b.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex flex-col">
@@ -551,14 +608,17 @@ export default function ManageBookings() {
                       <td className="py-4 px-6 min-w-[400px]">
                         <div className="space-y-1">
                           <div className="flex items-start gap-2">
-                            <div className="mt-1">
+                            <div className="mt-1 shrink-0">
                               <FaCircle size={6} className="text-green-500" />
                             </div>
-                            <span className="text-xs text-gray-700">{b.pickup?.address}</span>
+                            <span className="text-[11px] text-gray-700 font-medium line-clamp-1">{b.pickup?.address}</span>
                           </div>
+
                           <div className="flex items-start gap-2">
-                            <FaMapMarkerAlt size={8} className="text-red-500 mt-1" />
-                            <span className="text-xs text-gray-700">{b.drop?.address}</span>
+                            <div className="shrink-0 mt-1">
+                              <FaCircle size={6} className="text-red-500" />
+                            </div>
+                            <span className="text-[11px] text-gray-700 font-medium line-clamp-1">{b.drop?.address}</span>
                           </div>
                         </div>
                       </td>
@@ -581,8 +641,13 @@ export default function ManageBookings() {
                         )}
                       </td>
                       <td className="py-4 px-6 text-right">
-                        <span className="text-sm font-bold text-gray-900">₹{b.fareEstimate?.toLocaleString('en-IN')}</span>
-                        <div className="text-xs text-gray-500 mt-1">{b.paymentStatus || 'PENDING'}</div>
+                        <span className="text-base font-black text-gray-900 tracking-tight">₹{(b.actualFare || b.fareEstimate)?.toLocaleString('en-IN')}</span>
+                        <div className="text-[10px] text-gray-500 mt-1 flex flex-col items-end">
+                           <span>{b.paymentStatus || 'PENDING'}</span>
+                           {b.actualFare > b.fareEstimate && (
+                              <span className="text-[8px] text-orange-600 font-black uppercase tracking-tighter bg-orange-50 px-1 rounded">Wait Charges Applied</span>
+                           )}
+                        </div>
                       </td>
                       <td className="py-4 px-6 text-center">
                         <span
@@ -621,20 +686,23 @@ export default function ManageBookings() {
                       <tr className="bg-gray-50">
                         <td colSpan="9" className="p-6">
                           <div className="grid grid-cols-3 gap-6">
-                            <div>
-                              <h4 className="text-xs font-medium text-gray-500 mb-3 uppercase">Trip Details</h4>
-                              <div className="space-y-2">
-                                <div className="flex justify-between">
-                                  <span className="text-xs text-gray-500">Pickup Time:</span>
-                                  <span className="text-xs font-medium text-gray-900">{b.pickupTime || 'N/A'}</span>
+                             <div className="col-span-1">
+                              <h4 className="text-xs font-black text-gray-500 mb-3 uppercase tracking-widest">Waypoints Itinerary</h4>
+                              <div className="space-y-3 max-h-[150px] overflow-y-auto pr-2 custom-scrollbar">
+                                <div className="pl-3 border-l-2 border-green-500">
+                                   <p className="text-[10px] font-bold text-gray-800">Pickup: {b.pickup?.address}</p>
+                                   <p className="text-[9px] text-gray-400">Wait: {b.tripData?.waitingTimeMin || 0}m (₹{b.tripData?.waitingCharges || 0})</p>
                                 </div>
-                                <div className="flex justify-between">
-                                  <span className="text-xs text-gray-500">Pickup Date:</span>
-                                  <span className="text-xs font-medium text-gray-900">{new Date(b.pickupDate).toLocaleDateString()}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-xs text-gray-500">Distance:</span>
-                                  <span className="text-xs font-medium text-gray-900">{b.estimatedDistanceKm} km</span>
+                                
+                                {b.stops && b.stops.map((stop, sIdx) => (
+                                  <div key={sIdx} className="pl-3 border-l-2 border-orange-500">
+                                     <p className="text-[10px] font-bold text-gray-800 italic">Stop {sIdx+1}: {stop.address}</p>
+                                     <p className="text-[9px] text-gray-400">Wait: {stop.waitingTimeMin || 0}m (₹{stop.waitingCharges || 0})</p>
+                                  </div>
+                                ))}
+
+                                <div className="pl-3 border-l-2 border-red-500">
+                                   <p className="text-[10px] font-bold text-gray-800">Drop: {b.drop?.address}</p>
                                 </div>
                               </div>
                             </div>
@@ -650,8 +718,16 @@ export default function ManageBookings() {
                                   <span className="text-xs font-medium text-gray-900">{b.paymentStatus}</span>
                                 </div>
                                 <div className="flex justify-between">
-                                  <span className="text-xs text-gray-500">Fare:</span>
-                                  <span className="text-xs font-medium text-green-600">₹{b.fareEstimate}</span>
+                                  <span className="text-xs text-gray-500">Base Fare:</span>
+                                  <span className="text-xs font-medium text-gray-900">₹{b.fareEstimate}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-xs text-gray-500 font-bold text-orange-600">Total Wait:</span>
+                                  <span className="text-xs font-bold text-orange-600">+ ₹{(b.actualFare - b.fareEstimate > 0 ? b.actualFare - b.fareEstimate : 0)}</span>
+                                </div>
+                                <div className="flex justify-between border-t border-dashed pt-1 mt-1">
+                                  <span className="text-xs font-black text-gray-900 uppercase">Total:</span>
+                                  <span className="text-sm font-black text-green-600">₹{b.actualFare || b.fareEstimate}</span>
                                 </div>
                               </div>
                             </div>

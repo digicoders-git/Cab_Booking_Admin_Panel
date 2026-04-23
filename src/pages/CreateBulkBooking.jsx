@@ -29,6 +29,8 @@ export default function CreateBulkBooking() {
     dropCoords: { lat: 0, lng: 0 },
     date: "",
     time: "",
+    tripType: "OneWay",
+    returnDate: "",
     days: 1,
     distance: 0,
     notes: "",
@@ -63,6 +65,17 @@ export default function CreateBulkBooking() {
       }, 100);
     }
   }, [showBookingModal]);
+    
+  // 🕒 Auto-calculate days for RoundTrip
+  useEffect(() => {
+    if (formData.tripType === 'RoundTrip' && formData.date && formData.returnDate) {
+        const start = new Date(formData.date);
+        const end = new Date(formData.returnDate);
+        const diffTime = Math.abs(end - start);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both days
+        setFormData(prev => ({ ...prev, days: diffDays }));
+    }
+  }, [formData.date, formData.returnDate, formData.tripType]);
 
   const loadGoogleMapsScript = () => {
     // Check if script already loaded
@@ -286,8 +299,9 @@ export default function CreateBulkBooking() {
 
   const calculateTotal = () => {
     // Formula: Rate (KM) * Quantity * Days * Distance
+    const distanceMultiplier = formData.tripType === 'RoundTrip' ? 2 : 1;
     const baseTotal = selectedCars.reduce(
-      (acc, car) => acc + car.price * car.quantity * formData.days * (formData.distance || 0),
+      (acc, car) => acc + car.price * car.quantity * formData.days * ((formData.distance || 0) * distanceMultiplier),
       0
     );
     const modified = baseTotal + baseTotal * (formData.priceModifier / 100);
@@ -313,6 +327,8 @@ export default function CreateBulkBooking() {
           longitude: formData.dropCoords.lng
         },
         pickupDateTime: `${formData.date}T${formData.time || "10:00"}`,
+        tripType: formData.tripType,
+        returnDateTime: formData.tripType === 'RoundTrip' ? `${formData.returnDate}T${formData.time || "10:00"}` : null,
         numberOfDays: formData.days,
         totalDistance: formData.distance,
         carsRequired: selectedCars.map((c) => ({ category: c.id, quantity: c.quantity })),
@@ -339,6 +355,7 @@ export default function CreateBulkBooking() {
           setSelectedCars([]);
           setFormData({
             pickup: "", drop: "", date: "", time: "",
+            tripType: "OneWay", returnDate: "",
             days: 1, distance: 0, notes: "", offeredPrice: 0, priceModifier: 0
           });
           // Close modal
@@ -574,6 +591,25 @@ export default function CreateBulkBooking() {
                           placeholder="Enter destination address"
                         />
                       </div>
+                      <div className="md:col-span-2 space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase">Trip Type</label>
+                        <div className="grid grid-cols-2 gap-4">
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, tripType: "OneWay", days: 1 })}
+                            className={`py-4 rounded-2xl font-black text-sm transition-all border-2 ${formData.tripType === 'OneWay' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-400 border-gray-100 hover:border-blue-200'}`}
+                          >
+                            One Way
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setFormData({ ...formData, tripType: "RoundTrip" })}
+                            className={`py-4 rounded-2xl font-black text-sm transition-all border-2 ${formData.tripType === 'RoundTrip' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-400 border-gray-100 hover:border-blue-200'}`}
+                          >
+                            Round Trip
+                          </button>
+                        </div>
+                      </div>
                       <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase">Pickup Date</label>
                         <input
@@ -582,20 +618,37 @@ export default function CreateBulkBooking() {
                           min={new Date().toISOString().split('T')[0]}
                           onChange={e => {
                             const selected = e.target.value;
-                            const today = new Date().toISOString().split('T')[0];
-                            if (selected < today) return;
-                            setFormData({ ...formData, date: selected });
+                            setFormData({ 
+                                ...formData, 
+                                date: selected,
+                                returnDate: formData.returnDate < selected ? selected : formData.returnDate
+                            });
                           }}
                           className="w-full bg-gray-50 border-none rounded-2xl py-4 px-6 text-sm font-bold focus:ring-2 ring-blue-500"
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[10px] font-black text-gray-400 uppercase">Trip Duration (Days)</label>
-                        <div className="flex items-center gap-4 bg-gray-50 rounded-2xl px-6 py-2 border border-gray-100">
-                          <button onClick={() => setFormData({ ...formData, days: Math.max(1, formData.days - 1) })} className="text-gray-400 hover:text-gray-900"><FaMinus /></button>
-                          <span className="flex-1 text-center font-black">{formData.days} Days</span>
-                          <button onClick={() => setFormData({ ...formData, days: formData.days + 1 })} className="text-gray-400 hover:text-gray-900"><FaPlus /></button>
-                        </div>
+                        {formData.tripType === 'RoundTrip' ? (
+                          <>
+                            <label className="text-[10px] font-black text-gray-400 uppercase">Return Date</label>
+                            <input
+                              type="date"
+                              value={formData.returnDate}
+                              min={formData.date || new Date().toISOString().split('T')[0]}
+                              onChange={e => setFormData({ ...formData, returnDate: e.target.value })}
+                              className="w-full bg-blue-50 border-none rounded-2xl py-4 px-6 text-sm font-bold focus:ring-2 ring-blue-500"
+                            />
+                          </>
+                        ) : (
+                          <>
+                            <label className="text-[10px] font-black text-gray-400 uppercase">Trip Duration (Days)</label>
+                            <div className="flex items-center gap-4 bg-gray-50 rounded-2xl px-6 py-2 border border-gray-100">
+                              <button onClick={() => setFormData({ ...formData, days: Math.max(1, formData.days - 1) })} className="text-gray-400 hover:text-gray-900"><FaMinus /></button>
+                              <span className="flex-1 text-center font-black">{formData.days} Days</span>
+                              <button onClick={() => setFormData({ ...formData, days: formData.days + 1 })} className="text-gray-400 hover:text-gray-900"><FaPlus /></button>
+                            </div>
+                          </>
+                        )}
                       </div>
                       <div className="space-y-2">
                         <label className="text-[10px] font-black text-gray-400 uppercase">Total Distance (KM)</label>
@@ -767,11 +820,19 @@ export default function CreateBulkBooking() {
                           <FaCalendarAlt size={9} className="text-blue-500" />
                           <span>{new Date(req.pickupDateTime).toLocaleDateString('en-GB')}</span>
                           <span className="text-gray-300">•</span>
+                          {req.tripType === 'RoundTrip' && (
+                          <>
+                            <FaCalendarAlt size={9} className="text-green-500" />
+                            <span>{new Date(req.returnDateTime).toLocaleDateString('en-GB')}</span>
+                            <span className="text-gray-300">•</span>
+                          </>
+                          )}
                           <FaClock size={9} className="text-purple-500" />
                           <span>{req.numberOfDays}D</span>
                           <span className="text-gray-300">•</span>
                           <FaRoad size={9} className="text-orange-500" />
                           <span>{req.totalDistance}km</span>
+                          {req.tripType === 'RoundTrip' && <span className="ml-1 px-1.5 py-0.5 bg-green-100 text-green-700 text-[8px] font-black uppercase rounded">Round Trip</span>}
                         </div>
                       </div>
                     </td>
