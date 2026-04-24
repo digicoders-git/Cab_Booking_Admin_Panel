@@ -37,12 +37,12 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
-// Create a rotated marker icon using Canvas
+// Create a rotated marker icon using Canvas (Optimized and Synchronous for better performance)
 const createRotatedCanvasIcon = (iconUrl, rotation = 0, size = 64) => {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.src = iconUrl && iconUrl !== '/car.png' ? iconUrl : 'https://cdn-icons-png.flaticon.com/512/3202/3202926.png';
+    img.src = iconUrl || 'https://cdn-icons-png.flaticon.com/512/3202/3202926.png';
     
     img.onload = () => {
       const canvas = document.createElement('canvas');
@@ -50,10 +50,6 @@ const createRotatedCanvasIcon = (iconUrl, rotation = 0, size = 64) => {
       canvas.height = size;
       const ctx = canvas.getContext('2d');
       
-      // Clear canvas
-      ctx.clearRect(0, 0, size, size);
-      
-      // Move to center, rotate, then draw
       ctx.translate(size / 2, size / 2);
       ctx.rotate((rotation * Math.PI) / 180);
       ctx.drawImage(img, -size / 2, -size / 2, size, size);
@@ -62,12 +58,16 @@ const createRotatedCanvasIcon = (iconUrl, rotation = 0, size = 64) => {
     };
     
     img.onerror = () => {
-      // Fallback to a default car image if the provided URL fails
-      if (iconUrl !== '/car.png') {
-        createRotatedCanvasIcon('/car.png', rotation, size).then(resolve);
-      } else {
-        resolve(null);
-      }
+      // Fallback
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = "#3B82F6";
+      ctx.beginPath();
+      ctx.arc(size/2, size/2, size/3, 0, Math.PI*2);
+      ctx.fill();
+      resolve(canvas.toDataURL());
     };
   });
 };
@@ -304,28 +304,6 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
     const currentDriverIds = new Set();
     const activeDrivers = driversRef.current; // Use the latest from ref
 
-    // Advanced: Smoothly interpolate position
-    const animateMarker = (marker, newPos) => {
-      if (!marker || !marker.getPosition) return;
-      const frames = 20;
-      let frame = 0;
-      const startLat = marker.getPosition().lat();
-      const startLng = marker.getPosition().lng();
-      const deltaLat = (newPos.lat - startLat) / frames;
-      const deltaLng = (newPos.lng - startLng) / frames;
-
-      const move = () => {
-        frame++;
-        const lat = startLat + deltaLat * frame;
-        const lng = startLng + deltaLng * frame;
-        marker.setPosition(new window.google.maps.LatLng(lat, lng));
-        if (frame < frames) {
-          requestAnimationFrame(move);
-        }
-      };
-      move();
-    };
-
     activeDrivers.forEach(driver => {
       if (!driver.location?.latitude || !driver.location?.longitude) return;
       currentDriverIds.add(driver.driverId);
@@ -335,23 +313,26 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
         lng: Number(driver.location.longitude),
       };
 
-      // Get appropriate icon
-      let markerIcon = '/car.png';
+      // 🖼️ Get correct Icon URL (Handling absolute and relative paths)
+      const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') || '';
+      let markerIcon = 'https://cdn-icons-png.flaticon.com/512/3202/3202926.png'; // Fallback
+      
       if (driver.carInfo?.carCategoryImage && driver.carInfo.carCategoryImage !== 'null') {
-        markerIcon = `${import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '')}/uploads/${driver.carInfo.carCategoryImage}`;
+        const iconPath = driver.carInfo.carCategoryImage;
+        markerIcon = iconPath.startsWith('http') ? iconPath : `${baseUrl}/uploads/${iconPath}`;
+      } else if (driver.image) {
+        markerIcon = `${baseUrl}/uploads/${driver.image}`;
       }
 
-      // Update rotation and position
+      // 🔄 Heading & Bearing Logic
       const lastPos = lastPositionsRef.current[driver.driverId];
       let finalHeading = driver.heading || 0;
 
-      // If movement is detected, calculate bearing for smoother direction
       if (lastPos) {
         const dist = calculateDistance(lastPos.lat, lastPos.lng, latLng.lat, latLng.lng);
-        if (dist > 0.005) { // Moved at least 5 meters
-          const bearing = calculateBearing(lastPos.lat, lastPos.lng, latLng.lat, latLng.lng);
-          finalHeading = bearing;
-          lastHeadingsRef.current[driver.driverId] = bearing;
+        if (dist > 0.002) { // Minimum 2 meters for rotation update
+          finalHeading = calculateBearing(lastPos.lat, lastPos.lng, latLng.lat, latLng.lng);
+          lastHeadingsRef.current[driver.driverId] = finalHeading;
         } else {
           finalHeading = lastHeadingsRef.current[driver.driverId] || finalHeading;
         }
@@ -360,23 +341,45 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
       lastPositionsRef.current[driver.driverId] = latLng;
 
       if (markersRef.current[driver.driverId]) {
-        // MOVE EXISTING MARKER (Animated)
         const marker = markersRef.current[driver.driverId];
-        animateMarker(marker, latLng);
         
-        // Update Canvas Icon with rotation
-        createRotatedCanvasIcon(markerIcon, finalHeading).then(dataUrl => {
-          if (dataUrl && marker) {
-            marker.setIcon({
-              url: dataUrl,
-              scaledSize: new window.google.maps.Size(45, 45),
-              origin: new window.google.maps.Point(0, 0),
-              anchor: new window.google.maps.Point(22.5, 22.5),
-            });
-          }
-        });
+        // 🚗 SMOOTH MOVEMENT ANIMATION (Ease-In-Out)
+        const startPos = marker.getPosition();
+        if (startPos) {
+          const sLat = startPos.lat();
+          const sLng = startPos.lng();
+          let step = 0;
+          const numSteps = 40; // 40 frames for ultra-smooth movement
 
-        // If this driver is selected, follow them
+          const animate = () => {
+            step++;
+            if (step <= numSteps) {
+              const progress = step / numSteps;
+              const eased = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+              
+              const cLat = sLat + (latLng.lat - sLat) * eased;
+              const cLng = sLng + (latLng.lng - sLng) * eased;
+              const cPos = new window.google.maps.LatLng(cLat, cLng);
+              
+              marker.setPosition(cPos);
+
+              // Update Rotation during movement for turn (mod) effect
+              createRotatedCanvasIcon(markerIcon, finalHeading).then(dataUrl => {
+                if (dataUrl && markersRef.current[driver.driverId]) {
+                  marker.setIcon({
+                    url: dataUrl,
+                    scaledSize: new window.google.maps.Size(50, 50),
+                    anchor: new window.google.maps.Point(25, 25),
+                  });
+                }
+              });
+
+              requestAnimationFrame(animate);
+            }
+          };
+          requestAnimationFrame(animate);
+        }
+        
         if (selectedDriver?.driverId === driver.driverId) {
           mapInstanceRef.current.panTo(latLng);
         }
@@ -386,39 +389,20 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
           position: latLng,
           map: mapInstanceRef.current,
           title: driver.name,
-          optimized: true,
+          zIndex: 1000
         });
 
-        lastHeadingsRef.current[driver.driverId] = finalHeading;
-
-        // Set initial Canvas Icon
         createRotatedCanvasIcon(markerIcon, finalHeading).then(dataUrl => {
-          if (dataUrl && marker) {
+          if (dataUrl) {
             marker.setIcon({
               url: dataUrl,
-              scaledSize: new window.google.maps.Size(45, 45),
-              origin: new window.google.maps.Point(0, 0),
-              anchor: new window.google.maps.Point(22.5, 22.5),
+              scaledSize: new window.google.maps.Size(50, 50),
+              anchor: new window.google.maps.Point(25, 25),
             });
           }
         });
 
-        const infoWindow = new window.google.maps.InfoWindow({
-          content: `
-            <div style="padding: 10px; font-family: Arial; max-width: 250px;">
-              <h3 style="margin: 0 0 5px 0; font-weight: bold; color: #1e3a8a;">${driver.name}</h3>
-              <p style="margin: 0 0 3px 0; font-size: 11px;"><b>Status:</b> ${driver.status}</p>
-              <p style="margin: 0 0 3px 0; font-size: 11px;"><b>Phone:</b> ${driver.phone}</p>
-              <p style="margin: 0; font-size: 11px;"><b>Car:</b> ${driver.carInfo?.carNumber || 'N/A'}</p>
-            </div>
-          `,
-        });
-
-        marker.addListener('click', () => {
-          infoWindow.open(mapInstanceRef.current, marker);
-          onDriverSelect(driver);
-        });
-
+        marker.addListener('click', () => onDriverSelect(driver));
         markersRef.current[driver.driverId] = marker;
       }
     });
