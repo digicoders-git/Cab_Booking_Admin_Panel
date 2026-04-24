@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import { useAuth } from "../context/AuthContext";
-import { getAdminProfile, updateAdminProfile } from "../apis/admin";
+import { getAdminProfile, updateAdminProfile, getBulkSettings, updateBulkSettings } from "../apis/admin";
 import {
   User, Mail, Lock, Camera, Save, Shield, CheckCircle,
   AlertCircle, Bell, Key, Edit2, LogOut, Settings,
@@ -48,6 +48,11 @@ export default function AdminProfile() {
     marketingEmails: false
   });
 
+  const [bulkSettings, setBulkSettings] = useState({
+    advancePercentage: 25,
+    securityPercentage: 20
+  });
+
   const fileInputRef = useRef(null);
 
   // Theme-based colors
@@ -59,7 +64,22 @@ export default function AdminProfile() {
 
   useEffect(() => {
     fetchProfile();
+    if (admin?.role === 'SuperAdmin') {
+      fetchBulkSettings();
+    }
   }, []);
+
+  const fetchBulkSettings = async () => {
+    try {
+      const res = await getBulkSettings();
+      if (res.success) {
+        setBulkSettings({
+          advancePercentage: res.advancePercentage,
+          securityPercentage: res.securityPercentage
+        });
+      }
+    } catch (err) { console.error(err); }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -174,6 +194,21 @@ export default function AdminProfile() {
     }
   };
 
+  const handleBulkSettingsUpdate = async (e) => {
+    e.preventDefault();
+    try {
+      setUpdating(true);
+      const res = await updateBulkSettings(bulkSettings);
+      if (res.success) {
+        toast.success("Bulk Settings updated");
+      }
+    } catch (error) {
+      toast.error("Update failed");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: theme === 'dark' ? '#111827' : '#F9FAFB' }}>
@@ -207,7 +242,8 @@ export default function AdminProfile() {
             {[
               { id: 'profile', label: 'Profile', icon: User },
               { id: 'security', label: 'Security', icon: Shield },
-              { id: 'notifications', label: 'Notifications', icon: Bell }
+              { id: 'notifications', label: 'Notifications', icon: Bell },
+              ...(admin?.role === 'SuperAdmin' ? [{ id: 'settings', label: 'Global Settings', icon: Settings }] : [])
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -578,7 +614,73 @@ export default function AdminProfile() {
               </div>
             )}
 
-            {/* Activity Log */}
+            {/* Global Settings Tab */}
+            {activeTab === 'settings' && admin?.role === 'SuperAdmin' && (
+              <div className="rounded-2xl border overflow-hidden" style={{ backgroundColor: cardBg, borderColor }}>
+                <div className="p-6 border-b" style={{ borderColor }}>
+                  <h3 className="text-lg font-semibold" style={{ color: textMain }}>Global Bulk Settings</h3>
+                  <p className="text-sm mt-1" style={{ color: textDim }}>Configure platform-wide bulk booking payment rules</p>
+                </div>
+
+                <form onSubmit={handleBulkSettingsUpdate} className="p-6 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium mb-2" style={{ color: textDim }}>User/Agent Advance (%)</label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+                          <Settings size={18} style={{ color: textDim }} />
+                        </div>
+                        <input
+                          type="number"
+                          value={bulkSettings.advancePercentage}
+                          onChange={(e) => setBulkSettings({ ...bulkSettings, advancePercentage: e.target.value })}
+                          className="w-full pl-10 pr-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                          style={{ backgroundColor: inputBg, borderColor, color: textMain }}
+                          min="0" max="100"
+                        />
+                      </div>
+                      <p className="text-xs mt-1 text-blue-500 font-medium">* Required from User/Agent to post on Marketplace</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium mb-2" style={{ color: textDim }}>Fleet Security Commission (%)</label>
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+                          <Shield size={18} style={{ color: textDim }} />
+                        </div>
+                        <input
+                          type="number"
+                          value={bulkSettings.securityPercentage}
+                          onChange={(e) => setBulkSettings({ ...bulkSettings, securityPercentage: e.target.value })}
+                          className="w-full pl-10 pr-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                          style={{ backgroundColor: inputBg, borderColor, color: textMain }}
+                          min="0" max="100"
+                        />
+                      </div>
+                      <p className="text-xs mt-1 text-green-500 font-medium">* Required from Fleet to accept a deal</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-4 flex items-start gap-3">
+                    <AlertCircle className="text-yellow-600 shrink-0" size={18} />
+                    <p className="text-xs text-yellow-700 dark:text-yellow-400">
+                      <strong>Note:</strong> Changes will apply to all NEW bulk bookings created after this update. Existing bookings will maintain their original calculation.
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end pt-4 border-t" style={{ borderColor }}>
+                    <button
+                      type="submit"
+                      disabled={updating}
+                      className="px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    >
+                      <Save size={18} />
+                      {updating ? 'Updating...' : 'Save Global Rules'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
 
           </div>
         </div>

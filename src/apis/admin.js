@@ -52,3 +52,13 @@ export const deleteAdmin = async (id) => {
     const response = await http.delete(`/api/admin/subadmin/${id}`);
     return response.data;
 };
+
+export const getBulkSettings = async () => {
+    const response = await http.get(`/api/admin/bulk-settings`);
+    return response.data;
+};
+
+export const updateBulkSettings = async (data) => {
+    const response = await http.put(`/api/admin/bulk-settings`, data);
+    return response.data;
+};
