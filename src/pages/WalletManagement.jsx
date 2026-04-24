@@ -185,8 +185,8 @@ export default function WalletManagement() {
 
   // Advanced Statistics
   const stats = useMemo(() => {
-    const totalCredits = transactions.filter(t => t.type === 'credit').reduce((sum, t) => sum + (t.amount || 0), 0);
-    const totalDebits = transactions.filter(t => t.type === 'debit').reduce((sum, t) => sum + (t.amount || 0), 0);
+    const totalCredits = transactions.filter(t => t.type?.toLowerCase() === 'credit').reduce((sum, t) => sum + (t.amount || 0), 0);
+    const totalDebits = transactions.filter(t => t.type?.toLowerCase() === 'debit').reduce((sum, t) => sum + (t.amount || 0), 0);
     const pendingAmount = pendingPayouts.reduce((sum, p) => sum + (p.amount || 0), 0);
     const completedCount = transactions.filter(t => t.status?.toLowerCase() === 'completed').length;
     const pendingCount = transactions.filter(t => t.status?.toLowerCase() === 'pending').length;
@@ -230,8 +230,8 @@ export default function WalletManagement() {
     const dayTransactions = transactions.filter(t =>
       new Date(t.createdAt).toDateString() === date.toDateString()
     );
-    const credits = dayTransactions.filter(t => t.type === 'credit').reduce((sum, t) => sum + (t.amount || 0), 0);
-    const debits = dayTransactions.filter(t => t.type === 'debit').reduce((sum, t) => sum + (t.amount || 0), 0);
+    const credits = dayTransactions.filter(t => t.type?.toLowerCase() === 'credit').reduce((sum, t) => sum + (t.amount || 0), 0);
+    const debits = dayTransactions.filter(t => t.type?.toLowerCase() === 'debit').reduce((sum, t) => sum + (t.amount || 0), 0);
     return {
       day: date.toLocaleDateString('en-US', { weekday: 'short' }),
       credits,
@@ -559,11 +559,11 @@ export default function WalletManagement() {
                         <span className="text-xs font-mono text-gray-500">#{t._id?.slice(-8).toUpperCase()}</span>
                       </td>
                       <td className="py-4 px-6">
-                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium ${t.type === 'credit'
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium ${t.type?.toLowerCase() === 'credit'
                           ? 'bg-green-100 text-green-700'
                           : 'bg-red-100 text-red-700'
                           }`}>
-                          {t.type === 'credit' ? <FaArrowDown size={10} /> : <FaArrowUp size={10} />}
+                          {t.type?.toLowerCase() === 'credit' ? <FaArrowDown size={10} /> : <FaArrowUp size={10} />}
                           {t.type || t.status}
                         </span>
                       </td>
@@ -598,9 +598,9 @@ export default function WalletManagement() {
                         )}
                       </td>
                       <td className="py-4 px-6 text-right">
-                        <span className={`text-sm font-bold ${t.type === 'credit' ? 'text-green-600' : 'text-red-600'
+                        <span className={`text-sm font-bold ${t.type?.toLowerCase() === 'credit' ? 'text-green-600' : 'text-red-600'
                           }`}>
-                          {t.type === 'credit' ? '+' : '-'}₹{t.amount?.toLocaleString('en-IN')}
+                          {t.type?.toLowerCase() === 'credit' ? '+' : '-'}₹{t.amount?.toLocaleString('en-IN')}
                         </span>
                       </td>
                       <td className="py-4 px-6 text-center">

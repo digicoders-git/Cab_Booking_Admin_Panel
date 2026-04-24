@@ -31,7 +31,9 @@ import Swal from "sweetalert2";
 const emptyForm = {
   name: "", email: "", phone: "", password: "",
   address: "", city: "", state: "", pincode: "",
-  commissionPercentage: "", aadharNumber: "", panNumber: "",
+  commissionPercentage: "", 
+  bulkCommissionPercentage: "",
+  aadharNumber: "", panNumber: "",
   accountNumber: "", ifscCode: "", accountHolderName: "", bankName: ""
 };
 
@@ -287,6 +289,13 @@ export default function CreateAgent() {
       } else {
         delete cleanForm.commissionPercentage;
       }
+
+      if (cleanForm.bulkCommissionPercentage !== "") {
+        cleanForm.bulkCommissionPercentage = Number(cleanForm.bulkCommissionPercentage);
+      } else {
+        delete cleanForm.bulkCommissionPercentage;
+      }
+
       if (!cleanForm.password) delete cleanForm.password;
 
       // Use FormData for all cases now to support multi-files
@@ -335,6 +344,7 @@ export default function CreateAgent() {
       name: a.name || "", email: a.email || "", phone: a.phone || "", password: "",
       address: a.address || "", city: a.city || "", state: a.state || "", pincode: a.pincode || "",
       commissionPercentage: a.commissionPercentage || "",
+      bulkCommissionPercentage: a.bulkCommissionPercentage || "",
       aadharNumber: a.aadharNumber || "",
       panNumber: a.panNumber || "",
       accountNumber: a.bankDetails?.accountNumber || a.accountNumber || "",
@@ -1008,8 +1018,12 @@ export default function CreateAgent() {
                   <p className="text-2xl font-bold text-purple-600">₹{viewing.walletBalance || 0}</p>
                 </div>
                 <div className="p-4 bg-orange-50 rounded-xl">
-                  <p className="text-xs text-gray-500 mb-1">Commission</p>
+                  <p className="text-xs text-gray-500 mb-1">Normal Comm.</p>
                   <p className="text-2xl font-bold text-orange-600">{viewing.commissionPercentage}%</p>
+                </div>
+                <div className="p-4 bg-rose-50 rounded-xl">
+                  <p className="text-xs text-gray-500 mb-1">Bulk Comm.</p>
+                  <p className="text-2xl font-bold text-rose-600">{viewing.bulkCommissionPercentage || 0}%</p>
                 </div>
               </div>
 
@@ -1191,7 +1205,8 @@ export default function CreateAgent() {
                   {[
                     { label: 'Aadhar Number *', name: 'aadharNumber', type: 'text' },
                     { label: 'PAN Number *', name: 'panNumber', type: 'text' },
-                    { label: 'Commission % *', name: 'commissionPercentage', type: 'number' },
+                    { label: 'Normal Commission % *', name: 'commissionPercentage', type: 'number' },
+                    { label: 'Bulk Commission % *', name: 'bulkCommissionPercentage', type: 'number' },
                   ].map(({ label, name, type }) => (
                     <div key={name} className="space-y-1.5">
                       <label className="text-xs font-medium text-gray-500">{label}</label>

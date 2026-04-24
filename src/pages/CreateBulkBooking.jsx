@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import { getAllCarCategories } from "../apis/carCategory";
-import { createBulkBooking, getMyCreatedRequests, cancelBulkBooking, deleteBulkBooking } from "../apis/bulkBooking";
+import { createBulkBooking, getMyCreatedRequests, cancelBulkBooking, deleteBulkBooking, verifyBulkPayment } from "../apis/bulkBooking";
 import {
   FaCar, FaCalendarAlt, FaClock, FaMapMarkerAlt,
   FaPlus, FaMinus, FaChevronRight, FaCheckCircle,
@@ -14,6 +14,17 @@ import { Toaster, toast } from "sonner";
 import Swal from "sweetalert2";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+
+// --- Helper: Load Razorpay Script ---
+const loadRazorpay = () => {
+  return new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+};
 
 export default function CreateBulkBooking() {
   const { themeColors } = useTheme();
@@ -220,8 +231,8 @@ export default function CreateBulkBooking() {
           pickup: place.formatted_address,
           pickupCoords: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() }
         }));
+        calculateDistance(place.formatted_address, null);
       }
-      calculateDistance();
     });
 
     dropAutocomplete.addListener("place_changed", () => {
@@ -232,20 +243,26 @@ export default function CreateBulkBooking() {
           drop: place.formatted_address,
           dropCoords: { lat: place.geometry.location.lat(), lng: place.geometry.location.lng() }
         }));
+        calculateDistance(null, place.formatted_address);
       }
-      calculateDistance();
     });
   };
 
-  const calculateDistance = () => {
-    if (!window.google || !pickupRef.current.value || !dropRef.current.value) return;
+  const calculateDistance = (pAddress = null, dAddress = null) => {
+    const p = pAddress || (pickupRef.current ? pickupRef.current.value : null);
+    const d = dAddress || (dropRef.current ? dropRef.current.value : null);
+
+    if (!window.google || !p || !d) return;
+
     const service = new window.google.maps.DistanceMatrixService();
     service.getDistanceMatrix(
-      { origins: [pickupRef.current.value], destinations: [dropRef.current.value], travelMode: "DRIVING" },
+      { origins: [p], destinations: [d], travelMode: "DRIVING" },
       (response, status) => {
         if (status === "OK" && response.rows[0].elements[0].status === "OK") {
           const distKm = response.rows[0].elements[0].distance.value / 1000;
           setFormData(prev => ({ ...prev, distance: Math.round(distKm) }));
+        } else {
+          console.error("Distance Matrix failed:", status);
         }
       }
     );
@@ -278,7 +295,7 @@ export default function CreateBulkBooking() {
           id: cat._id,
           name: cat.name,
           image: cat.image,
-          price: cat.bulkBookingBasePrice || 0,
+          price: cat.bulkBookingBasePrice || cat.privateRatePerKm || 0,
           quantity: 1,
         },
       ];
@@ -348,7 +365,53 @@ export default function CreateBulkBooking() {
 
       if (result.isConfirmed) {
         const res = await createBulkBooking(payload);
-        if (res.success) {
+        if (res.success && res.advanceAmount) {
+          // 💳 TRIGGER RAZORPAY FOR 25% ADVANCE
+          const sdkLoaded = await loadRazorpay();
+          if (!sdkLoaded) {
+            toast.error("Razorpay SDK failed to load");
+            return;
+          }
+
+          const options = {
+            key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_your_key",
+            amount: res.advanceAmount * 100, // paise
+            currency: "INR",
+            name: "Bulk Booking Advance",
+            description: `25% Advance for Booking ${res.bookingId}`,
+            handler: async (response) => {
+              try {
+                const verifyRes = await verifyBulkPayment({
+                  bookingId: res.bookingId,
+                  paymentId: response.razorpay_payment_id,
+                  type: 'advance'
+                });
+                if (verifyRes.success) {
+                  toast.success("Advance Paid! Booking live on Marketplace.");
+                  fetchMyRequests();
+                  // Reset
+                  setSelectedCars([]);
+                  setFormData({
+                    pickup: "", drop: "", date: "", time: "",
+                    tripType: "OneWay", returnDate: "",
+                    days: 1, distance: 0, notes: "", offeredPrice: 0, priceModifier: 0
+                  });
+                  setShowBookingModal(false);
+                }
+              } catch (err) {
+                toast.error("Payment verification failed");
+              }
+            },
+            prefill: {
+              name: "Admin / Agent",
+            },
+            theme: { color: "#3b82f6" },
+          };
+
+          const rzp = new window.Razorpay(options);
+          rzp.open();
+
+        } else if (res.success) {
           toast.success("Bulk Booking live on Marketplace!");
           fetchMyRequests();
           // Reset
@@ -358,7 +421,6 @@ export default function CreateBulkBooking() {
             tripType: "OneWay", returnDate: "",
             days: 1, distance: 0, notes: "", offeredPrice: 0, priceModifier: 0
           });
-          // Close modal
           setShowBookingModal(false);
         }
       }
@@ -550,7 +612,7 @@ export default function CreateBulkBooking() {
                             <img src={`${BASE_URL}/uploads/${cat.image}`} alt={cat.name} className="w-16 h-12 object-contain bg-white rounded-xl p-1 shadow-sm" />
                             <div>
                               <p className="text-sm font-black text-gray-800">{cat.name}</p>
-                              <p className="text-[10px] text-blue-600 font-bold">₹{cat.bulkBookingBasePrice || 0}/km</p>
+                              <p className="text-[10px] text-blue-600 font-bold">₹{cat.bulkBookingBasePrice || cat.privateRatePerKm || 0}/km</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">

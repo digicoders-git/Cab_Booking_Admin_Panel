@@ -62,3 +62,12 @@ export const deleteBulkBooking = async (id) => {
         return err.response?.data || { success: false, message: "Network Error" };
     }
 };
+
+export const verifyBulkPayment = async (data) => {
+    try {
+        const res = await http.post("/api/bulk-bookings/verify-payment", data);
+        return res.data;
+    } catch (err) {
+        return err.response?.data || { success: false, message: "Network Error" };
+    }
+};
