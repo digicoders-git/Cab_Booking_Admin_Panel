@@ -9,7 +9,69 @@ import {
 } from 'react-icons/fa';
 import { MapPin, Phone, Clock, AlertCircle, Search, X } from 'lucide-react';
 import Swal from 'sweetalert2';
-import { AutoIcon, CarIcon, VanIcon } from '../components/VehicleIcons';
+import { AutoIcon, CarIcon, VanIcon, BikeIcon } from '../components/VehicleIcons';
+
+// Helper: Calculate bearing between two points
+const calculateBearing = (startLat, startLng, endLat, endLng) => {
+  const startLatRad = (Math.PI * startLat) / 180;
+  const startLngRad = (Math.PI * startLng) / 180;
+  const endLatRad = (Math.PI * endLat) / 180;
+  const endLngRad = (Math.PI * endLng) / 180;
+
+  const y = Math.sin(endLngRad - startLngRad) * Math.cos(endLatRad);
+  const x = Math.cos(startLatRad) * Math.sin(endLatRad) -
+            Math.sin(startLatRad) * Math.cos(endLatRad) * Math.cos(endLngRad - startLngRad);
+  const brng = (Math.atan2(y, x) * 180) / Math.PI;
+  return (brng + 360) % 360;
+};
+
+// Helper: Calculate distance between two points (in km)
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const R = 6371; // Radius of earth in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+// Create a rotated marker icon using Canvas
+const createRotatedCanvasIcon = (iconUrl, rotation = 0, size = 64) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = iconUrl && iconUrl !== '/car.png' ? iconUrl : 'https://cdn-icons-png.flaticon.com/512/3202/3202926.png';
+    
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      
+      // Clear canvas
+      ctx.clearRect(0, 0, size, size);
+      
+      // Move to center, rotate, then draw
+      ctx.translate(size / 2, size / 2);
+      ctx.rotate((rotation * Math.PI) / 180);
+      ctx.drawImage(img, -size / 2, -size / 2, size, size);
+      
+      resolve(canvas.toDataURL());
+    };
+    
+    img.onerror = () => {
+      // Fallback to a default car image if the provided URL fails
+      if (iconUrl !== '/car.png') {
+        createRotatedCanvasIcon('/car.png', rotation, size).then(resolve);
+      } else {
+        resolve(null);
+      }
+    };
+  });
+};
+
 
 const GOOGLE_MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
 
@@ -166,6 +228,9 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
   const markersRef = useRef({}); 
   const isInitialLoadRef = useRef(true);
   const driversRef = useRef(drivers);
+  const lastPositionsRef = useRef({}); // Store last positions for bearing calculation
+  const lastHeadingsRef = useRef({}); // Store last headings to prevent jitter
+
 
   // Keep driversRef always updated with latest prop
   useEffect(() => {
@@ -239,6 +304,28 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
     const currentDriverIds = new Set();
     const activeDrivers = driversRef.current; // Use the latest from ref
 
+    // Advanced: Smoothly interpolate position
+    const animateMarker = (marker, newPos) => {
+      if (!marker || !marker.getPosition) return;
+      const frames = 20;
+      let frame = 0;
+      const startLat = marker.getPosition().lat();
+      const startLng = marker.getPosition().lng();
+      const deltaLat = (newPos.lat - startLat) / frames;
+      const deltaLng = (newPos.lng - startLng) / frames;
+
+      const move = () => {
+        frame++;
+        const lat = startLat + deltaLat * frame;
+        const lng = startLng + deltaLng * frame;
+        marker.setPosition(new window.google.maps.LatLng(lat, lng));
+        if (frame < frames) {
+          requestAnimationFrame(move);
+        }
+      };
+      move();
+    };
+
     activeDrivers.forEach(driver => {
       if (!driver.location?.latitude || !driver.location?.longitude) return;
       currentDriverIds.add(driver.driverId);
@@ -248,45 +335,46 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
         lng: Number(driver.location.longitude),
       };
 
-      // Get appropriate icon with rotation
+      // Get appropriate icon
       let markerIcon = '/car.png';
       if (driver.carInfo?.carCategoryImage && driver.carInfo.carCategoryImage !== 'null') {
         markerIcon = `${import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '')}/uploads/${driver.carInfo.carCategoryImage}`;
       }
 
+      // Update rotation and position
+      const lastPos = lastPositionsRef.current[driver.driverId];
+      let finalHeading = driver.heading || 0;
+
+      // If movement is detected, calculate bearing for smoother direction
+      if (lastPos) {
+        const dist = calculateDistance(lastPos.lat, lastPos.lng, latLng.lat, latLng.lng);
+        if (dist > 0.005) { // Moved at least 5 meters
+          const bearing = calculateBearing(lastPos.lat, lastPos.lng, latLng.lat, latLng.lng);
+          finalHeading = bearing;
+          lastHeadingsRef.current[driver.driverId] = bearing;
+        } else {
+          finalHeading = lastHeadingsRef.current[driver.driverId] || finalHeading;
+        }
+      }
+      
+      lastPositionsRef.current[driver.driverId] = latLng;
+
       if (markersRef.current[driver.driverId]) {
         // MOVE EXISTING MARKER (Animated)
         const marker = markersRef.current[driver.driverId];
-        
-        // Advanced: Smoothly interpolate position
-        const animateMarker = (marker, newPos) => {
-          const frames = 20;
-          let frame = 0;
-          const startLat = marker.getPosition().lat();
-          const startLng = marker.getPosition().lng();
-          const deltaLat = (newPos.lat - startLat) / frames;
-          const deltaLng = (newPos.lng - startLng) / frames;
-
-          const move = () => {
-            frame++;
-            const lat = startLat + deltaLat * frame;
-            const lng = startLng + deltaLng * frame;
-            marker.setPosition(new window.google.maps.LatLng(lat, lng));
-            if (frame < frames) {
-              requestAnimationFrame(move);
-            }
-          };
-          move();
-        };
-
         animateMarker(marker, latLng);
         
-        // Update rotation if heading exists
-        const icon = marker.getIcon();
-        if (icon && typeof driver.heading === 'number') {
-          icon.rotation = driver.heading;
-          marker.setIcon(icon);
-        }
+        // Update Canvas Icon with rotation
+        createRotatedCanvasIcon(markerIcon, finalHeading).then(dataUrl => {
+          if (dataUrl && marker) {
+            marker.setIcon({
+              url: dataUrl,
+              scaledSize: new window.google.maps.Size(45, 45),
+              origin: new window.google.maps.Point(0, 0),
+              anchor: new window.google.maps.Point(22.5, 22.5),
+            });
+          }
+        });
 
         // If this driver is selected, follow them
         if (selectedDriver?.driverId === driver.driverId) {
@@ -299,13 +387,20 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
           map: mapInstanceRef.current,
           title: driver.name,
           optimized: true,
-          icon: {
-            url: markerIcon,
-            scaledSize: new window.google.maps.Size(45, 45),
-            origin: new window.google.maps.Point(0, 0),
-            anchor: new window.google.maps.Point(22.5, 22.5),
-            rotation: driver.heading || 0
-          },
+        });
+
+        lastHeadingsRef.current[driver.driverId] = finalHeading;
+
+        // Set initial Canvas Icon
+        createRotatedCanvasIcon(markerIcon, finalHeading).then(dataUrl => {
+          if (dataUrl && marker) {
+            marker.setIcon({
+              url: dataUrl,
+              scaledSize: new window.google.maps.Size(45, 45),
+              origin: new window.google.maps.Point(0, 0),
+              anchor: new window.google.maps.Point(22.5, 22.5),
+            });
+          }
         });
 
         const infoWindow = new window.google.maps.InfoWindow({
@@ -327,6 +422,7 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
         markersRef.current[driver.driverId] = marker;
       }
     });
+
 
     // Cleanup markers for drivers no longer in the list
     Object.keys(markersRef.current).forEach(id => {
@@ -457,13 +553,20 @@ const TripMap = ({ driver }) => {
         },
         map: mapInstanceRef.current,
         title: 'Live Location',
-        icon: {
-          url: carImage,
-          scaledSize: new window.google.maps.Size(50, 50),
-          origin: new window.google.maps.Point(0, 0),
-          anchor: new window.google.maps.Point(25, 25),
-        },
       });
+
+      // Use Canvas for detailed view too
+      createRotatedCanvasIcon(carImage, driver.heading || 0).then(dataUrl => {
+        if (dataUrl && liveMarker) {
+          liveMarker.setIcon({
+            url: dataUrl,
+            scaledSize: new window.google.maps.Size(50, 50),
+            origin: new window.google.maps.Point(0, 0),
+            anchor: new window.google.maps.Point(25, 25),
+          });
+        }
+      });
+
       liveMarker.addListener('click', () => {
         new window.google.maps.InfoWindow({
           content: `<div style="padding: 8px; font-size: 12px;"><strong>🔴 Live Location</strong><br/>${driver.name}</div>`,
