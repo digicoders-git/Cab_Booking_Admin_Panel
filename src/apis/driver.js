@@ -44,3 +44,8 @@ export const registerDriver = async (payload) => {
   const res = await http.post("/api/drivers/register", payload);
   return res.data;
 };
+
+export const searchDriversByRadius = async (lat, lng, radius) => {
+  const res = await http.get(`/api/admin/radius-search?lat=${lat}&lng=${lng}&radius=${radius}`);
+  return res.data;
+};

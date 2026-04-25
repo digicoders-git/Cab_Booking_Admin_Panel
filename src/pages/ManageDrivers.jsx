@@ -3,7 +3,8 @@ import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useFont } from "../context/FontContext";
 import {
-  getAllDrivers, approveDriver, rejectDriver, updateDriver, toggleDriverStatus, deleteDriver, registerDriver
+  getAllDrivers, approveDriver, rejectDriver, updateDriver, toggleDriverStatus, deleteDriver, registerDriver,
+  searchDriversByRadius
 } from "../apis/driver";
 import { getAllCarCategories } from "../apis/carCategory";
 import {
@@ -207,6 +208,14 @@ export default function ManageDrivers() {
   const [permitFile, setPermitFile] = useState(null);
   const [pucFile, setPucFile] = useState(null);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [radiusSearch, setRadiusSearch] = useState({
+    active: false,
+    address: "",
+    lat: null,
+    lng: null,
+    radius: 10, // Default 10km
+    results: []
+  });
 
   const textColorSecondary = useMemo(() => {
     return themeColors.textSecondary || "rgba(107, 114, 128, 1)";
@@ -218,6 +227,17 @@ export default function ManageDrivers() {
 
   useEffect(() => {
     fetchInitialData();
+    
+    // Load Google Maps script for Autocomplete
+    if (!window.google && !document.getElementById("google-maps-script")) {
+      const script = document.createElement("script");
+      script.id = "google-maps-script";
+      const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+    }
   }, []);
 
   const fetchInitialData = async () => {
@@ -287,7 +307,7 @@ export default function ManageDrivers() {
   }));
 
   const filteredDrivers = useMemo(() => {
-    let list = drivers;
+    let list = radiusSearch.active ? radiusSearch.results : drivers;
 
     if (activeTab === "pending") {
       list = list.filter(d => !d.isApproved && !d.isRejected);
@@ -314,7 +334,7 @@ export default function ManageDrivers() {
       d.state?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       d.documents?.state?.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [drivers, searchQuery, activeTab]);
+  }, [drivers, searchQuery, activeTab, radiusSearch]);
 
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
@@ -609,6 +629,72 @@ export default function ManageDrivers() {
     }
   };
 
+  const autoPerformRadiusSearch = async (lat, lng, radius, addr) => {
+    try {
+      setLoading(true);
+      const res = await searchDriversByRadius(lat, lng, radius);
+      if (res.success) {
+        setRadiusSearch(prev => ({ 
+          ...prev, 
+          active: true, 
+          results: res.drivers,
+          lat, lng, address: addr 
+        }));
+        setCurrentPage(1);
+        Swal.fire({
+          icon: 'success',
+          title: 'Location Selected!',
+          text: `${res.count} drivers aapke ${radius}KM range mein hain.`,
+          timer: 1500,
+          showConfirmButton: false
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRadiusSearch = async () => {
+    if (!radiusSearch.lat || !radiusSearch.lng) {
+      Swal.fire("Pehle address select karo bhai!");
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const res = await searchDriversByRadius(radiusSearch.lat, radiusSearch.lng, radiusSearch.radius);
+      if (res.success) {
+        setRadiusSearch(prev => ({ ...prev, active: true, results: res.drivers }));
+        setCurrentPage(1); // Result aane par page 1 par le jao
+        Swal.fire({
+          icon: 'success',
+          title: 'Drivers Mil Gaye!',
+          text: `${res.count} drivers aapke ${radius}KM range mein hain.`,
+          timer: 2000,
+          showConfirmButton: false
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      Swal.fire("Radius search mein error hai bhai.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearRadiusSearch = () => {
+    setRadiusSearch({
+      active: false,
+      address: "",
+      lat: null,
+      lng: null,
+      radius: 10,
+      results: []
+    });
+  };
+
   const toggleRowExpansion = (id) => {
     setExpandedRows(prev => ({
       ...prev,
@@ -679,7 +765,6 @@ export default function ManageDrivers() {
         </div>
       </div>
 
-      {/* Main Content */}
       <div className="px-4 sm:px-8 py-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-8">
@@ -724,21 +809,83 @@ export default function ManageDrivers() {
               </button>
             ))}
 
-            {/* Inline Search Bar */}
+            {/* Condensed Radius Search in Table Header */}
             <div className="ml-auto flex items-center gap-2 shrink-0">
               <div className="relative">
-                <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={12} />
+                <FaMapMarkerAlt className="absolute left-2.5 top-1/2 -translate-y-1/2 text-blue-500" size={10} />
                 <input
+                  id="radius-address-input"
                   type="text"
-                  placeholder="Search pincode, address..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 border border-gray-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 w-48"
+                  placeholder="Area Search (Radius)..."
+                  value={radiusSearch.address}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setRadiusSearch(prev => ({ ...prev, address: val }));
+                    if (val === "") {
+                      clearRadiusSearch();
+                    }
+                  }}
+                  onFocus={() => {
+                    if (!window.google) return;
+                    const autocomplete = new window.google.maps.places.Autocomplete(
+                      document.getElementById("radius-address-input"),
+                      { types: ["geocode"] }
+                    );
+                    autocomplete.addListener("place_changed", () => {
+                      const place = autocomplete.getPlace();
+                      if (place.geometry) {
+                        const newLat = place.geometry.location.lat();
+                        const newLng = place.geometry.location.lng();
+                        const newAddr = place.formatted_address;
+                        
+                        setRadiusSearch(prev => ({
+                          ...prev,
+                          address: newAddr,
+                          lat: newLat,
+                          lng: newLng
+                        }));
+
+                        // Auto Search Trigger
+                        autoPerformRadiusSearch(newLat, newLng, radiusSearch.radius, newAddr);
+                      }
+                    });
+                  }}
+                  className="pl-7 pr-2 py-1.5 border border-blue-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none w-80 bg-blue-50/30 font-medium"
                 />
               </div>
-              {searchQuery && (
-                <button onClick={() => setSearchQuery("")}
-                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+              
+              <select
+                value={radiusSearch.radius}
+                onChange={(e) => {
+                  const newRadius = e.target.value;
+                  setRadiusSearch(prev => ({ ...prev, radius: newRadius }));
+                  
+                  // Agar address pehle se select hai, toh radius badalte hi auto-search karo
+                  if (radiusSearch.lat && radiusSearch.lng) {
+                    autoPerformRadiusSearch(radiusSearch.lat, radiusSearch.lng, newRadius, radiusSearch.address);
+                  }
+                }}
+                className="py-1.5 px-2 border border-gray-200 rounded-lg text-[10px] font-bold focus:outline-none bg-white"
+              >
+                <option value="5">5 KM</option>
+                <option value="10">10 KM</option>
+                <option value="20">20 KM</option>
+                <option value="30">30 KM</option>
+                <option value="40">40 KM</option>
+                <option value="50">50 KM</option>
+                <option value="60">60 KM</option>
+                <option value="70">70 KM</option>
+                <option value="80">80 KM</option>
+                <option value="90">90 KM</option>
+                <option value="100">100 KM</option>
+              </select>
+
+              {radiusSearch.active && (
+                <button
+                  onClick={clearRadiusSearch}
+                  className="p-1.5 bg-gray-100 text-gray-400 hover:text-gray-600 rounded-lg"
+                  title="Clear"
+                >
                   <FaTimes size={12} />
                 </button>
               )}
@@ -753,7 +900,10 @@ export default function ManageDrivers() {
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Driver</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Contact</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Vehicle</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Location</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[250px]">Location</th>
+                  {radiusSearch.active && (
+                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[120px]">Distance</th>
+                  )}
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Pincode</th>
                   <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Online</th>
                   <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Rating</th>
@@ -764,7 +914,21 @@ export default function ManageDrivers() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {paginatedData.map((d) => (
+                {paginatedData.length === 0 ? (
+                  <tr>
+                    <td colSpan={radiusSearch.active ? 12 : 11} className="py-20 text-center">
+                      <div className="flex flex-col items-center justify-center text-gray-400">
+                        <p className="text-lg font-medium">Koi Driver nahi mila bhai!</p>
+                        <p className="text-sm">Range badha kar ya dusra address try karein.</p>
+                        {radiusSearch.active && (
+                          <button onClick={clearRadiusSearch} className="mt-4 text-blue-600 font-bold hover:underline">
+                            Search Clear Karein
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ) : paginatedData.map((d) => (
                   <React.Fragment key={d._id}>
                     <tr
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
@@ -793,10 +957,17 @@ export default function ManageDrivers() {
                         <p className="text-sm text-gray-900">{d.carDetails?.carModel || d.carModel || '—'}</p>
                         <p className="text-xs text-gray-500">{d.carDetails?.carNumber || d.carNumber || '—'}</p>
                       </td>
-                      <td className="py-3 px-4">
-                        <p className="text-sm text-gray-900">{d.city || '—'}</p>
-                        <p className="text-xs text-gray-500">{d.state || '—'}</p>
+                      <td className="py-3 px-4 min-w-[250px]">
+                        <p className="text-sm text-gray-900 line-clamp-1" title={d.city + ", " + d.state}>{d.city || '—'}</p>
+                        <p className="text-xs text-gray-500 line-clamp-1">{d.state || '—'}</p>
                       </td>
+                      {radiusSearch.active && (
+                        <td className="py-3 px-4 min-w-[120px]">
+                          <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold">
+                            {d.distanceFromCenter} KM Dur
+                          </span>
+                        </td>
+                      )}
                       <td className="py-3 px-4">
                         <span className="text-sm font-mono text-gray-900">{d.pincode || '—'}</span>
                       </td>

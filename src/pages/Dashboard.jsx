@@ -16,7 +16,7 @@ import {
    CreditCard, MapPin, Phone, Mail, Shield, Settings,
    Activity, Target, Award, BarChart3, PieChart as PieChartIcon,
    Download, RefreshCw, Filter, MoreVertical, Eye,
-   Star, Truck, Navigation, Fuel, Wrench, Bell
+   Star, Truck, Navigation, Fuel, Wrench, Bell, ArrowDownCircle, Zap
 } from 'lucide-react';
 import { getDashboardStats as fetchStatsAPI } from '../apis/admin';
 
@@ -109,19 +109,57 @@ const AdminDashboard = () => {
    const recentBookings = dashboardData?.recentBookings || [];
 
    // Calculate derived metrics
-   const totalUsers = stats?.users || 0;
+   const totalUsers = stats?.users?.total || 0;
+   const totalSubAdmins = stats?.admins || 0;
    const totalDrivers = stats?.drivers?.total || 0;
    const approvedDrivers = stats?.drivers?.approved || 0;
    const pendingDrivers = stats?.drivers?.pending || 0;
    const totalAgents = stats?.agents || 0;
    const totalFleets = stats?.fleets || 0;
+   const totalVendors = stats?.vendors || 0;
    const totalBookings = stats?.bookings?.total || 0;
    const completedBookings = stats?.bookings?.completed || 0;
    const pendingBookings = stats?.bookings?.pending || 0;
    const cancelledBookings = stats?.bookings?.cancelled || 0;
    const ongoingBookings = stats?.bookings?.ongoing || 0;
+   const totalServiceAreas = stats?.serviceAreas || 0;
+   const totalCategories = stats?.carCategories || 0;
+   const totalTickets = stats?.supportTickets?.total || 0;
+   const pendingTickets = stats?.supportTickets?.pending || 0;
    const adminWallet = earnings?.adminWallet || 0;
    const totalEarnings = earnings?.totalEarnings || 0;
+   const partnerLiabilities = earnings?.partnerLiabilities || 0;
+   const totalSystemCash = adminWallet + partnerLiabilities;
+   
+   const onlinePayments = stats?.bookings?.onlinePayments || 0;
+   const cashPayments = stats?.bookings?.cashPayments || 0;
+   const driverStats = dashboardData?.driverStats;
+   const onlineDrivers = driverStats?.online || 0;
+   const busyDrivers = driverStats?.busy || 0;
+   const idleDrivers = driverStats?.idle || 0;
+
+   const todayUsers = dashboardData?.counts?.users?.today || 0;
+   const todayBookings = stats?.bookings?.todayBookings || 0;
+   const sharedRides = stats?.bookings?.sharedRides || 0;
+   const privateRides = stats?.bookings?.privateRides || 0;
+   const averageFare = totalBookings > 0 ? Math.round(totalEarnings / totalBookings) : 0;
+
+   const todayRevenue = dashboardData?.todayFinancials?.revenue || 0;
+   const todayProfit = dashboardData?.todayFinancials?.profit || 0;
+   const pendingVerifications = (dashboardData?.verifications?.pendingDrivers || 0) + 
+                                (dashboardData?.verifications?.pendingVendors || 0);
+
+   const todayDrivers = driverStats?.today || 0;
+   const todayAgents = dashboardData?.partnerStats?.todayAgents || 0;
+   const todayFleets = dashboardData?.partnerStats?.todayFleets || 0;
+   const todayVendors = dashboardData?.partnerStats?.todayVendors || 0;
+   const totalTodayPartners = todayDrivers + todayAgents + todayFleets + todayVendors;
+
+   const totalPayouts = dashboardData?.payoutStats?.totalPayouts || 0;
+   const pendingPayoutsCount = dashboardData?.payoutStats?.pendingPayoutsCount || 0;
+   const rejectedDrivers = driverStats?.rejected || 0;
+   const activeAreas = dashboardData?.infrastructure?.activeAreas || 0;
+   const inactiveAreas = dashboardData?.infrastructure?.inactiveAreas || 0;
 
    // Data for various charts
    const userDistributionData = [
@@ -236,70 +274,209 @@ const AdminDashboard = () => {
          <div className="p-6">
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-               {/* Total Users */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-500">
+               {/* Admin Net Wallet */}
+               <div 
+                  onClick={() => navigate('/wallet/management')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-cyan-500 cursor-pointer hover:shadow-md transition-shadow"
+               >
                   <div className="flex items-center justify-between">
                      <div>
-                        <p className="text-sm text-gray-500">Total Users</p>
-                        <p className="text-2xl font-bold text-gray-800">{totalUsers}</p>
+                        <p className="text-sm text-gray-500">Admin Net Wallet</p>
+                        <p className="text-2xl font-bold text-gray-800">₹{adminWallet}</p>
+                     </div>
+                     <div className="bg-cyan-100 p-3 rounded-lg">
+                        <DollarSign className="text-cyan-600" size={24} />
+                     </div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Total profit in your wallet</div>
+               </div>
+
+               {/* Partner Liabilities */}
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-red-500">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Partner Liabilities (Udhaar)</p>
+                        <p className="text-2xl font-bold text-gray-800">₹{partnerLiabilities}</p>
+                     </div>
+                     <div className="bg-red-100 p-3 rounded-lg">
+                        <ArrowDownCircle className="text-red-600" size={24} />
+                     </div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Total payable to Partners</div>
+               </div>
+
+               {/* Platform Liquidity */}
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-600">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Platform Liquidity</p>
+                        <p className="text-2xl font-bold text-gray-800">₹{totalSystemCash}</p>
                      </div>
                      <div className="bg-blue-100 p-3 rounded-lg">
-                        <Users className="text-blue-600" size={24} />
+                        <Shield className="text-blue-600" size={24} />
                      </div>
                   </div>
-                  <div className="mt-2 flex items-center gap-2">
-                     <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">+12%</span>
-                     <span className="text-xs text-gray-500">vs last week</span>
-                  </div>
-               </div>
-
-               {/* Total Drivers */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-500">
-                  <div className="flex items-center justify-between">
-                     <div>
-                        <p className="text-sm text-gray-500">Total Drivers</p>
-                        <p className="text-2xl font-bold text-gray-800">{totalDrivers}</p>
-                     </div>
-                     <div className="bg-green-100 p-3 rounded-lg">
-                        <Car className="text-green-600" size={24} />
-                     </div>
-                  </div>
-                  <div className="mt-2 flex items-center gap-2">
-                     <span className="text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded">{pendingDrivers} pending</span>
-                  </div>
-               </div>
-
-               {/* Total Bookings */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-orange-500">
-                  <div className="flex items-center justify-between">
-                     <div>
-                        <p className="text-sm text-gray-500">Total Bookings</p>
-                        <p className="text-2xl font-bold text-gray-800">{totalBookings}</p>
-                     </div>
-                     <div className="bg-orange-100 p-3 rounded-lg">
-                        <Calendar className="text-orange-600" size={24} />
-                     </div>
-                  </div>
-                  <div className="mt-2 flex items-center gap-2">
-                     <span className="text-xs text-green-600">{completedBookings} completed</span>
-                     <span className="text-xs text-gray-400">|</span>
-                     <span className="text-xs text-yellow-600">{pendingBookings} pending</span>
-                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Total cash held by platform</div>
                </div>
 
                {/* Total Earnings */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-purple-500">
+               <div 
+                  onClick={() => navigate('/wallet/management')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-purple-500 cursor-pointer hover:shadow-md transition-shadow"
+               >
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Total Earnings</p>
                         <p className="text-2xl font-bold text-gray-800">₹{totalEarnings}</p>
                      </div>
                      <div className="bg-purple-100 p-3 rounded-lg">
-                        <DollarSign className="text-purple-600" size={24} />
+                        <CreditCard className="text-purple-600" size={24} />
                      </div>
                   </div>
-                  <div className="mt-2">
-                     <span className="text-xs text-gray-500">Admin Wallet: ₹{adminWallet}</span>
+                  <div className="mt-2 text-[10px] text-gray-400">Lifetime platform earnings</div>
+               </div>
+
+               {/* Today's Revenue */}
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-emerald-500">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Today's Revenue</p>
+                        <p className="text-2xl font-bold text-gray-800">₹{todayRevenue}</p>
+                     </div>
+                     <div className="bg-emerald-100 p-3 rounded-lg">
+                        <TrendingUp className="text-emerald-600" size={24} />
+                     </div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Total cash flow today</div>
+               </div>
+            </div>
+
+            {/* Row 2: Users, Drivers & Core Ops */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+               <div 
+                  onClick={() => navigate('/users/manage')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-500 cursor-pointer hover:shadow-md transition-shadow"
+               >
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Total Users</p><p className="text-2xl font-bold text-gray-800">{totalUsers}</p></div>
+                     <div className="bg-blue-100 p-3 rounded-lg"><Users className="text-blue-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Total registered passengers</div>
+               </div>
+
+               <div 
+                  onClick={() => navigate('/drivers/manage')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-500 cursor-pointer hover:shadow-md transition-shadow"
+               >
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Total Drivers</p><p className="text-2xl font-bold text-gray-800">{totalDrivers}</p></div>
+                     <div className="bg-green-100 p-3 rounded-lg"><Car className="text-green-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-green-600">{approvedDrivers} Approved</div>
+               </div>
+
+               <div 
+                  onClick={() => navigate('/bookings/manage')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-orange-500 cursor-pointer hover:shadow-md transition-shadow"
+               >
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Total Bookings</p><p className="text-2xl font-bold text-gray-800">{totalBookings}</p></div>
+                     <div className="bg-orange-100 p-3 rounded-lg"><Calendar className="text-orange-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">{completedBookings} Completed</div>
+               </div>
+
+               <div 
+                  onClick={() => navigate('/service-areas/manage')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-indigo-500 cursor-pointer hover:shadow-md transition-shadow"
+               >
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Active Cities</p><p className="text-2xl font-bold text-gray-800">{totalServiceAreas}</p></div>
+                     <div className="bg-indigo-100 p-3 rounded-lg"><MapPin className="text-indigo-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Live operational zones</div>
+               </div>
+
+               <div 
+                  onClick={() => navigate('/support')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-pink-500 cursor-pointer hover:shadow-md transition-shadow"
+               >
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Support</p><p className="text-2xl font-bold text-gray-800">{totalTickets}</p></div>
+                     <div className="bg-pink-100 p-3 rounded-lg"><Mail className="text-pink-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">{pendingTickets} open tickets</div>
+               </div>
+            </div>
+
+            {/* Row 3: Partners & Categories */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+               <div 
+                  onClick={() => navigate('/agents/manage')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-yellow-500 cursor-pointer hover:shadow-md transition-shadow"
+               >
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Total Agents</p><p className="text-2xl font-bold text-gray-800">{totalAgents}</p></div>
+                     <div className="bg-yellow-100 p-3 rounded-lg"><Users className="text-yellow-600" size={24} /></div>
+                  </div>
+               </div>
+
+               <div 
+                  onClick={() => navigate('/fleet/manage')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-purple-500 cursor-pointer hover:shadow-md transition-shadow"
+               >
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Total Fleets</p><p className="text-2xl font-bold text-gray-800">{totalFleets}</p></div>
+                     <div className="bg-purple-100 p-3 rounded-lg"><Truck className="text-purple-600" size={24} /></div>
+                  </div>
+               </div>
+
+               <div 
+                  onClick={() => navigate('/vendors/manage')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-pink-500 cursor-pointer hover:shadow-md transition-shadow"
+               >
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Total Vendors</p><p className="text-2xl font-bold text-gray-800">{totalVendors}</p></div>
+                     <div className="bg-pink-100 p-3 rounded-lg"><Shield className="text-pink-600" size={24} /></div>
+                  </div>
+               </div>
+
+               <div 
+                  onClick={() => navigate('/subadmins/manage')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-600 cursor-pointer hover:shadow-md transition-shadow"
+               >
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Sub-Admins</p><p className="text-2xl font-bold text-gray-800">{totalSubAdmins}</p></div>
+                     <div className="bg-blue-100 p-3 rounded-lg"><Shield className="text-blue-600" size={24} /></div>
+                  </div>
+               </div>
+
+               <div 
+                  onClick={() => navigate('/car-categories/manage')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-teal-500 cursor-pointer hover:shadow-md transition-shadow"
+               >
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Categories</p><p className="text-2xl font-bold text-gray-800">{totalCategories}</p></div>
+                     <div className="bg-teal-100 p-3 rounded-lg"><Activity className="text-teal-600" size={24} /></div>
+                  </div>
+               </div>
+            </div>
+
+
+
+
+            {/* Row 4: Performance & Admin Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+               {/* Trip Success Rate */}
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-500">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Success Rate</p>
+                        <p className="text-2xl font-bold text-gray-800">
+                           {totalBookings ? ((completedBookings / totalBookings) * 100).toFixed(1) : 0}%
+                        </p>
+                     </div>
+                     <div className="bg-green-100 p-3 rounded-lg"><CheckCircle className="text-green-600" size={24} /></div>
                   </div>
                </div>
 
@@ -307,27 +484,390 @@ const AdminDashboard = () => {
                <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-indigo-500">
                   <div className="flex items-center justify-between">
                      <div>
-                        <p className="text-sm text-gray-500">Completion Rate</p>
+                        <p className="text-sm text-gray-500">Completion</p>
                         <p className="text-2xl font-bold text-gray-800">
                            {totalBookings ? ((completedBookings / totalBookings) * 100).toFixed(1) : 0}%
                         </p>
                      </div>
-                     <div className="bg-indigo-100 p-3 rounded-lg">
-                        <Target className="text-indigo-600" size={24} />
-                     </div>
+                     <div className="bg-indigo-100 p-3 rounded-lg"><Target className="text-indigo-600" size={24} /></div>
                   </div>
-                  <div className="mt-2">
-                     <div className="w-full bg-gray-200 rounded-full h-1.5">
-                        <div
-                           className="bg-indigo-600 h-1.5 rounded-full"
-                           style={{ width: `${totalBookings ? (completedBookings / totalBookings) * 100 : 0}%` }}
-                        ></div>
+               </div>
+
+               {/* Sub-Admins */}
+               <div 
+                  onClick={() => navigate('/subadmins/manage')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-600 cursor-pointer hover:shadow-md transition-shadow"
+               >
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Sub-Admins</p>
+                        <p className="text-2xl font-bold text-gray-800">{totalSubAdmins}</p>
                      </div>
+                     <div className="bg-blue-100 p-3 rounded-lg"><Shield className="text-blue-600" size={24} /></div>
+                  </div>
+               </div>
+
+               {/* Verification Pending */}
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-red-500">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Doc Pending</p>
+                        <p className="text-2xl font-bold text-red-600">{pendingVerifications}</p>
+                     </div>
+                     <div className="bg-red-50 p-3 rounded-lg"><Shield className="text-red-600" size={24} /></div>
+                  </div>
+               </div>
+
+               {/* Average Fare */}
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-emerald-500">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Avg. Fare</p>
+                        <p className="text-2xl font-bold text-gray-800">₹{averageFare}</p>
+                     </div>
+                     <div className="bg-emerald-100 p-3 rounded-lg"><DollarSign className="text-emerald-600" size={24} /></div>
                   </div>
                </div>
             </div>
 
-            {/* Row 1: User Distribution and Booking Status */}
+            {/* Row 5: Today's Activity & Ride Types */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+               {/* Today's New Users */}
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-indigo-400">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">New Users Today</p>
+                        <p className="text-2xl font-bold text-gray-800">{todayUsers}</p>
+                     </div>
+                     <div className="bg-indigo-50 p-3 rounded-lg">
+                        <UserPlus className="text-indigo-500" size={24} />
+                     </div>
+                  </div>
+                  <div className="mt-2">
+                     <span className="text-xs text-gray-500">Registered since midnight</span>
+                  </div>
+               </div>
+
+               {/* Today's New Bookings */}
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-orange-400">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Bookings Today</p>
+                        <p className="text-2xl font-bold text-gray-800">{todayBookings}</p>
+                     </div>
+                     <div className="bg-orange-50 p-3 rounded-lg">
+                        <Zap className="text-orange-500" size={24} />
+                     </div>
+                  </div>
+                  <div className="mt-2">
+                     <span className="text-xs text-gray-500">New requests today</span>
+                  </div>
+               </div>
+
+               {/* Shared Rides */}
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-pink-400">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Shared Rides</p>
+                        <p className="text-2xl font-bold text-gray-800">{sharedRides}</p>
+                     </div>
+                     <div className="bg-pink-50 p-3 rounded-lg">
+                        <Users className="text-pink-500" size={24} />
+                     </div>
+                  </div>
+                  <div className="mt-2">
+                     <span className="text-xs text-gray-500">Pool/Shared category</span>
+                  </div>
+               </div>
+
+               {/* Private Rides */}
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-400">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Private Rides</p>
+                        <p className="text-2xl font-bold text-gray-800">{privateRides}</p>
+                     </div>
+                     <div className="bg-blue-50 p-3 rounded-lg">
+                        <Shield className="text-blue-500" size={24} />
+                     </div>
+                  </div>
+                  <div className="mt-2">
+                     <span className="text-xs text-gray-500">Dedicated/Private rides</span>
+                  </div>
+               </div>
+
+               {/* Average Order Value */}
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-emerald-500">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Avg. Ride Fare</p>
+                        <p className="text-2xl font-bold text-gray-800">₹{averageFare}</p>
+                     </div>
+                     <div className="bg-emerald-100 p-3 rounded-lg">
+                        <DollarSign className="text-emerald-600" size={24} />
+                     </div>
+                  </div>
+                  <div className="mt-2">
+                     <span className="text-xs text-gray-500">Avg. earnings per booking</span>
+                  </div>
+               </div>
+            </div>
+
+            {/* Row 6: Today's Financial Pulse */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+               <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-emerald-500">
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Today's Revenue</p><p className="text-2xl font-bold text-gray-800">₹{todayRevenue}</p></div>
+                     <div className="bg-emerald-100 p-3 rounded-lg"><TrendingUp className="text-emerald-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Total cash flow today</div>
+               </div>
+               <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-blue-500">
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Today's Profit</p><p className="text-2xl font-bold text-gray-800">₹{todayProfit}</p></div>
+                     <div className="bg-blue-100 p-3 rounded-lg"><DollarSign className="text-blue-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Admin commission today</div>
+               </div>
+               <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-purple-500">
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Avg. Fare</p><p className="text-2xl font-bold text-gray-800">₹{averageFare}</p></div>
+                     <div className="bg-purple-100 p-3 rounded-lg"><Activity className="text-purple-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Avg value per booking</div>
+               </div>
+               <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-red-500">
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Doc Pending</p><p className="text-2xl font-bold text-red-600">{pendingVerifications}</p></div>
+                     <div className="bg-red-50 p-3 rounded-lg"><Shield className="text-red-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-red-400">Needing approval</div>
+               </div>
+               <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-green-500">
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Success Rate</p><p className="text-2xl font-bold text-gray-800">{totalBookings ? ((completedBookings / totalBookings) * 100).toFixed(1) : 0}%</p></div>
+                     <div className="bg-green-100 p-3 rounded-lg"><CheckCircle className="text-green-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Total completed trips</div>
+               </div>
+            </div>
+
+            {/* Row 7: Partner Growth (Today) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-400">
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">New Drivers</p><p className="text-2xl font-bold text-gray-800">{todayDrivers}</p></div>
+                     <div className="bg-blue-50 p-3 rounded-lg"><UserPlus className="text-blue-500" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Joined since midnight</div>
+               </div>
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-yellow-400">
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">New Agents</p><p className="text-2xl font-bold text-gray-800">{todayAgents}</p></div>
+                     <div className="bg-yellow-50 p-3 rounded-lg"><Users className="text-yellow-500" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Joined since midnight</div>
+               </div>
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-purple-400">
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">New Fleets</p><p className="text-2xl font-bold text-gray-800">{todayFleets}</p></div>
+                     <div className="bg-purple-50 p-3 rounded-lg"><Truck className="text-purple-500" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Joined since midnight</div>
+               </div>
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-pink-400">
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">New Vendors</p><p className="text-2xl font-bold text-gray-800">{todayVendors}</p></div>
+                     <div className="bg-pink-50 p-3 rounded-lg"><Shield className="text-pink-500" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Joined since midnight</div>
+               </div>
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-indigo-500">
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Total Partners</p><p className="text-2xl font-bold text-gray-800">{totalTodayPartners}</p></div>
+                     <div className="bg-indigo-50 p-3 rounded-lg"><Award className="text-indigo-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Total growth today</div>
+               </div>
+            </div>
+
+            {/* Row 8: Payouts & Cities */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-600">
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Total Payouts</p><p className="text-xl font-bold text-gray-800">₹{totalPayouts}</p></div>
+                     <div className="bg-green-50 p-3 rounded-lg"><CreditCard className="text-green-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Total amount paid</div>
+               </div>
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-orange-500">
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Pending Payouts</p><p className="text-2xl font-bold text-orange-600">{pendingPayoutsCount}</p></div>
+                     <div className="bg-orange-50 p-3 rounded-lg"><Clock className="text-orange-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Requests to process</div>
+               </div>
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-red-600">
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Rejected Drivers</p><p className="text-2xl font-bold text-red-600">{rejectedDrivers}</p></div>
+                     <div className="bg-red-50 p-3 rounded-lg"><XCircle className="text-red-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Not allowed on platform</div>
+               </div>
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-teal-500">
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Active Cities</p><p className="text-2xl font-bold text-gray-800">{activeAreas}</p></div>
+                     <div className="bg-teal-50 p-3 rounded-lg"><MapPin className="text-teal-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Operational zones</div>
+               </div>
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-gray-500">
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Inactive Cities</p><p className="text-2xl font-bold text-gray-800">{inactiveAreas}</p></div>
+                     <div className="bg-gray-50 p-3 rounded-lg"><Filter className="text-gray-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Currently disabled</div>
+               </div>
+            </div>
+
+            {/* Row 8: Payouts & Infrastructure */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-600">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Total Payouts Done</p>
+                        <p className="text-xl font-bold text-gray-800">₹{totalPayouts}</p>
+                     </div>
+                     <div className="bg-green-50 p-3 rounded-lg"><CreditCard className="text-green-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2"><span className="text-[10px] text-gray-400">Total withdrawal amount paid</span></div>
+               </div>
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-orange-500">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Pending Payouts</p>
+                        <p className="text-2xl font-bold text-orange-600">{pendingPayoutsCount}</p>
+                     </div>
+                     <div className="bg-orange-50 p-3 rounded-lg"><Clock className="text-orange-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2"><span className="text-[10px] text-gray-400">Withdrawals to be processed</span></div>
+               </div>
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-red-600">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Rejected Drivers</p>
+                        <p className="text-2xl font-bold text-red-600">{rejectedDrivers}</p>
+                     </div>
+                     <div className="bg-red-50 p-3 rounded-lg"><XCircle className="text-red-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2"><span className="text-[10px] text-gray-400">Drivers not allowed on platform</span></div>
+               </div>
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-teal-500">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Active Cities</p>
+                        <p className="text-2xl font-bold text-gray-800">{activeAreas}</p>
+                     </div>
+                     <div className="bg-teal-50 p-3 rounded-lg"><MapPin className="text-teal-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2"><span className="text-[10px] text-gray-400">Operational service areas</span></div>
+               </div>
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-gray-500">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Inactive Cities</p>
+                        <p className="text-2xl font-bold text-gray-800">{inactiveAreas}</p>
+                     </div>
+                     <div className="bg-gray-50 p-3 rounded-lg"><Filter className="text-gray-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2"><span className="text-[10px] text-gray-400">Service areas currently disabled</span></div>
+               </div>
+            </div>
+
+            {/* Row 9: User Distribution and Booking Status */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+               {/* Online Payments */}
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-400">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Online Rides</p>
+                        <p className="text-2xl font-bold text-gray-800">{onlinePayments}</p>
+                     </div>
+                     <div className="bg-green-50 p-3 rounded-lg">
+                        <CreditCard className="text-green-500" size={24} />
+                     </div>
+                  </div>
+                  <div className="mt-2">
+                     <span className="text-xs text-gray-500">Paid via Razorpay/Wallet</span>
+                  </div>
+               </div>
+
+               {/* Cash Payments */}
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-yellow-400">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Cash Rides</p>
+                        <p className="text-2xl font-bold text-gray-800">{cashPayments}</p>
+                     </div>
+                     <div className="bg-yellow-50 p-3 rounded-lg">
+                        <DollarSign className="text-yellow-500" size={24} />
+                     </div>
+                  </div>
+                  <div className="mt-2">
+                     <span className="text-xs text-gray-500">Paid in cash to driver</span>
+                  </div>
+               </div>
+
+               {/* Busy Drivers */}
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-red-400">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Busy Drivers</p>
+                        <p className="text-2xl font-bold text-gray-800">{busyDrivers}</p>
+                     </div>
+                     <div className="bg-red-50 p-3 rounded-lg">
+                        <Activity className="text-red-500" size={24} />
+                     </div>
+                  </div>
+                  <div className="mt-2">
+                     <span className="text-xs text-gray-500">Currently on a trip</span>
+                  </div>
+               </div>
+
+               {/* Idle Drivers */}
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-400">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Available (Idle)</p>
+                        <p className="text-2xl font-bold text-gray-800">{idleDrivers}</p>
+                     </div>
+                     <div className="bg-blue-50 p-3 rounded-lg">
+                        <UserCheck className="text-blue-500" size={24} />
+                     </div>
+                  </div>
+                  <div className="mt-2">
+                     <span className="text-xs text-gray-500">Online & waiting for rides</span>
+                  </div>
+               </div>
+
+               {/* Cancelled Bookings */}
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-gray-400">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Cancelled Rides</p>
+                        <p className="text-2xl font-bold text-gray-800">{cancelledBookings}</p>
+                     </div>
+                     <div className="bg-gray-100 p-3 rounded-lg">
+                        <XCircle className="text-gray-500" size={24} />
+                     </div>
+                  </div>
+                  <div className="mt-2">
+                     <span className="text-xs text-red-500">
+                        {totalBookings ? ((cancelledBookings / totalBookings) * 100).toFixed(1) : 0}% rate
+                     </span>
+                  </div>
+               </div>
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                {/* User Distribution Chart */}
                <div className="bg-white rounded-xl shadow-sm p-6">

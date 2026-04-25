@@ -159,7 +159,7 @@ export default function WalletManagement() {
   const fetchWallet = async () => {
     try {
       const res = await getAdminWallet();
-      if (res.success) setAdminWallet(res.wallet || { balance: 0 });
+      if (res.success) setAdminWallet({ balance: res.walletBalance || 0 });
     } catch (err) { console.error(err); }
   };
 
@@ -501,7 +501,7 @@ export default function WalletManagement() {
       <div className="px-4 sm:px-8 py-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
-          <StatCard icon={FaWallet} label="Vault Liquidity" value={`₹${stats.balance.toLocaleString('en-IN')}`} color="blue" trend={8} subtitle="Current balance" />
+          <StatCard icon={FaWallet} label="Admin Net Wallet Money" value={`₹${stats.balance.toLocaleString('en-IN')}`} color="blue" trend={8} subtitle="Total platform balance" />
           <StatCard icon={ArrowUpCircle} label="Total Credits" value={`₹${stats.totalCredits.toLocaleString('en-IN')}`} color="green" trend={12} subtitle="Inflow" />
           <StatCard icon={ArrowDownCircle} label="Total Debits" value={`₹${stats.totalDebits.toLocaleString('en-IN')}`} color="red" trend={-5} subtitle="Outflow" />
           <StatCard icon={Clock} label="Pending Payouts" value={stats.pendingCount} color="orange" trend={3} subtitle={`₹${stats.pendingAmount.toLocaleString('en-IN')}`} />

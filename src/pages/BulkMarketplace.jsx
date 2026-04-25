@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
-import { getBulkMarketplace, acceptBulkBooking } from "../apis/bulkBooking";
-import { FaRoute, FaCar, FaCalendarAlt, FaClock, FaGavel, FaRoad, FaUser, FaPhone, FaSync, FaMapMarkerAlt } from "react-icons/fa";
+import { getBulkMarketplace, acceptBulkBooking, deleteBulkBooking } from "../apis/bulkBooking";
+import { FaRoute, FaCar, FaCalendarAlt, FaClock, FaGavel, FaRoad, FaUser, FaPhone, FaSync, FaMapMarkerAlt, FaTrash } from "react-icons/fa";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 
@@ -25,6 +25,34 @@ export default function BulkMarketplace() {
     } finally {
       setLoading(false);
       setFetching(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    const result = await Swal.fire({
+      title: "Delete this Ride?",
+      text: "This will permanently remove the booking from the system. This action cannot be undone.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, Delete It",
+      confirmButtonColor: "#ef4444",
+      cancelButtonColor: "#6b7280",
+      background: themeColors.surface,
+      color: themeColors.text,
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const res = await deleteBulkBooking(id);
+        if (res.success) {
+          toast.success("Ride Deleted Successfully");
+          fetchMarketplace();
+        } else {
+          toast.error(res.message);
+        }
+      } catch (err) {
+        toast.error("Failed to delete the ride");
+      }
     }
   };
 
@@ -104,7 +132,12 @@ export default function BulkMarketplace() {
       ) : (
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
           {deals.map((deal) => (
-            <DealCard key={deal._id} deal={deal} onAccept={handleAccept} />
+            <DealCard 
+              key={deal._id} 
+              deal={deal} 
+              onAccept={handleAccept} 
+              onDelete={handleDelete} 
+            />
           ))}
         </div>
       )}
@@ -112,7 +145,7 @@ export default function BulkMarketplace() {
   );
 }
 
-function DealCard({ deal, onAccept }) {
+function DealCard({ deal, onAccept, onDelete }) {
   const { themeColors } = useTheme();
   const timeAgo = (date) => {
     const diff = Math.floor((Date.now() - new Date(date)) / 60000);
@@ -135,14 +168,26 @@ function DealCard({ deal, onAccept }) {
           <div>
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              <span className="text-xs font-semibold text-green-300">Live</span>
+              <span className="text-xs font-semibold text-green-300">{deal.status}</span>
             </div>
             <p className="text-xs text-white/50">{timeAgo(deal.createdAt)}</p>
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-white/50 mb-0.5">{deal.tripType === "RoundTrip" ? "Round Trip" : "One Way"}</p>
-          <p className="text-2xl font-bold text-white">₹{deal.offeredPrice.toLocaleString()}</p>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="text-xs text-white/50 mb-0.5">{deal.tripType === "RoundTrip" ? "Round Trip" : "One Way"}</p>
+            <p className="text-2xl font-bold text-white">₹{deal.offeredPrice.toLocaleString()}</p>
+          </div>
+          {/* Admin Delete Action */}
+          {deal.status !== 'Ongoing' && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); onDelete(deal._id); }}
+              className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white/40 hover:bg-red-500 hover:text-white transition-all shadow-inner"
+              title="Delete Ride"
+            >
+              <FaTrash size={14} />
+            </button>
+          )}
         </div>
       </div>
 
