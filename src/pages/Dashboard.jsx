@@ -272,12 +272,11 @@ const AdminDashboard = () => {
 
 
          <div className="p-6">
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
                {/* Admin Net Wallet */}
                <div 
-                  onClick={() => navigate('/wallet/management')}
-                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-cyan-500 cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => navigate('/wallet/manage')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-cyan-500 cursor-pointer hover:shadow-md transition-shadow"
                >
                   <div className="flex items-center justify-between">
                      <div>
@@ -291,38 +290,10 @@ const AdminDashboard = () => {
                   <div className="mt-2 text-[10px] text-gray-400">Total profit in your wallet</div>
                </div>
 
-               {/* Partner Liabilities */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-red-500">
-                  <div className="flex items-center justify-between">
-                     <div>
-                        <p className="text-sm text-gray-500">Partner Liabilities (Udhaar)</p>
-                        <p className="text-2xl font-bold text-gray-800">₹{partnerLiabilities}</p>
-                     </div>
-                     <div className="bg-red-100 p-3 rounded-lg">
-                        <ArrowDownCircle className="text-red-600" size={24} />
-                     </div>
-                  </div>
-                  <div className="mt-2 text-[10px] text-gray-400">Total payable to Partners</div>
-               </div>
-
-               {/* Platform Liquidity */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-600">
-                  <div className="flex items-center justify-between">
-                     <div>
-                        <p className="text-sm text-gray-500">Platform Liquidity</p>
-                        <p className="text-2xl font-bold text-gray-800">₹{totalSystemCash}</p>
-                     </div>
-                     <div className="bg-blue-100 p-3 rounded-lg">
-                        <Shield className="text-blue-600" size={24} />
-                     </div>
-                  </div>
-                  <div className="mt-2 text-[10px] text-gray-400">Total cash held by platform</div>
-               </div>
-
                {/* Total Earnings */}
                <div 
-                  onClick={() => navigate('/wallet/management')}
-                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-purple-500 cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => navigate('/wallet/manage')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-purple-500 cursor-pointer hover:shadow-md transition-shadow"
                >
                   <div className="flex items-center justify-between">
                      <div>
@@ -337,7 +308,7 @@ const AdminDashboard = () => {
                </div>
 
                {/* Today's Revenue */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-emerald-500">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-emerald-500">
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Today's Revenue</p>
@@ -349,13 +320,97 @@ const AdminDashboard = () => {
                   </div>
                   <div className="mt-2 text-[10px] text-gray-400">Total cash flow today</div>
                </div>
+
+               {/* Partner Liabilities */}
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-red-500">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Partner Liabilities</p>
+                        <p className="text-2xl font-bold text-gray-800">₹{partnerLiabilities}</p>
+                     </div>
+                     <div className="bg-red-100 p-3 rounded-lg">
+                        <ArrowDownCircle className="text-red-600" size={24} />
+                     </div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Total payable to Partners (Udhaar)</div>
+               </div>
+
+               {/* Platform Liquidity */}
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-blue-600">
+                  <div className="flex items-center justify-between">
+                     <div>
+                        <p className="text-sm text-gray-500">Platform Liquidity</p>
+                        <p className="text-2xl font-bold text-gray-800">₹{totalSystemCash}</p>
+                     </div>
+                     <div className="bg-blue-100 p-3 rounded-lg">
+                        <Shield className="text-blue-600" size={24} />
+                     </div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Total cash held by platform</div>
+               </div>
             </div>
 
-            {/* Row 2: Users, Drivers & Core Ops */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+               <div 
+                  onClick={() => navigate('/agent/create')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-yellow-500 cursor-pointer hover:shadow-md transition-shadow"
+               >
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Total Agents</p><p className="text-2xl font-bold text-gray-800">{totalAgents}</p></div>
+                     <div className="bg-yellow-100 p-3 rounded-lg"><Users className="text-yellow-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Manage booking agents</div>
+               </div>
+
+               <div 
+                  onClick={() => navigate('/fleet/create')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-purple-500 cursor-pointer hover:shadow-md transition-shadow"
+               >
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Total Fleets</p><p className="text-2xl font-bold text-gray-800">{totalFleets}</p></div>
+                     <div className="bg-purple-100 p-3 rounded-lg"><Truck className="text-purple-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Vehicle owners and fleet partners</div>
+               </div>
+
+               <div 
+                  onClick={() => navigate('/vendors/manage')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-pink-500 cursor-pointer hover:shadow-md transition-shadow"
+               >
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Total Vendors</p><p className="text-2xl font-bold text-gray-800">{totalVendors}</p></div>
+                     <div className="bg-pink-100 p-3 rounded-lg"><Shield className="text-pink-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Third-party service providers</div>
+               </div>
+
+               <div 
+                  onClick={() => navigate('/drivers/manage')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-green-500 cursor-pointer hover:shadow-md transition-shadow"
+               >
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Total Drivers</p><p className="text-2xl font-bold text-gray-800">{totalDrivers}</p></div>
+                     <div className="bg-green-100 p-3 rounded-lg"><Car className="text-green-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-green-600">{approvedDrivers} Approved & Active</div>
+               </div>
+
+               <div 
+                  onClick={() => navigate('/subadmins/manage')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-blue-600 cursor-pointer hover:shadow-md transition-shadow"
+               >
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Sub-Admins</p><p className="text-2xl font-bold text-gray-800">{totalSubAdmins}</p></div>
+                     <div className="bg-blue-100 p-3 rounded-lg"><Shield className="text-blue-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Team members with panel access</div>
+               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
                <div 
                   onClick={() => navigate('/users/manage')}
-                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-500 cursor-pointer hover:shadow-md transition-shadow"
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-blue-500 cursor-pointer hover:shadow-md transition-shadow"
                >
                   <div className="flex items-center justify-between">
                      <div><p className="text-sm text-gray-500">Total Users</p><p className="text-2xl font-bold text-gray-800">{totalUsers}</p></div>
@@ -365,30 +420,19 @@ const AdminDashboard = () => {
                </div>
 
                <div 
-                  onClick={() => navigate('/drivers/manage')}
-                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-500 cursor-pointer hover:shadow-md transition-shadow"
-               >
-                  <div className="flex items-center justify-between">
-                     <div><p className="text-sm text-gray-500">Total Drivers</p><p className="text-2xl font-bold text-gray-800">{totalDrivers}</p></div>
-                     <div className="bg-green-100 p-3 rounded-lg"><Car className="text-green-600" size={24} /></div>
-                  </div>
-                  <div className="mt-2 text-[10px] text-green-600">{approvedDrivers} Approved</div>
-               </div>
-
-               <div 
                   onClick={() => navigate('/bookings/manage')}
-                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-orange-500 cursor-pointer hover:shadow-md transition-shadow"
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-orange-500 cursor-pointer hover:shadow-md transition-shadow"
                >
                   <div className="flex items-center justify-between">
                      <div><p className="text-sm text-gray-500">Total Bookings</p><p className="text-2xl font-bold text-gray-800">{totalBookings}</p></div>
                      <div className="bg-orange-100 p-3 rounded-lg"><Calendar className="text-orange-600" size={24} /></div>
                   </div>
-                  <div className="mt-2 text-[10px] text-gray-400">{completedBookings} Completed</div>
+                  <div className="mt-2 text-[10px] text-gray-400">{completedBookings} Completed rides</div>
                </div>
 
                <div 
                   onClick={() => navigate('/service-areas/manage')}
-                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-indigo-500 cursor-pointer hover:shadow-md transition-shadow"
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-indigo-500 cursor-pointer hover:shadow-md transition-shadow"
                >
                   <div className="flex items-center justify-between">
                      <div><p className="text-sm text-gray-500">Active Cities</p><p className="text-2xl font-bold text-gray-800">{totalServiceAreas}</p></div>
@@ -398,142 +442,78 @@ const AdminDashboard = () => {
                </div>
 
                <div 
-                  onClick={() => navigate('/support')}
-                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-pink-500 cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => navigate('/car-categories/manage')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-teal-500 cursor-pointer hover:shadow-md transition-shadow"
                >
                   <div className="flex items-center justify-between">
-                     <div><p className="text-sm text-gray-500">Support</p><p className="text-2xl font-bold text-gray-800">{totalTickets}</p></div>
+                     <div><p className="text-sm text-gray-500">Categories</p><p className="text-2xl font-bold text-gray-800">{totalCategories}</p></div>
+                     <div className="bg-teal-100 p-3 rounded-lg"><Activity className="text-teal-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Vehicle types (Sedan, SUV, etc.)</div>
+               </div>
+
+               <div 
+                  onClick={() => navigate('/support')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-pink-500 cursor-pointer hover:shadow-md transition-shadow"
+               >
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Support Tickets</p><p className="text-2xl font-bold text-gray-800">{totalTickets}</p></div>
                      <div className="bg-pink-100 p-3 rounded-lg"><Mail className="text-pink-600" size={24} /></div>
                   </div>
                   <div className="mt-2 text-[10px] text-gray-400">{pendingTickets} open tickets</div>
                </div>
             </div>
 
-            {/* Row 3: Partners & Categories */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-               <div 
-                  onClick={() => navigate('/agents/manage')}
-                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-yellow-500 cursor-pointer hover:shadow-md transition-shadow"
-               >
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-green-500">
                   <div className="flex items-center justify-between">
-                     <div><p className="text-sm text-gray-500">Total Agents</p><p className="text-2xl font-bold text-gray-800">{totalAgents}</p></div>
-                     <div className="bg-yellow-100 p-3 rounded-lg"><Users className="text-yellow-600" size={24} /></div>
-                  </div>
-               </div>
-
-               <div 
-                  onClick={() => navigate('/fleet/manage')}
-                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-purple-500 cursor-pointer hover:shadow-md transition-shadow"
-               >
-                  <div className="flex items-center justify-between">
-                     <div><p className="text-sm text-gray-500">Total Fleets</p><p className="text-2xl font-bold text-gray-800">{totalFleets}</p></div>
-                     <div className="bg-purple-100 p-3 rounded-lg"><Truck className="text-purple-600" size={24} /></div>
-                  </div>
-               </div>
-
-               <div 
-                  onClick={() => navigate('/vendors/manage')}
-                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-pink-500 cursor-pointer hover:shadow-md transition-shadow"
-               >
-                  <div className="flex items-center justify-between">
-                     <div><p className="text-sm text-gray-500">Total Vendors</p><p className="text-2xl font-bold text-gray-800">{totalVendors}</p></div>
-                     <div className="bg-pink-100 p-3 rounded-lg"><Shield className="text-pink-600" size={24} /></div>
-                  </div>
-               </div>
-
-               <div 
-                  onClick={() => navigate('/subadmins/manage')}
-                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-600 cursor-pointer hover:shadow-md transition-shadow"
-               >
-                  <div className="flex items-center justify-between">
-                     <div><p className="text-sm text-gray-500">Sub-Admins</p><p className="text-2xl font-bold text-gray-800">{totalSubAdmins}</p></div>
-                     <div className="bg-blue-100 p-3 rounded-lg"><Shield className="text-blue-600" size={24} /></div>
-                  </div>
-               </div>
-
-               <div 
-                  onClick={() => navigate('/car-categories/manage')}
-                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-teal-500 cursor-pointer hover:shadow-md transition-shadow"
-               >
-                  <div className="flex items-center justify-between">
-                     <div><p className="text-sm text-gray-500">Categories</p><p className="text-2xl font-bold text-gray-800">{totalCategories}</p></div>
-                     <div className="bg-teal-100 p-3 rounded-lg"><Activity className="text-teal-600" size={24} /></div>
-                  </div>
-               </div>
-            </div>
-
-
-
-
-            {/* Row 4: Performance & Admin Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-               {/* Trip Success Rate */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-500">
-                  <div className="flex items-center justify-between">
-                     <div>
-                        <p className="text-sm text-gray-500">Success Rate</p>
-                        <p className="text-2xl font-bold text-gray-800">
-                           {totalBookings ? ((completedBookings / totalBookings) * 100).toFixed(1) : 0}%
-                        </p>
-                     </div>
+                     <div><p className="text-sm text-gray-500">Success Rate</p><p className="text-2xl font-bold text-gray-800">{totalBookings ? ((completedBookings / totalBookings) * 100).toFixed(1) : 0}%</p></div>
                      <div className="bg-green-100 p-3 rounded-lg"><CheckCircle className="text-green-600" size={24} /></div>
                   </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Percentage of successful rides</div>
                </div>
 
-               {/* Completion Rate */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-indigo-500">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-indigo-500">
                   <div className="flex items-center justify-between">
-                     <div>
-                        <p className="text-sm text-gray-500">Completion</p>
-                        <p className="text-2xl font-bold text-gray-800">
-                           {totalBookings ? ((completedBookings / totalBookings) * 100).toFixed(1) : 0}%
-                        </p>
-                     </div>
+                     <div><p className="text-sm text-gray-500">Completion</p><p className="text-2xl font-bold text-gray-800">{totalBookings ? ((completedBookings / totalBookings) * 100).toFixed(1) : 0}%</p></div>
                      <div className="bg-indigo-100 p-3 rounded-lg"><Target className="text-indigo-600" size={24} /></div>
                   </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Overall fulfillment performance</div>
                </div>
 
-               {/* Sub-Admins */}
-               <div 
-                  onClick={() => navigate('/subadmins/manage')}
-                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-600 cursor-pointer hover:shadow-md transition-shadow"
-               >
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-emerald-500">
                   <div className="flex items-center justify-between">
-                     <div>
-                        <p className="text-sm text-gray-500">Sub-Admins</p>
-                        <p className="text-2xl font-bold text-gray-800">{totalSubAdmins}</p>
-                     </div>
-                     <div className="bg-blue-100 p-3 rounded-lg"><Shield className="text-blue-600" size={24} /></div>
-                  </div>
-               </div>
-
-               {/* Verification Pending */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-red-500">
-                  <div className="flex items-center justify-between">
-                     <div>
-                        <p className="text-sm text-gray-500">Doc Pending</p>
-                        <p className="text-2xl font-bold text-red-600">{pendingVerifications}</p>
-                     </div>
-                     <div className="bg-red-50 p-3 rounded-lg"><Shield className="text-red-600" size={24} /></div>
-                  </div>
-               </div>
-
-               {/* Average Fare */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-emerald-500">
-                  <div className="flex items-center justify-between">
-                     <div>
-                        <p className="text-sm text-gray-500">Avg. Fare</p>
-                        <p className="text-2xl font-bold text-gray-800">₹{averageFare}</p>
-                     </div>
+                     <div><p className="text-sm text-gray-500">Avg. Fare</p><p className="text-2xl font-bold text-gray-800">₹{averageFare}</p></div>
                      <div className="bg-emerald-100 p-3 rounded-lg"><DollarSign className="text-emerald-600" size={24} /></div>
                   </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Average revenue per ride</div>
+               </div>
+
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-red-500">
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Doc Pending</p><p className="text-2xl font-bold text-red-600">{pendingVerifications}</p></div>
+                     <div className="bg-red-50 p-3 rounded-lg"><Shield className="text-red-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Partners waiting for verification</div>
+               </div>
+
+               <div 
+                  onClick={() => navigate('/subadmins/manage')}
+                  className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-blue-600 cursor-pointer hover:shadow-md transition-shadow"
+               >
+                  <div className="flex items-center justify-between">
+                     <div><p className="text-sm text-gray-500">Team Active</p><p className="text-2xl font-bold text-gray-800">{totalSubAdmins}</p></div>
+                     <div className="bg-blue-100 p-3 rounded-lg"><Shield className="text-blue-600" size={24} /></div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-gray-400">Total active management staff</div>
                </div>
             </div>
+
 
             {/* Row 5: Today's Activity & Ride Types */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                {/* Today's New Users */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-indigo-400">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-indigo-400">
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">New Users Today</p>
@@ -549,7 +529,7 @@ const AdminDashboard = () => {
                </div>
 
                {/* Today's New Bookings */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-orange-400">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-orange-400">
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Bookings Today</p>
@@ -565,7 +545,7 @@ const AdminDashboard = () => {
                </div>
 
                {/* Shared Rides */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-pink-400">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-pink-400">
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Shared Rides</p>
@@ -581,7 +561,7 @@ const AdminDashboard = () => {
                </div>
 
                {/* Private Rides */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-400">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-blue-400">
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Private Rides</p>
@@ -597,7 +577,7 @@ const AdminDashboard = () => {
                </div>
 
                {/* Average Order Value */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-emerald-500">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-emerald-500">
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Avg. Ride Fare</p>
@@ -622,28 +602,28 @@ const AdminDashboard = () => {
                   </div>
                   <div className="mt-2 text-[10px] text-gray-400">Total cash flow today</div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-blue-500">
+               <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 min-h-[140px] flex flex-col justify-center border-blue-500">
                   <div className="flex items-center justify-between">
                      <div><p className="text-sm text-gray-500">Today's Profit</p><p className="text-2xl font-bold text-gray-800">₹{todayProfit}</p></div>
                      <div className="bg-blue-100 p-3 rounded-lg"><DollarSign className="text-blue-600" size={24} /></div>
                   </div>
                   <div className="mt-2 text-[10px] text-gray-400">Admin commission today</div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-purple-500">
+               <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 min-h-[140px] flex flex-col justify-center border-purple-500">
                   <div className="flex items-center justify-between">
                      <div><p className="text-sm text-gray-500">Avg. Fare</p><p className="text-2xl font-bold text-gray-800">₹{averageFare}</p></div>
                      <div className="bg-purple-100 p-3 rounded-lg"><Activity className="text-purple-600" size={24} /></div>
                   </div>
                   <div className="mt-2 text-[10px] text-gray-400">Avg value per booking</div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-red-500">
+               <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 min-h-[140px] flex flex-col justify-center border-red-500">
                   <div className="flex items-center justify-between">
                      <div><p className="text-sm text-gray-500">Doc Pending</p><p className="text-2xl font-bold text-red-600">{pendingVerifications}</p></div>
                      <div className="bg-red-50 p-3 rounded-lg"><Shield className="text-red-600" size={24} /></div>
                   </div>
                   <div className="mt-2 text-[10px] text-red-400">Needing approval</div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-green-500">
+               <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 min-h-[140px] flex flex-col justify-center border-green-500">
                   <div className="flex items-center justify-between">
                      <div><p className="text-sm text-gray-500">Success Rate</p><p className="text-2xl font-bold text-gray-800">{totalBookings ? ((completedBookings / totalBookings) * 100).toFixed(1) : 0}%</p></div>
                      <div className="bg-green-100 p-3 rounded-lg"><CheckCircle className="text-green-600" size={24} /></div>
@@ -654,35 +634,35 @@ const AdminDashboard = () => {
 
             {/* Row 7: Partner Growth (Today) */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-400">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-blue-400">
                   <div className="flex items-center justify-between">
                      <div><p className="text-sm text-gray-500">New Drivers</p><p className="text-2xl font-bold text-gray-800">{todayDrivers}</p></div>
                      <div className="bg-blue-50 p-3 rounded-lg"><UserPlus className="text-blue-500" size={24} /></div>
                   </div>
                   <div className="mt-2 text-[10px] text-gray-400">Joined since midnight</div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-yellow-400">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-yellow-400">
                   <div className="flex items-center justify-between">
                      <div><p className="text-sm text-gray-500">New Agents</p><p className="text-2xl font-bold text-gray-800">{todayAgents}</p></div>
                      <div className="bg-yellow-50 p-3 rounded-lg"><Users className="text-yellow-500" size={24} /></div>
                   </div>
                   <div className="mt-2 text-[10px] text-gray-400">Joined since midnight</div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-purple-400">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-purple-400">
                   <div className="flex items-center justify-between">
                      <div><p className="text-sm text-gray-500">New Fleets</p><p className="text-2xl font-bold text-gray-800">{todayFleets}</p></div>
                      <div className="bg-purple-50 p-3 rounded-lg"><Truck className="text-purple-500" size={24} /></div>
                   </div>
                   <div className="mt-2 text-[10px] text-gray-400">Joined since midnight</div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-pink-400">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center min-h-[140px] border-pink-400">
                   <div className="flex items-center justify-between">
                      <div><p className="text-sm text-gray-500">New Vendors</p><p className="text-2xl font-bold text-gray-800">{todayVendors}</p></div>
                      <div className="bg-pink-50 p-3 rounded-lg"><Shield className="text-pink-500" size={24} /></div>
                   </div>
                   <div className="mt-2 text-[10px] text-gray-400">Joined since midnight</div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-indigo-500">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-indigo-500">
                   <div className="flex items-center justify-between">
                      <div><p className="text-sm text-gray-500">Total Partners</p><p className="text-2xl font-bold text-gray-800">{totalTodayPartners}</p></div>
                      <div className="bg-indigo-50 p-3 rounded-lg"><Award className="text-indigo-600" size={24} /></div>
@@ -693,35 +673,35 @@ const AdminDashboard = () => {
 
             {/* Row 8: Payouts & Cities */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-600">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-green-600">
                   <div className="flex items-center justify-between">
                      <div><p className="text-sm text-gray-500">Total Payouts</p><p className="text-xl font-bold text-gray-800">₹{totalPayouts}</p></div>
                      <div className="bg-green-50 p-3 rounded-lg"><CreditCard className="text-green-600" size={24} /></div>
                   </div>
                   <div className="mt-2 text-[10px] text-gray-400">Total amount paid</div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-orange-500">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-orange-500">
                   <div className="flex items-center justify-between">
                      <div><p className="text-sm text-gray-500">Pending Payouts</p><p className="text-2xl font-bold text-orange-600">{pendingPayoutsCount}</p></div>
                      <div className="bg-orange-50 p-3 rounded-lg"><Clock className="text-orange-600" size={24} /></div>
                   </div>
                   <div className="mt-2 text-[10px] text-gray-400">Requests to process</div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-red-600">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-red-600">
                   <div className="flex items-center justify-between">
                      <div><p className="text-sm text-gray-500">Rejected Drivers</p><p className="text-2xl font-bold text-red-600">{rejectedDrivers}</p></div>
                      <div className="bg-red-50 p-3 rounded-lg"><XCircle className="text-red-600" size={24} /></div>
                   </div>
                   <div className="mt-2 text-[10px] text-gray-400">Not allowed on platform</div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-teal-500">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-teal-500">
                   <div className="flex items-center justify-between">
                      <div><p className="text-sm text-gray-500">Active Cities</p><p className="text-2xl font-bold text-gray-800">{activeAreas}</p></div>
                      <div className="bg-teal-50 p-3 rounded-lg"><MapPin className="text-teal-600" size={24} /></div>
                   </div>
                   <div className="mt-2 text-[10px] text-gray-400">Operational zones</div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-gray-500">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-gray-500">
                   <div className="flex items-center justify-between">
                      <div><p className="text-sm text-gray-500">Inactive Cities</p><p className="text-2xl font-bold text-gray-800">{inactiveAreas}</p></div>
                      <div className="bg-gray-50 p-3 rounded-lg"><Filter className="text-gray-600" size={24} /></div>
@@ -732,7 +712,7 @@ const AdminDashboard = () => {
 
             {/* Row 8: Payouts & Infrastructure */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-600">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-green-600">
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Total Payouts Done</p>
@@ -742,7 +722,7 @@ const AdminDashboard = () => {
                   </div>
                   <div className="mt-2"><span className="text-[10px] text-gray-400">Total withdrawal amount paid</span></div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-orange-500">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-orange-500">
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Pending Payouts</p>
@@ -752,7 +732,7 @@ const AdminDashboard = () => {
                   </div>
                   <div className="mt-2"><span className="text-[10px] text-gray-400">Withdrawals to be processed</span></div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-red-600">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-red-600">
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Rejected Drivers</p>
@@ -762,7 +742,7 @@ const AdminDashboard = () => {
                   </div>
                   <div className="mt-2"><span className="text-[10px] text-gray-400">Drivers not allowed on platform</span></div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-teal-500">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-teal-500">
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Active Cities</p>
@@ -772,7 +752,7 @@ const AdminDashboard = () => {
                   </div>
                   <div className="mt-2"><span className="text-[10px] text-gray-400">Operational service areas</span></div>
                </div>
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-gray-500">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-gray-500">
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Inactive Cities</p>
@@ -787,7 +767,7 @@ const AdminDashboard = () => {
             {/* Row 9: User Distribution and Booking Status */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                {/* Online Payments */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-green-400">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-green-400">
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Online Rides</p>
@@ -803,7 +783,7 @@ const AdminDashboard = () => {
                </div>
 
                {/* Cash Payments */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-yellow-400">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-yellow-400">
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Cash Rides</p>
@@ -819,7 +799,7 @@ const AdminDashboard = () => {
                </div>
 
                {/* Busy Drivers */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-red-400">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-red-400">
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Busy Drivers</p>
@@ -835,7 +815,7 @@ const AdminDashboard = () => {
                </div>
 
                {/* Idle Drivers */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-blue-400">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-blue-400">
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Available (Idle)</p>
@@ -851,7 +831,7 @@ const AdminDashboard = () => {
                </div>
 
                {/* Cancelled Bookings */}
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-gray-400">
+               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-gray-400">
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Cancelled Rides</p>

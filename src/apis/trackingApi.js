@@ -7,6 +7,12 @@ export const getLiveTracking = async () => {
   return res.data;
 };
 
+export const getDriversByRadius = async (lat, lng, radius) => {
+  const res = await http.get(`${BASE_URL}/radius-search?lat=${lat}&lng=${lng}&radius=${radius}`);
+  return res.data;
+};
+
 export const trackingService = {
   getLiveTracking,
+  getDriversByRadius
 };

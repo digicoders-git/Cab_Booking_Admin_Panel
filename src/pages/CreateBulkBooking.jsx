@@ -8,10 +8,12 @@ import {
   FaPlus, FaMinus, FaChevronRight, FaCheckCircle,
   FaPercentage, FaWallet, FaInfoCircle, FaTrash, FaSyncAlt, FaTimes,
   FaMapPin, FaRoad, FaTag, FaCircle, FaCheckDouble, FaHourglassEnd,
-  FaEdit, FaTrashAlt, FaTruck, FaEye, FaBan, FaArrowUp
+  FaEdit, FaTrashAlt, FaTruck, FaEye, FaBan, FaArrowUp, FaDownload, FaUserCircle
 } from "react-icons/fa";
 import { Toaster, toast } from "sonner";
 import Swal from "sweetalert2";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
@@ -46,7 +48,9 @@ export default function CreateBulkBooking() {
     distance: 0,
     notes: "",
     offeredPrice: 0,
-    priceModifier: 0 // Percentage
+    priceModifier: 0, // Percentage
+    customerName: "",
+    customerPhone: ""
   });
 
   const [myRequests, setMyRequests] = useState([]);
@@ -351,6 +355,8 @@ export default function CreateBulkBooking() {
         carsRequired: selectedCars.map((c) => ({ category: c.id, quantity: c.quantity })),
         offeredPrice: total,
         notes: formData.notes,
+        customerName: formData.customerName,
+        customerPhone: formData.customerPhone,
       };
 
       const result = await Swal.fire({
@@ -388,6 +394,14 @@ export default function CreateBulkBooking() {
                 });
                 if (verifyRes.success) {
                   toast.success("Advance Paid! Booking live on Marketplace.");
+                  
+                  // 📄 AUTO-DOWNLOAD RECEIPT
+                  try {
+                    const fullBookingRes = await getMyCreatedRequests();
+                    const justCreated = fullBookingRes.bookings?.find(b => b._id === res.bookingId);
+                    if (justCreated) generateReceipt(justCreated);
+                  } catch (err) {}
+
                   fetchMyRequests();
                   // Reset
                   setSelectedCars([]);
@@ -427,6 +441,186 @@ export default function CreateBulkBooking() {
     } catch (err) {
       toast.error("Process failed");
     }
+  };
+
+  const generateReceipt = (booking) => {
+    const doc = new jsPDF();
+    const logoUrl = "/logo.png";
+    
+    // 1. External Border
+    doc.setDrawColor(0);
+    doc.setLineWidth(0.5);
+    doc.rect(5, 5, 200, 287); // Page Border
+
+    // 🛡️ WATERMARK (LOGO)
+    const img = new Image();
+    img.src = logoUrl;
+    doc.saveGraphicsState();
+    doc.setGState(new doc.GState({ opacity: 0.05 }));
+    doc.addImage(img, 'PNG', 45, 110, 120, 120);
+    doc.restoreGraphicsState();
+    
+    // 2. Top Header Section (PAN & TAX INVOICE)
+    doc.line(5, 15, 205, 15);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("PAN: GWKPS6928H", 10, 11);
+    doc.text("TAX INVOICE", 175, 11);
+    
+    // 3. Company Branding (Logo + Name)
+    const topLogo = new Image();
+    topLogo.src = logoUrl;
+    doc.addImage(topLogo, 'PNG', 92, 18, 25, 25); // Top Centered Logo
+    
+    doc.setFontSize(28);
+    doc.setTextColor(0, 0, 0);
+    doc.text("KWIK CABS", 105, 52, { align: "center" });
+    
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.text("Arun Bhawan Kalu Kuwan Baberu Road, Banda UP", 105, 59, { align: "center" });
+    doc.text("MOB : +91 7310221010", 105, 64, { align: "center" });
+    
+    // 4. Details Section (Receiver & Invoice Info)
+    doc.line(5, 72, 205, 72);
+    doc.line(125, 72, 125, 125); // Vertical separator
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("DETAIL OF RECEIVER / CONSIGNEE", 15, 80);
+    doc.setLineWidth(0.2);
+    doc.line(15, 81, 75, 81); // Underline
+    
+    doc.setFontSize(9);
+    doc.text("Name :", 10, 89);
+    doc.setFont("helvetica", "normal");
+    
+    // 🛡️ DATA FETCHING (Agent/Admin info)
+    let userData = {};
+    try {
+        userData = JSON.parse(localStorage.getItem('admin-data') || localStorage.getItem('user') || '{}');
+    } catch (e) {}
+
+    const userName = booking.customerName || booking.createdBy?.name || userData.name || 'Valued Customer';
+    const userPhone = booking.customerPhone || booking.createdBy?.phone || userData.phone || 'N/A';
+    const userEmail = booking.createdBy?.email || userData.email || 'N/A';
+
+    doc.text(`${userName}`, 25, 89);
+    
+    doc.setFont("helvetica", "bold");
+    doc.text("Phone :", 10, 97);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${userPhone}`, 25, 97);
+    
+    doc.setFont("helvetica", "bold");
+    doc.text("Email :", 10, 105);
+    doc.setFont("helvetica", "normal");
+    doc.text(`${userEmail}`, 25, 105);
+    
+    doc.setFont("helvetica", "bold");
+    doc.text("Pickup :", 10, 113);
+    doc.setFont("helvetica", "normal");
+    const pickupAddr = booking.pickup?.address || 'N/A';
+    doc.text(`${pickupAddr.slice(0, 55)}${pickupAddr.length > 55 ? '...' : ''}`, 25, 113);
+    
+    doc.setFont("helvetica", "bold");
+    doc.text("Drop :", 10, 121);
+    doc.setFont("helvetica", "normal");
+    const dropAddr = booking.drop?.address || 'N/A';
+    doc.text(`${dropAddr.slice(0, 55)}${dropAddr.length > 55 ? '...' : ''}`, 25, 121);
+    
+    // Invoice Info (Right side)
+    doc.setFont("helvetica", "bold");
+    doc.text(`Invoice No. : PT/${booking._id.toString().slice(-3).toUpperCase()}`, 130, 80);
+    doc.text(`Invoice Date : ${new Date().toLocaleDateString('en-GB')}`, 130, 88);
+    doc.text(`Pickup Date : ${new Date(booking.pickupDateTime).toLocaleDateString('en-GB')}`, 130, 96);
+    
+    if (booking.tripType === 'RoundTrip' && booking.returnDateTime) {
+        doc.text(`Return Date : ${new Date(booking.returnDateTime).toLocaleDateString('en-GB')}`, 130, 104);
+    } else {
+        doc.text(`Duration : ${booking.numberOfDays} Day(s)`, 130, 104);
+    }
+    doc.text(`Trip Mode : ${booking.tripType}`, 130, 112);
+    
+    // 5. Table Header
+    const tableTop = 125;
+    doc.line(5, tableTop, 205, tableTop);
+    doc.line(5, tableTop + 10, 205, tableTop + 10);
+    
+    doc.setFont("helvetica", "bold");
+    doc.text("S. NO.", 8, tableTop + 7);
+    doc.text("Description", 70, tableTop + 7, { align: "center" });
+    doc.text("Unit", 130, tableTop + 7);
+    doc.text("Qty.", 150, tableTop + 7);
+    doc.text("Rate", 170, tableTop + 7);
+    doc.text("Total", 190, tableTop + 7);
+    
+    // Vertical lines for table
+    const tableBottom = 230;
+    doc.line(18, tableTop, 18, tableBottom);
+    doc.line(125, tableTop, 125, tableBottom);
+    doc.line(145, tableTop, 145, tableBottom);
+    doc.line(165, tableTop, 165, tableBottom);
+    doc.line(185, tableTop, 185, tableBottom);
+    
+    // 6. Table Body (Dynamic Data)
+    let currentY = tableTop + 17;
+    const cars = booking.carsRequired || [];
+    cars.forEach((item, index) => {
+       doc.setFont("helvetica", "normal");
+       doc.text(`${index + 1}`, 11, currentY);
+       doc.text(`Bulk Booking - ${item.category?.name || 'Vehicle'} (${booking.tripType})`, 25, currentY);
+       doc.text("NOS", 129, currentY);
+       doc.text(`${item.quantity}`, 152, currentY);
+       
+       const totalForCategory = Math.round(booking.offeredPrice / cars.length);
+       const rate = Math.round(totalForCategory / item.quantity);
+       
+       doc.text(`${rate}`, 168, currentY);
+       doc.setFont("helvetica", "bold");
+       doc.text(`${totalForCategory}`, 188, currentY);
+       
+       doc.line(5, currentY + 3, 205, currentY + 3); 
+       currentY += 10;
+    });
+    
+    // Draw empty grid lines
+    for(let i = currentY; i < tableBottom; i += 10) {
+        doc.line(5, i, 205, i);
+    }
+    doc.line(5, tableBottom, 205, tableBottom);
+    
+    // 7. Totals Section
+    doc.setFont("helvetica", "bold");
+    const advancePaid = Math.round(booking.offeredPrice * 0.25);
+    const remainingBalance = booking.offeredPrice - advancePaid;
+
+    doc.text("TOTAL PRICE", 130, tableBottom + 7);
+    doc.text(`${booking.offeredPrice.toLocaleString()}`, 185, tableBottom + 7);
+    doc.line(80, tableBottom + 10, 205, tableBottom + 10);
+    
+    doc.text("ADVANCE PAID (25%)", 130, tableBottom + 17);
+    doc.text(`${advancePaid.toLocaleString()}`, 185, tableBottom + 17);
+    doc.line(80, tableBottom + 20, 205, tableBottom + 20);
+    
+    doc.setFillColor(230, 230, 230);
+    doc.rect(80, tableBottom + 20, 125, 10, 'F');
+    doc.text("REMAINING BALANCE", 130, tableBottom + 27);
+    doc.text(`INR ${remainingBalance.toLocaleString()}`, 185, tableBottom + 27);
+    doc.line(80, tableBottom + 30, 205, tableBottom + 30);
+    
+    // 8. Bottom Footer
+    doc.setFontSize(8);
+    doc.text(`Total Amount (in words) : RUPEES ${booking.offeredPrice.toLocaleString()} ONLY`, 10, tableBottom + 35);
+    doc.text(`Note: Balance of INR ${remainingBalance.toLocaleString()} to be paid directly to the fleet owner.`, 10, tableBottom + 40);
+    
+    doc.setFont("helvetica", "bold");
+    doc.text("For KWIK CABS", 150, tableBottom + 50);
+    doc.line(140, tableBottom + 75, 200, tableBottom + 75);
+    doc.text("Authorized Signatory", 155, tableBottom + 82);
+    
+    doc.save(`KwikCabs_Receipt_${booking._id.toString().slice(-6)}.pdf`);
+    toast.success("Receipt downloaded successfully!");
   };
 
   // Pagination calculations
@@ -598,6 +792,35 @@ export default function CreateBulkBooking() {
               <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
                 {/* Selection & Details */}
                 <div className="xl:col-span-8 space-y-6">
+
+                  {/* Customer Information */}
+                  <div className="bg-white rounded-3xl p-8 border border-gray-200">
+                    <h3 className="text-lg font-black mb-6 flex items-center gap-3">
+                      <FaUserCircle className="text-purple-600" /> Customer Information
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase">Customer Name</label>
+                        <input
+                          type="text"
+                          value={formData.customerName}
+                          onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
+                          className="w-full bg-gray-50 border-none rounded-2xl py-4 px-6 text-sm font-bold focus:ring-2 ring-blue-500"
+                          placeholder="Enter customer name"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase">Customer Phone</label>
+                        <input
+                          type="text"
+                          value={formData.customerPhone}
+                          onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
+                          className="w-full bg-gray-50 border-none rounded-2xl py-4 px-6 text-sm font-bold focus:ring-2 ring-blue-500"
+                          placeholder="Enter phone number"
+                        />
+                      </div>
+                    </div>
+                  </div>
 
                   {/* Car Fleet Selection */}
                   <div className="bg-white rounded-3xl p-8 border border-gray-200">
@@ -943,6 +1166,13 @@ export default function CreateBulkBooking() {
                           title="View Details"
                         >
                           <FaEye size={16} />
+                        </button>
+                        <button
+                          onClick={() => generateReceipt(req)}
+                          className="p-2.5 text-green-600 hover:text-green-700 rounded-lg transition-all hover:scale-110"
+                          title="Download Receipt"
+                        >
+                          <FaDownload size={16} />
                         </button>
                         {(req.status === 'Marketplace' || req.status === 'Accepted') && (
                           <button

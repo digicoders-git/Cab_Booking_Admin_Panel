@@ -48,8 +48,7 @@ export const updateAdminPermissions = async (id, data) => {
     return response.data;
 };
 
-export const deleteAdmin = async (id) => {
-    const response = await http.delete(`/api/admin/subadmin/${id}`);
+export const deleteAdmin = async (id) => {    const response = await http.delete(`/api/admin/subadmin/${id}`);
     return response.data;
 };
 
@@ -60,5 +59,15 @@ export const getBulkSettings = async () => {
 
 export const updateBulkSettings = async (data) => {
     const response = await http.put(`/api/admin/bulk-settings`, data);
+    return response.data;
+};
+
+export const updateFcmToken = async (fcmToken) => {
+    const response = await http.put(`/api/admin/update-fcm-token`, { fcmToken });
+    return response.data;
+};
+
+export const toggleDriverOnline = async (driverId, status) => {
+    const response = await http.put(`/api/admin/driver/toggle-online`, { driverId, status });
     return response.data;
 };

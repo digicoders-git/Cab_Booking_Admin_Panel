@@ -6,6 +6,7 @@ import {
   getAllDrivers, approveDriver, rejectDriver, updateDriver, toggleDriverStatus, deleteDriver, registerDriver,
   searchDriversByRadius
 } from "../apis/driver";
+import { toggleDriverOnline } from "../apis/admin";
 import { getAllCarCategories } from "../apis/carCategory";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -441,6 +442,51 @@ export default function ManageDrivers() {
     }
   };
 
+  const handleForceToggleOnline = async (id, currentStatus) => {
+    const newStatus = !currentStatus;
+    const res = await Swal.fire({
+      title: `${newStatus ? 'Online' : 'Offline'} karna chahte hain?`,
+      text: `Driver ko notification jayega ki Admin ne use ${newStatus ? 'Online' : 'Offline'} kiya hai.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: newStatus ? "#10B981" : "#EF4444",
+      confirmButtonText: `Haan, ${newStatus ? 'Online' : 'Offline'} karo!`,
+      background: themeColors.surface,
+      color: themeColors.text
+    });
+
+    if (res.isConfirmed) {
+      try {
+        setLoading(true);
+        const response = await toggleDriverOnline(id, newStatus);
+        if (response.success) {
+          // Update local state immediately for instant UI change
+          setDrivers(prev => prev.map(d => d._id === id ? { ...d, isOnline: newStatus } : d));
+          
+          Swal.fire({
+            icon: 'success',
+            title: 'Updated!',
+            text: `Driver ab ${newStatus ? 'Online' : 'Offline'} hai.`,
+            timer: 1500,
+            showConfirmButton: false,
+            background: themeColors.surface,
+            color: themeColors.text
+          });
+        }
+      } catch (err) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: err.response?.data?.message || "Failed to update status",
+          background: themeColors.surface,
+          color: themeColors.text
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
   const handleOpenEdit = (d) => {
     setIsEditing(d._id);
     setEditForm({
@@ -531,7 +577,13 @@ export default function ManageDrivers() {
       formData.append("name", editForm.name);
       formData.append("email", editForm.email);
       formData.append("phone", editForm.phone);
-      formData.append("password", editForm.password || "default@123");
+      if (isEditing === "new") {
+        formData.append("password", editForm.password || "default@123");
+      } else {
+        if (editForm.password) {
+          formData.append("password", editForm.password);
+        }
+      }
 
       // Profile fields
       if (editForm.licenseNumber) formData.append("licenseNumber", editForm.licenseNumber);
@@ -972,11 +1024,20 @@ export default function ManageDrivers() {
                         <span className="text-sm font-mono text-gray-900">{d.pincode || '—'}</span>
                       </td>
                       <td className="py-3 px-4 text-center">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                          d.isOnline ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                        }`}>
-                          {d.isOnline ? 'Online' : 'Offline'}
-                        </span>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                            d.isOnline ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                          }`}>
+                            {d.isOnline ? 'Online' : 'Offline'}
+                          </span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleForceToggleOnline(d._id, d.isOnline); }}
+                            className={`p-1 rounded-lg transition-colors ${d.isOnline ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}
+                            title={d.isOnline ? "Force Offline" : "Force Online"}
+                          >
+                            {d.isOnline ? <FaToggleOn size={20} /> : <FaToggleOff size={20} />}
+                          </button>
+                        </div>
                       </td>
                       <td className="py-3 px-4 text-center">
                         <div className="flex items-center justify-center gap-1">

@@ -5,6 +5,8 @@ import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import { useNavigate } from "react-router-dom";
 import { adminLogin } from "../apis/auth";
+import { updateFcmToken } from "../apis/admin";
+import { requestForToken } from "../firebase";
 
 import routes from "../route/SidebarRaoute";
 
@@ -38,6 +40,17 @@ const Login = () => {
       const res = await adminLogin({ email: credentials.email.trim(), password: credentials.password });
       const admin = res.admin;
       setLoginData({ ...admin, token: res.token });
+
+      // 🔔 Handle FCM Token
+      try {
+        const fcmToken = await requestForToken();
+        if (fcmToken) {
+          await updateFcmToken(fcmToken);
+          console.log("Admin FCM Token updated successfully");
+        }
+      } catch (fcmErr) {
+        console.warn("FCM Token update failed (non-critical):", fcmErr);
+      }
 
       // Dynamic Landing Page Redirection
       if (admin.role === 'SuperAdmin' || admin.permissions?.includes('DASHBOARD_READ')) {

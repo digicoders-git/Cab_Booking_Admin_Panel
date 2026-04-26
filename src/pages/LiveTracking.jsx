@@ -5,7 +5,7 @@ import { getAddressFromCoordinates } from '../apis/geocodingApi';
 import { useAuth } from '../context/AuthContext';
 import {
   FaMap, FaCar, FaPhone, FaClock, FaSyncAlt,
-  FaCheckCircle, FaCircle, FaUser, FaMapPin
+  FaCheckCircle, FaCircle, FaUser, FaMapPin, FaMapMarkerAlt
 } from 'react-icons/fa';
 import { MapPin, Phone, Clock, AlertCircle, Search, X } from 'lucide-react';
 import Swal from 'sweetalert2';
@@ -258,7 +258,7 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
       // 3. Create and append the script tag
       script = document.createElement('script');
       script.id = 'google-maps-script';
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
       script.async = true;
       script.defer = true;
       script.onload = initMap;
@@ -461,7 +461,7 @@ const TripMap = ({ driver }) => {
 
       script = document.createElement('script');
       script.id = 'google-maps-script';
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
       script.async = true;
       script.defer = true;
       script.onload = initMap;
@@ -879,8 +879,99 @@ export default function LiveTracking() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
   const [socketConnected, setSocketConnected] = useState(false);
-  const [liveUpdateCount, setLiveUpdateCount] = useState(0); // Testing Counter
+  const [liveUpdateCount, setLiveUpdateCount] = useState(0); 
+
+  const [radiusSearchMode, setRadiusSearchMode] = useState(false);
+  const [radius, setRadius] = useState(5);
+  const [searchAddress, setSearchAddress] = useState('');
+  const [searchCoords, setSearchCoords] = useState(null);
+  const [radiusLoading, setRadiusLoading] = useState(false);
+
   const socketRef = useRef(null);
+  const autocompleteRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const radiusSearchModeRef = useRef(radiusSearchMode);
+
+  // Sync ref with state
+  useEffect(() => {
+    radiusSearchModeRef.current = radiusSearchMode;
+  }, [radiusSearchMode]);
+
+  const handleRadiusSearch = useCallback(async (coords = searchCoords, r = radius) => {
+    if (!coords) return;
+
+    try {
+      setRadiusLoading(true);
+      setRadiusSearchMode(true);
+      const res = await trackingService.getDriversByRadius(coords.lat, coords.lng, r);
+      setDrivers(res.drivers || []);
+      
+      const newAddresses = {};
+      for (const d of (res.drivers || [])) {
+         if (d.currentLocation?.latitude) {
+            const addr = await getAddressFromCoordinates(d.currentLocation.latitude, d.currentLocation.longitude);
+            newAddresses[d._id] = addr;
+         }
+      }
+      setAddresses(prev => ({ ...prev, ...newAddresses }));
+
+      if (res.drivers.length === 0) {
+        // Optional: toast or silent
+      }
+    } catch (err) {
+      console.error("Radius Search Error:", err);
+    } finally {
+      setRadiusLoading(false);
+    }
+  }, [searchCoords, radius]);
+
+  const initAutocomplete = useCallback(() => {
+    if (!window.google || !window.google.maps || !window.google.maps.places || !searchInputRef.current) return;
+
+    const autocomplete = new window.google.maps.places.Autocomplete(searchInputRef.current, {
+      types: ['geocode', 'establishment'],
+      componentRestrictions: { country: 'in' }
+    });
+
+    autocomplete.addListener('place_changed', () => {
+      const place = autocomplete.getPlace();
+      if (place.geometry) {
+        const coords = {
+          lat: place.geometry.location.lat(),
+          lng: place.geometry.location.lng()
+        };
+        setSearchAddress(place.formatted_address);
+        setSearchCoords(coords);
+        handleRadiusSearch(coords, radius); // ⚡ Auto Search
+      }
+    });
+
+    autocompleteRef.current = autocomplete;
+  }, [radius, handleRadiusSearch]);
+
+  // ⚡ Auto Search when radius changes
+  useEffect(() => {
+    if (searchCoords) {
+      handleRadiusSearch(searchCoords, radius);
+    }
+  }, [radius]);
+
+  useEffect(() => {
+    const checkGoogle = setInterval(() => {
+      if (window.google && window.google.maps && window.google.maps.places) {
+        initAutocomplete();
+        clearInterval(checkGoogle);
+      }
+    }, 1000);
+    return () => clearInterval(checkGoogle);
+  }, [initAutocomplete]);
+
+  const clearRadiusSearch = () => {
+    setRadiusSearchMode(false);
+    setSearchAddress('');
+    setSearchCoords(null);
+    fetchDrivers();
+  };
 
   const fetchDrivers = async () => {
     try {
@@ -955,7 +1046,6 @@ export default function LiveTracking() {
     socket.on('driver_location_update', (data) => {
       const { driverId, latitude, longitude, heading, status } = data;
       
-      // Increment Test Counter
       setLiveUpdateCount(prev => prev + 1);
 
       setDrivers(prev => {
@@ -980,10 +1070,14 @@ export default function LiveTracking() {
             return d;
           });
         } else {
-          // NEW DRIVER SPOTTED! Add them to the list
+          // NEW DRIVER SPOTTED! 
+          // If we are in Radius Search mode, DO NOT add new drivers from socket
+          // because we don't know if they are within the radius.
+          if (radiusSearchModeRef.current) return prev;
+
           return [...prev, {
             driverId,
-            name: `Driver ${driverId.substring(0, 5)}...`, // Placeholder until full data fetch
+            name: `Driver ${driverId.substring(0, 5)}...`, 
             status: status || 'Online',
             location: { latitude, longitude, lastUpdated: new Date().toISOString() },
             heading: heading || 0,
@@ -991,13 +1085,14 @@ export default function LiveTracking() {
           }];
         }
       });
-
-      // NOTE: Removed immediate address geocoding on every second
-      // for all drivers to keep it smooth and save API costs.
     });
 
     // Full drivers list update from server
     socket.on('live_tracking_update', async (data) => {
+      // If we are in Radius Search mode, IGNORE global updates 
+      // otherwise it will overwrite our filtered radius list.
+      if (radiusSearchModeRef.current) return;
+
       if (data?.drivers) {
         setDrivers(data.drivers);
       }
@@ -1152,6 +1247,7 @@ export default function LiveTracking() {
           <StatCard label="Offline" value={stats.offline} icon={FaCircle} color="#EF4444" />
         </div>
 
+
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Map View</h2>
           {loading ? (
@@ -1166,8 +1262,65 @@ export default function LiveTracking() {
           )}
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 mb-6">
-          <div className="flex flex-col gap-4">
+        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden mb-6">
+          {/* Radius Search Section */}
+          <div className="p-5 bg-gradient-to-r from-blue-50/50 to-indigo-50/50">
+            <div className="flex flex-col md:flex-row items-end gap-4">
+              <div className="flex-1">
+                <label className="text-sm font-bold text-gray-700 mb-2 block flex items-center gap-2">
+                  <FaMapMarkerAlt className="text-blue-600" /> Search Drivers by Radius (Address)
+                </label>
+                <div className="relative">
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchAddress}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSearchAddress(val);
+                      if (val.trim() === '') {
+                        clearRadiusSearch();
+                      }
+                    }}
+                    placeholder="Enter area or address to find nearby drivers..."
+                    className="w-full pl-4 pr-10 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm bg-white"
+                  />
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                </div>
+              </div>
+              <div className="w-full md:w-32 relative">
+                <label className="text-sm font-bold text-gray-700 mb-2 block">Radius (KM)</label>
+                <input
+                  type="number"
+                  value={radius}
+                  onChange={(e) => setRadius(e.target.value)}
+                  placeholder="KM"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm bg-white"
+                />
+                {radiusLoading && (
+                  <div className="absolute right-3 top-[38px]">
+                    <FaSyncAlt className="animate-spin text-blue-600" size={14} />
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2">
+                {radiusSearchMode && (
+                  <button
+                    onClick={clearRadiusSearch}
+                    className="px-6 py-2.5 bg-red-100 text-red-600 rounded-xl hover:bg-red-200 transition-all font-bold text-sm flex items-center gap-2 border border-red-200 shadow-sm"
+                  >
+                    <X size={18} />
+                    Clear Filter
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-gray-100 mx-5"></div>
+
+          {/* Regular Filters Section */}
+          <div className="p-5">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-700 mb-2 block">Status Filter</label>
@@ -1212,20 +1365,6 @@ export default function LiveTracking() {
                     </option>
                   ))}
                 </select>
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Search</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-                <input
-                  type="text"
-                  placeholder="Search by name, phone, car number, or model..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-                />
-                {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><X size={14} /></button>}
               </div>
             </div>
           </div>
