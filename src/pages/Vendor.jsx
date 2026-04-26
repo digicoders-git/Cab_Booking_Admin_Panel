@@ -544,9 +544,15 @@ export default function VendorManagement() {
   };
 
   const handleToggleStatus = async (vendorId) => {
+    // 1. Optimistic Update (UI ko turant change kar do)
+    const originalVendors = [...vendors];
+    setVendors(prev => prev.map(v => 
+      v._id === vendorId ? { ...v, isActive: !v.isActive } : v
+    ));
+
     try {
       await toggleVendorStatus(vendorId);
-      fetchAllVendors();
+      
       Swal.fire({
         icon: "success",
         title: "Success",
@@ -558,8 +564,14 @@ export default function VendorManagement() {
         background: themeColors.surface,
         color: themeColors.text
       });
+      
+      // Update stats locally or fetch stats only
+      // fetchAllVendors(); // Optional: remove this if you want absolute speed
     } catch (error) {
       console.error("Error toggling status:", error);
+      // 2. Rollback if error occurs
+      setVendors(originalVendors);
+      
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -930,23 +942,23 @@ export default function VendorManagement() {
               <table className="w-full">
                 <thead className="bg-[#f8f9fa] dark:bg-white/5 border-b" style={{ borderColor: themeColors.border }}>
                   <tr>
-                    <th className="px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Vendor</th>
-                    <th className="px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Contact</th>
-                    <th className="px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Password</th>
-                    <th className="px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Area</th>
-                    <th className="px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Commission</th>
-                    <th className="px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Drivers</th>
-                    <th className="px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Earnings</th>
-                    <th className="px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Status</th>
-                    <th className="px-6 py-4 text-right text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Actions</th>
+                    <th className="px-4 md:px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Vendor</th>
+                    <th className="hidden lg:table-cell px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Contact</th>
+                    <th className="hidden md:table-cell px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider min-w-[120px]" style={{ color: themeColors.textSecondary }}>Password</th>
+                    <th className="hidden sm:table-cell px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider min-w-[150px]" style={{ color: themeColors.textSecondary }}>Area</th>
+                    <th className="hidden md:table-cell px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Commission</th>
+                    <th className="hidden md:table-cell px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Drivers</th>
+                    <th className="px-4 md:px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Earnings</th>
+                    <th className="px-4 md:px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider min-w-[140px]" style={{ color: themeColors.textSecondary }}>Status</th>
+                    <th className="px-4 md:px-6 py-4 text-right text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y" style={{ borderColor: themeColors.border }}>
                   {paginatedVendors.map((vendor) => (
                     <tr key={vendor._id} className="hover:bg-black/[0.02] dark:hover:bg-white/[0.02] transition-colors">
-                      <td className="px-6 py-4">
+                      <td className="px-4 md:px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl overflow-hidden bg-gradient-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center font-bold shadow-sm"
+                          <div className="w-8 h-8 md:w-10 md:h-10 rounded-xl overflow-hidden bg-gradient-to-br from-blue-500/10 to-indigo-500/10 flex items-center justify-center font-bold shadow-sm"
                             style={{ color: themeColors.primary, border: `1px solid ${themeColors.border}` }}>
                             {vendor.image ? (
                               <img 
@@ -960,24 +972,24 @@ export default function VendorManagement() {
                             )}
                           </div>
                           <div>
-                            <div className="font-semibold text-[15px]" style={{ color: themeColors.text }}>{vendor.name}</div>
-                            <div className="text-xs font-medium" style={{ color: themeColors.textSecondary }}>{vendor.companyName}</div>
+                            <div className="font-semibold text-sm md:text-[15px]" style={{ color: themeColors.text }}>{vendor.name}</div>
+                            <div className="text-[10px] md:text-xs font-medium" style={{ color: themeColors.textSecondary }}>{vendor.companyName}</div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="hidden lg:table-cell px-6 py-4">
                         <div className="text-sm font-medium" style={{ color: themeColors.text }}>{vendor.email}</div>
                         <div className="text-xs" style={{ color: themeColors.textSecondary }}>{vendor.phone}</div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="hidden md:table-cell px-6 py-4 min-w-[120px]">
                         <div className="text-sm font-medium font-mono" style={{ color: themeColors.text }}>{vendor.password}</div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="hidden sm:table-cell px-6 py-4 min-w-[150px]">
                         <span className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#3b82f615] text-[#3b82f6]">
                           {vendor.assignedArea}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="hidden md:table-cell px-6 py-4">
                         <div className="flex items-center gap-2">
                           <span className="text-lg font-extrabold" style={{ color: themeColors.primary }}>{vendor.commissionPercentage}%</span>
                           {can('VENDOR_COMMISSION') && (
@@ -990,15 +1002,15 @@ export default function VendorManagement() {
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="hidden md:table-cell px-6 py-4">
                         <div className="text-sm font-bold" style={{ color: themeColors.text }}>{vendor.totalDrivers || 0}</div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-bold text-green-600">₹{(vendor.totalEarnings || 0).toLocaleString()}</div>
+                      <td className="px-4 md:px-6 py-4">
+                        <div className="text-xs md:text-sm font-bold text-green-600">₹{(vendor.totalEarnings || 0).toLocaleString()}</div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className={`px-3 py-1 rounded-full text-xs font-bold ${vendor.isActive
+                      <td className="px-4 md:px-6 py-4 min-w-[140px]">
+                        <div className="flex items-center gap-1 md:gap-2">
+                          <span className={`px-2 md:px-3 py-1 rounded-full text-[10px] md:text-xs font-bold ${vendor.isActive
                             ? 'bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400'
                             : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
                             }`}>
@@ -1007,9 +1019,9 @@ export default function VendorManagement() {
                           {can('VENDOR_STATUS') && (
                             <button
                               onClick={() => handleToggleStatus(vendor._id)}
-                              className="p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5"
+                              className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5"
                             >
-                              {vendor.isActive ? <FaToggleOn size={22} className="text-green-500" /> : <FaToggleOff size={22} className="text-gray-400" />}
+                              {vendor.isActive ? <FaToggleOn size={20} className="text-green-500" /> : <FaToggleOff size={20} className="text-gray-400" />}
                             </button>
                           )}
                         </div>
