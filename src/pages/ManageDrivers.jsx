@@ -249,7 +249,6 @@ export default function ManageDrivers() {
   useEffect(() => {
     if (isEditing && addressRef.current && window.google) {
       const autocomplete = new window.google.maps.places.Autocomplete(addressRef.current, {
-        types: ['address'],
         componentRestrictions: { country: 'in' }
       });
 
@@ -260,10 +259,11 @@ export default function ManageDrivers() {
         const lat = place.geometry.location.lat();
         const lng = place.geometry.location.lng();
 
-        let city = '', state = '';
+        let city = '', state = '', pincode = '';
         place.address_components.forEach(comp => {
           if (comp.types.includes('locality')) city = comp.long_name;
           if (comp.types.includes('administrative_area_level_1')) state = comp.long_name;
+          if (comp.types.includes('postal_code')) pincode = comp.long_name;
         });
 
         setEditForm(prev => ({
@@ -271,6 +271,7 @@ export default function ManageDrivers() {
           address: place.formatted_address,
           city: city || prev.city,
           state: state || prev.state,
+          pincode: pincode || prev.pincode,
           addressLatitude: lat,
           addressLongitude: lng
         }));
@@ -1203,7 +1204,7 @@ export default function ManageDrivers() {
               <table className="w-full min-w-[1600px]">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    {['Driver','Contact','Vehicle','Location','Joined On','Updated','By','Creator Name','Online','Rating','Earnings','Password','Status','Actions'].map((h) => (
+                    {['Driver','Contact','Vehicle','Location','Pincode','Joined On','Updated','By','Creator Name','Online','Rating','Earnings','Password','Status','Actions'].map((h) => (
                       <th key={h} className="py-3 px-4 text-left">
                         <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
                       </th>
@@ -1224,6 +1225,7 @@ export default function ManageDrivers() {
                       <td className="py-3 px-4"><div className="space-y-1.5"><div className="h-3 bg-gray-200 rounded w-16" /><div className="h-2 bg-gray-100 rounded w-12" /></div></td>
                       <td className="py-3 px-4"><div className="h-3 bg-gray-200 rounded w-14" /></td>
                       <td className="py-3 px-4 text-center"><div className="h-6 bg-gray-100 rounded-full w-14 mx-auto" /></td>
+                      <td className="py-3 px-4 text-center"><div className="h-3 bg-gray-200 rounded w-8 mx-auto" /></td>
                       <td className="py-3 px-4 text-center"><div className="h-3 bg-gray-200 rounded w-8 mx-auto" /></td>
                       <td className="py-3 px-4 text-center"><div className="h-3 bg-gray-200 rounded w-8 mx-auto" /></td>
                       <td className="py-3 px-4 text-center"><div className="h-3 bg-gray-200 rounded w-8 mx-auto" /></td>
@@ -1250,6 +1252,7 @@ export default function ManageDrivers() {
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Contact</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[200px]">Vehicle</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[400px]">Location</th>
+                  <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Pincode</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[150px]">Joined On</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[150px]">Last Updated</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[120px]">Created By</th>
@@ -1265,7 +1268,7 @@ export default function ManageDrivers() {
               <tbody className="divide-y divide-gray-200">
                 {paginatedData.length === 0 ? (
                   <tr>
-                    <td colSpan={14} className="py-20 text-center">
+                    <td colSpan={15} className="py-20 text-center">
                       <div className="flex flex-col items-center justify-center text-gray-400">
                         <p className="text-lg font-medium">Koi Driver nahi mila bhai!</p>
                         <p className="text-sm">Range badha kar ya dusra address try karein.</p>
@@ -1332,6 +1335,11 @@ export default function ManageDrivers() {
                           )}
                         </div>
                       </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className="text-sm font-medium text-gray-900 bg-gray-50 px-2 py-1 rounded border border-gray-100">
+                          {d.pincode || '—'}
+                        </span>
+                      </td>
                       <td className="py-3 px-4 min-w-[150px]">
                         <p className="text-sm font-medium text-gray-900">
                           {d.createdAt ? new Date(d.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
@@ -1349,10 +1357,11 @@ export default function ManageDrivers() {
                         </p>
                       </td>
                       <td className="py-3 px-4 min-w-[120px]">
-                        <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-tighter ${
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-tighter mt-1 ${
                           d.createdByModel === 'Admin' ? 'bg-purple-100 text-purple-700' :
                           d.createdByModel === 'Fleet' ? 'bg-blue-100 text-blue-700' :
-                          'bg-gray-50 text-gray-600 border border-gray-100'
+                          d.createdByModel === 'Vendor' ? 'bg-orange-100 text-orange-700' :
+                          'bg-gray-100 text-gray-600'
                         }`}>
                           {d.createdByModel || 'Self'}
                         </span>
@@ -1464,7 +1473,7 @@ export default function ManageDrivers() {
                     </tr>
                     {expandedRows[d._id] && (
                       <tr className="bg-gray-50">
-                        <td colSpan="14" className="p-4">
+                        <td colSpan="15" className="p-4">
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {/* Personal Details */}
                             <div className="bg-white p-4 rounded-lg border border-gray-200">
