@@ -340,40 +340,27 @@ export default function ManageSubAdmins() {
             </div>
 
             {/* Statistics Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <StatCard 
-                    icon={Shield} 
-                    title="Total Staff" 
-                    value={staffStats.total} 
-                    trend="Total" 
-                    bgColor="bg-blue-50" 
-                    iconColor="text-blue-600" 
-                />
-                <StatCard 
-                    icon={CheckCircle2} 
-                    title="Active Sessions" 
-                    value={staffStats.active} 
-                    trend="Alive" 
-                    bgColor="bg-emerald-50" 
-                    iconColor="text-emerald-600" 
-                />
-                <StatCard 
-                    icon={Users} 
-                    title="Sub-Admins" 
-                    value={staffStats.subAdmins} 
-                    trend="Managed" 
-                    bgColor="bg-indigo-50" 
-                    iconColor="text-indigo-600" 
-                />
-                <StatCard 
-                    icon={UserX} 
-                    title="Suspended" 
-                    value={staffStats.suspended} 
-                    trend="Paused" 
-                    bgColor="bg-rose-50" 
-                    iconColor="text-rose-600" 
-                />
-            </div>
+            {fetching ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    {[...Array(4)].map((_, i) => (
+                        <div key={i} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 animate-pulse">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="w-12 h-12 rounded-xl bg-gray-200" />
+                                <div className="w-12 h-5 rounded-full bg-gray-200" />
+                            </div>
+                            <div className="h-7 bg-gray-300 rounded w-16 mb-2" />
+                            <div className="h-2 bg-gray-200 rounded w-24" />
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <StatCard icon={Shield} title="Total Staff" value={staffStats.total} trend="Total" bgColor="bg-blue-50" iconColor="text-blue-600" />
+                    <StatCard icon={CheckCircle2} title="Active Sessions" value={staffStats.active} trend="Alive" bgColor="bg-emerald-50" iconColor="text-emerald-600" />
+                    <StatCard icon={Users} title="Sub-Admins" value={staffStats.subAdmins} trend="Managed" bgColor="bg-indigo-50" iconColor="text-indigo-600" />
+                    <StatCard icon={UserX} title="Suspended" value={staffStats.suspended} trend="Paused" bgColor="bg-rose-50" iconColor="text-rose-600" />
+                </div>
+            )}
 
             {/* List Section */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -454,14 +441,41 @@ export default function ManageSubAdmins() {
                         </thead>
                         <tbody className="divide-y divide-gray-100">
                             {fetching ? (
-                                <tr>
-                                    <td colSpan="5" className="px-6 py-20 text-center">
-                                        <div className="flex flex-col items-center">
-                                            <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-3"></div>
-                                            <p className="text-sm text-gray-500">Loading staff accounts...</p>
-                                        </div>
-                                    </td>
-                                </tr>
+                                [...Array(6)].map((_, i) => (
+                                    <tr key={i} className="animate-pulse border-b border-gray-100">
+                                        {/* Staff Member */}
+                                        <td className="py-4 px-6">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-xl bg-gray-200" />
+                                                <div className="space-y-1.5">
+                                                    <div className="h-3 bg-gray-200 rounded w-28" />
+                                                    <div className="h-2 bg-gray-100 rounded w-36" />
+                                                </div>
+                                            </div>
+                                        </td>
+                                        {/* Role */}
+                                        <td className="py-4 px-6">
+                                            <div className="h-6 bg-gray-100 rounded-lg w-20" />
+                                        </td>
+                                        {/* Status */}
+                                        <td className="py-4 px-6">
+                                            <div className="h-6 bg-gray-100 rounded-full w-16" />
+                                        </td>
+                                        {/* Password */}
+                                        <td className="py-4 px-6">
+                                            <div className="h-6 bg-gray-100 rounded w-24" />
+                                        </td>
+                                        {/* Actions */}
+                                        <td className="py-4 px-6">
+                                            <div className="flex items-center justify-center gap-1">
+                                                <div className="w-8 h-8 bg-gray-100 rounded-lg" />
+                                                <div className="w-8 h-8 bg-gray-100 rounded-lg" />
+                                                <div className="w-8 h-8 bg-gray-100 rounded-lg" />
+                                                <div className="w-8 h-8 bg-gray-100 rounded-lg" />
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
                             ) : admins.length === 0 ? (
                                 <tr>
                                     <td colSpan="5" className="px-6 py-20 text-center text-gray-500">

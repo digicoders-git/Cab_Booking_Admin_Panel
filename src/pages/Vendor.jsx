@@ -855,40 +855,28 @@ export default function VendorManagement() {
       {/* Main Content */}
       <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard
-            icon={FaBuilding}
-            label="Total Vendors"
-            value={stats.total}
-            color="#3b82f6"
-            trend={8}
-            themeColors={themeColors}
-          />
-          <StatCard
-            icon={FaCheckCircle}
-            label="Active Vendors"
-            value={stats.active}
-            color="#10b981"
-            trend={5}
-            themeColors={themeColors}
-          />
-          <StatCard
-            icon={FaUsers}
-            label="Total Drivers"
-            value={stats.totalDrivers}
-            color="#8b5cf6"
-            trend={12}
-            themeColors={themeColors}
-          />
-          <StatCard
-            icon={FaMoneyBillWave}
-            label="Total Commission"
-            value={`₹${stats.totalCommission.toLocaleString()}`}
-            color="#f59e0b"
-            trend={15}
-            themeColors={themeColors}
-          />
-        </div>
+        {loading && vendors.length === 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="rounded-2xl p-6 shadow-lg border animate-pulse"
+                style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-gray-200" />
+                  <div className="w-10 h-5 rounded-full bg-gray-200" />
+                </div>
+                <div className="h-7 bg-gray-300 rounded w-20 mb-2" />
+                <div className="h-3 bg-gray-200 rounded w-28" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <StatCard icon={FaBuilding} label="Total Vendors" value={stats.total} color="#3b82f6" trend={8} themeColors={themeColors} />
+            <StatCard icon={FaCheckCircle} label="Active Vendors" value={stats.active} color="#10b981" trend={5} themeColors={themeColors} />
+            <StatCard icon={FaUsers} label="Total Drivers" value={stats.totalDrivers} color="#8b5cf6" trend={12} themeColors={themeColors} />
+            <StatCard icon={FaMoneyBillWave} label="Total Commission" value={`₹${stats.totalCommission.toLocaleString()}`} color="#f59e0b" trend={15} themeColors={themeColors} />
+          </div>
+        )}
 
 
         {/* Vendors Table Container moved UP */}
@@ -927,9 +915,40 @@ export default function VendorManagement() {
 
           <div className="overflow-x-auto">
             {loading && vendors.length === 0 ? (
-              <div className="flex items-center justify-center py-20">
-                <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin"></div>
-              </div>
+              <table className="w-full">
+                <thead className="border-b" style={{ borderColor: themeColors.border }}>
+                  <tr>
+                    {['Vendor','Contact','Password','Area','Commission','Drivers','Earnings','Status','Actions'].map((h) => (
+                      <th key={h} className="px-6 py-4 text-left">
+                        <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y" style={{ borderColor: themeColors.border }}>
+                  {[...Array(6)].map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-gray-200" />
+                          <div className="space-y-1.5">
+                            <div className="h-3 bg-gray-200 rounded w-24" />
+                            <div className="h-2 bg-gray-100 rounded w-16" />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4"><div className="space-y-1.5"><div className="h-3 bg-gray-200 rounded w-28" /><div className="h-2 bg-gray-100 rounded w-20" /></div></td>
+                      <td className="px-6 py-4"><div className="h-6 bg-gray-100 rounded w-16" /></td>
+                      <td className="px-6 py-4"><div className="h-6 bg-gray-100 rounded-lg w-20" /></td>
+                      <td className="px-6 py-4"><div className="h-5 bg-gray-200 rounded w-10" /></td>
+                      <td className="px-6 py-4"><div className="h-3 bg-gray-200 rounded w-8" /></td>
+                      <td className="px-6 py-4"><div className="h-3 bg-gray-200 rounded w-16" /></td>
+                      <td className="px-6 py-4"><div className="h-6 bg-gray-100 rounded-full w-16" /></td>
+                      <td className="px-6 py-4"><div className="flex justify-end gap-2"><div className="w-8 h-8 bg-gray-100 rounded-xl" /><div className="w-8 h-8 bg-gray-100 rounded-xl" /><div className="w-8 h-8 bg-gray-100 rounded-xl" /></div></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             ) : filteredVendors.length === 0 ? (
               <div className="p-12 text-center">
                 <div className="w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center bg-black/5 dark:bg-white/5 text-gray-400">
@@ -1105,28 +1124,33 @@ export default function VendorManagement() {
         </div>
 
 
-        {/* Analytics Charts - Moved DOWN */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Chart 1: Area Distribution */}
-          <div className="p-6 rounded-2xl shadow-sm border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
-            <HighchartsReact highcharts={Highcharts} options={chartOptions.areaDistribution} />
+        {/* Analytics Charts */}
+        {loading && vendors.length === 0 ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="p-6 rounded-2xl shadow-sm border animate-pulse"
+                style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+                <div className="h-4 bg-gray-200 rounded w-40 mb-6" />
+                <div className="h-[300px] bg-gray-100 rounded-lg" />
+              </div>
+            ))}
           </div>
-
-          {/* Chart 2: Status Distribution */}
-          <div className="p-6 rounded-2xl shadow-sm border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
-            <HighchartsReact highcharts={Highcharts} options={chartOptions.statusSplit} />
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="p-6 rounded-2xl shadow-sm border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+              <HighchartsReact highcharts={Highcharts} options={chartOptions.areaDistribution} />
+            </div>
+            <div className="p-6 rounded-2xl shadow-sm border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+              <HighchartsReact highcharts={Highcharts} options={chartOptions.statusSplit} />
+            </div>
+            <div className="p-6 rounded-2xl shadow-sm border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+              <HighchartsReact highcharts={Highcharts} options={chartOptions.revenueTrend} />
+            </div>
+            <div className="p-6 rounded-2xl shadow-sm border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+              <HighchartsReact highcharts={Highcharts} options={chartOptions.areaRevenue} />
+            </div>
           </div>
-
-          {/* Chart 3: Revenue Growth */}
-          <div className="p-6 rounded-2xl shadow-sm border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
-            <HighchartsReact highcharts={Highcharts} options={chartOptions.revenueTrend} />
-          </div>
-
-          {/* Chart 4: Location Revenue */}
-          <div className="p-6 rounded-2xl shadow-sm border" style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
-            <HighchartsReact highcharts={Highcharts} options={chartOptions.areaRevenue} />
-          </div>
-        </div>
+        )}
       </div>
 
       <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} title="Register New Vendor" themeColors={themeColors} size="xl" headerGradient="bg-gradient-to-r from-blue-600 to-purple-600">

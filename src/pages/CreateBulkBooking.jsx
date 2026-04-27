@@ -671,7 +671,21 @@ export default function CreateBulkBooking() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="rounded-2xl p-6 shadow-lg bg-white border border-gray-200 animate-pulse">
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 rounded-xl bg-gray-200" />
+                <div className="w-12 h-5 rounded-full bg-gray-200" />
+              </div>
+              <div className="h-7 bg-gray-300 rounded w-12 mb-2" />
+              <div className="h-3 bg-gray-200 rounded w-24" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
         <div className="group relative overflow-hidden rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all bg-white border border-gray-200">
           <div className="absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-5 transition-opacity duration-300" style={{ background: 'linear-gradient(135deg, #3b82f6 0%, transparent 100%)' }} />
           <div className="relative">
@@ -767,7 +781,8 @@ export default function CreateBulkBooking() {
             <p className="text-sm font-medium text-gray-500">Cancelled</p>
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Booking Creation Modal */}
       {showBookingModal && (
@@ -1076,7 +1091,38 @@ export default function CreateBulkBooking() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
-              {currentRequests.length === 0 ? (
+              {fetchingRequests ? (
+                [...Array(5)].map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-4 py-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-green-200" /><div className="h-3 bg-gray-200 rounded w-40" /></div>
+                        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-full bg-red-200" /><div className="h-3 bg-gray-200 rounded w-36" /></div>
+                        <div className="h-2 bg-gray-100 rounded w-48" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex gap-1.5">
+                        <div className="h-6 bg-blue-50 border border-blue-100 rounded w-20" />
+                        <div className="h-6 bg-blue-50 border border-blue-100 rounded w-16" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="h-5 bg-gray-200 rounded w-16 mb-1" />
+                      <div className="h-2 bg-gray-100 rounded w-12" />
+                    </td>
+                    <td className="px-4 py-4"><div className="h-7 bg-gray-100 rounded-lg w-16" /></td>
+                    <td className="px-4 py-4"><div className="h-6 bg-gray-100 rounded-full w-20" /></td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center justify-center gap-1">
+                        <div className="w-8 h-8 bg-gray-100 rounded-lg" />
+                        <div className="w-8 h-8 bg-gray-100 rounded-lg" />
+                        <div className="w-8 h-8 bg-gray-100 rounded-lg" />
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : currentRequests.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="py-16 text-center">
                     <div className="flex flex-col items-center gap-3">

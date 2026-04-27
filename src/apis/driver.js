@@ -49,3 +49,8 @@ export const searchDriversByRadius = async (lat, lng, radius) => {
   const res = await http.get(`/api/admin/radius-search?lat=${lat}&lng=${lng}&radius=${radius}`);
   return res.data;
 };
+
+export const searchDriversByHomeRadius = async (lat, lng, radius) => {
+  const res = await http.get(`/api/admin/home-radius-search?lat=${lat}&lng=${lng}&radius=${radius}`);
+  return res.data;
+};

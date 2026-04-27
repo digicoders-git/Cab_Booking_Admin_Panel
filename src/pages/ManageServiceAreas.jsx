@@ -27,17 +27,21 @@ const ManageServiceAreas = () => {
   });
 
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const searchRef = useRef(null);
 
   // --- 1. DATA FETCHING ---
   const fetchData = async () => {
     try {
+      setFetching(true);
       const res = await getAllServiceAreas();
       if (res.success) {
         setData(res.areas || []);
       }
     } catch (err) {
       console.error("Fetch Error:", err);
+    } finally {
+      setFetching(false);
     }
   };
 
@@ -273,44 +277,58 @@ const ManageServiceAreas = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all group">
-          <div className="flex items-start justify-between mb-4">
-            <div className="p-3 rounded-xl bg-blue-50 group-hover:scale-110 transition-transform">
-              <Globe className="text-blue-600" size={24} />
+      {fetching ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 animate-pulse">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-12 h-12 rounded-xl bg-gray-200" />
+              </div>
+              <div className="h-7 bg-gray-300 rounded w-12 mb-2" />
+              <div className="h-3 bg-gray-200 rounded w-24" />
             </div>
-          </div>
-          <p className="text-2xl font-bold text-gray-900 mb-1">{data.length}</p>
-          <p className="text-sm text-gray-500">Total Cities</p>
+          ))}
         </div>
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all group">
-          <div className="flex items-start justify-between mb-4">
-            <div className="p-3 rounded-xl bg-green-50 group-hover:scale-110 transition-transform">
-              <Shield className="text-green-600" size={24} />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all group">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-3 rounded-xl bg-blue-50 group-hover:scale-110 transition-transform">
+                <Globe className="text-blue-600" size={24} />
+              </div>
             </div>
+            <p className="text-2xl font-bold text-gray-900 mb-1">{data.length}</p>
+            <p className="text-sm text-gray-500">Total Cities</p>
           </div>
-          <p className="text-2xl font-bold text-gray-900 mb-1">{data.filter(i => i.isActive).length}</p>
-          <p className="text-sm text-gray-500">Active Cities</p>
-        </div>
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all group">
-          <div className="flex items-start justify-between mb-4">
-            <div className="p-3 rounded-xl bg-orange-50 group-hover:scale-110 transition-transform">
-              <Zap className="text-orange-600" size={24} />
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all group">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-3 rounded-xl bg-green-50 group-hover:scale-110 transition-transform">
+                <Shield className="text-green-600" size={24} />
+              </div>
             </div>
+            <p className="text-2xl font-bold text-gray-900 mb-1">{data.filter(i => i.isActive).length}</p>
+            <p className="text-sm text-gray-500">Active Cities</p>
           </div>
-          <p className="text-2xl font-bold text-gray-900 mb-1">{data.filter(i => !i.isActive).length}</p>
-          <p className="text-sm text-gray-500">Inactive Cities</p>
-        </div>
-        <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all group">
-          <div className="flex items-start justify-between mb-4">
-            <div className="p-3 rounded-xl bg-indigo-50 group-hover:scale-110 transition-transform">
-              <Navigation className="text-indigo-600" size={24} />
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all group">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-3 rounded-xl bg-orange-50 group-hover:scale-110 transition-transform">
+                <Zap className="text-orange-600" size={24} />
+              </div>
             </div>
+            <p className="text-2xl font-bold text-gray-900 mb-1">{data.filter(i => !i.isActive).length}</p>
+            <p className="text-sm text-gray-500">Inactive Cities</p>
           </div>
-          <p className="text-2xl font-bold text-gray-900 mb-1">LIVE</p>
-          <p className="text-sm text-gray-500">System Status</p>
+          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-lg transition-all group">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-3 rounded-xl bg-indigo-50 group-hover:scale-110 transition-transform">
+                <Navigation className="text-indigo-600" size={24} />
+              </div>
+            </div>
+            <p className="text-2xl font-bold text-gray-900 mb-1">LIVE</p>
+            <p className="text-sm text-gray-500">System Status</p>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Table Container */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -350,7 +368,31 @@ const ManageServiceAreas = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredData.length === 0 ? (
+              {fetching ? (
+                [...Array(5)].map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-6 py-4">
+                      <div className="h-4 bg-gray-200 rounded w-28 mb-1" />
+                      <div className="h-2 bg-gray-100 rounded w-20" />
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="h-6 bg-gray-100 rounded-full w-14 mx-auto" />
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="h-3 bg-gray-200 rounded w-32 mx-auto" />
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <div className="h-6 bg-gray-100 rounded-full w-16 mx-auto" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-8 h-8 bg-gray-100 rounded-lg" />
+                        <div className="w-8 h-8 bg-gray-100 rounded-lg" />
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : filteredData.length === 0 ? (
                 <tr>
                   <td colSpan="5" className="px-6 py-16 text-center">
                     <Globe size={40} className="mx-auto text-gray-300 mb-3" />

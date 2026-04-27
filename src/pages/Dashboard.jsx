@@ -27,7 +27,7 @@ const AdminDashboard = () => {
    const { admin } = useAuth();
    const navigate = useNavigate();
    const [dashboardData, setDashboardData] = useState(null);
-   const [loading, setLoading] = useState(false);
+   const [loading, setLoading] = useState(true);
 
    useEffect(() => {
       // PERMISSION CHECK: If not SuperAdmin and no DASHBOARD_READ permission
@@ -93,12 +93,65 @@ const AdminDashboard = () => {
       return () => clearInterval(interval);
    }, []);
 
+   const SkeletonCard = () => (
+      <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 border-gray-200 min-h-[140px] flex flex-col justify-center animate-pulse">
+         <div className="flex items-center justify-between">
+            <div className="space-y-2">
+               <div className="h-3 bg-gray-200 rounded w-24"></div>
+               <div className="h-7 bg-gray-300 rounded w-16"></div>
+            </div>
+            <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
+         </div>
+         <div className="mt-3 h-2 bg-gray-200 rounded w-32"></div>
+      </div>
+   );
+
+   const SkeletonChartCard = ({ height = 300 }) => (
+      <div className="bg-white rounded-xl shadow-sm p-6 animate-pulse">
+         <div className="flex items-center justify-between mb-4">
+            <div className="space-y-2">
+               <div className="h-4 bg-gray-200 rounded w-32"></div>
+               <div className="h-3 bg-gray-200 rounded w-24"></div>
+            </div>
+            <div className="w-5 h-5 bg-gray-200 rounded"></div>
+         </div>
+         <div className="bg-gray-100 rounded-lg" style={{ height }}></div>
+      </div>
+   );
+
    if (loading) {
       return (
-         <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-               <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
-               <p className="mt-4 text-gray-500 text-sm">Loading Dashboard...</p>
+         <div className="min-h-screen bg-gray-100 p-6">
+            {[...Array(9)].map((_, rowIdx) => (
+               <div key={rowIdx} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                  {[...Array(5)].map((_, i) => <SkeletonCard key={i} />)}
+               </div>
+            ))}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+               <SkeletonChartCard height={250} />
+               <SkeletonChartCard height={250} />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+               <SkeletonChartCard height={300} />
+               <SkeletonChartCard height={300} />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+               <SkeletonChartCard height={200} />
+               <SkeletonChartCard height={200} />
+               <SkeletonChartCard height={200} />
+            </div>
+            {/* Recent Bookings Table Skeleton */}
+            <div className="bg-white rounded-xl shadow-sm p-6 mb-6 animate-pulse">
+               <div className="h-4 bg-gray-200 rounded w-40 mb-4"></div>
+               <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                     <div key={i} className="flex gap-4">
+                        {[...Array(10)].map((_, j) => (
+                           <div key={j} className="h-3 bg-gray-200 rounded flex-1"></div>
+                        ))}
+                     </div>
+                  ))}
+               </div>
             </div>
          </div>
       );
@@ -246,16 +299,7 @@ const AdminDashboard = () => {
       return { hour, count };
    });
 
-   if (!admin || loading) {
-      return (
-         <div className="flex items-center justify-center h-screen bg-gray-50">
-            <div className="text-center">
-               <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto"></div>
-               <p className="mt-4 text-gray-500 text-sm">Validating Access...</p>
-            </div>
-         </div>
-      );
-   }
+   if (!admin) return null;
 
    // If not SuperAdmin and no permission, show loader while redirecting (to prevent flicker)
    if (admin.role !== 'SuperAdmin' && !admin.permissions?.includes('DASHBOARD_READ')) {

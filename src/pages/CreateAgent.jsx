@@ -481,13 +481,29 @@ export default function CreateAgent() {
       {/* Main Content */}
       <div className="px-4 sm:px-8 py-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
-          <StatCard icon={UserCheck} label="Total Agents" value={stats.total} color="blue" trend={12} subtitle="All registered agents" />
-          <StatCard icon={Users} label="Active Agents" value={stats.active} color="green" trend={8} subtitle={`${((stats.active / stats.total) * 100).toFixed(1)}% active rate`} />
-          <StatCard icon={DollarSign} label="Total Earnings" value={`₹${(stats.totalEarnings / 1000).toFixed(1)}K`} color="orange" trend={25} subtitle="Lifetime revenue" />
-          <StatCard icon={Wallet} label="Wallet Balance" value={`₹${(stats.totalWallet / 1000).toFixed(1)}K`} color="purple" trend={-5} subtitle="Available balance" />
-          <StatCard icon={Briefcase} label="Total Bookings" value={stats.totalBookings} color="pink" trend={15} subtitle="All time bookings" />
-        </div>
+        {fetching ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 animate-pulse">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-12 h-12 bg-gray-200 rounded-xl" />
+                  <div className="w-10 h-5 bg-gray-200 rounded-full" />
+                </div>
+                <div className="h-7 bg-gray-300 rounded w-16 mb-2" />
+                <div className="h-3 bg-gray-200 rounded w-24 mb-1" />
+                <div className="h-2 bg-gray-100 rounded w-20" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
+            <StatCard icon={UserCheck} label="Total Agents" value={stats.total} color="blue" trend={12} subtitle="All registered agents" />
+            <StatCard icon={Users} label="Active Agents" value={stats.active} color="green" trend={8} subtitle={`${((stats.active / stats.total) * 100).toFixed(1)}% active rate`} />
+            <StatCard icon={DollarSign} label="Total Earnings" value={`₹${(stats.totalEarnings / 1000).toFixed(1)}K`} color="orange" trend={25} subtitle="Lifetime revenue" />
+            <StatCard icon={Wallet} label="Wallet Balance" value={`₹${(stats.totalWallet / 1000).toFixed(1)}K`} color="purple" trend={-5} subtitle="Available balance" />
+            <StatCard icon={Briefcase} label="Total Bookings" value={stats.totalBookings} color="pink" trend={15} subtitle="All time bookings" />
+          </div>
+        )}
         <div className="bg-white mb-15 rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <div>
@@ -500,9 +516,41 @@ export default function CreateAgent() {
           </div>
 
           {fetching ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-              <p className="mt-4 text-sm text-gray-500">Loading agent data...</p>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    {['Agent','Contact','Password','Location','Bookings','Earnings','Commission','Status','Actions'].map((h) => (
+                      <th key={h} className="py-4 px-6 text-left">
+                        <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {[...Array(6)].map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-gray-200 rounded-lg" />
+                          <div className="space-y-1.5">
+                            <div className="h-3 bg-gray-200 rounded w-24" />
+                            <div className="h-2 bg-gray-100 rounded w-32" />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6"><div className="space-y-1.5"><div className="h-3 bg-gray-200 rounded w-20" /><div className="h-2 bg-gray-100 rounded w-28" /></div></td>
+                      <td className="py-4 px-6"><div className="h-6 bg-gray-100 rounded w-16" /></td>
+                      <td className="py-4 px-6"><div className="space-y-1.5"><div className="h-3 bg-gray-200 rounded w-16" /><div className="h-2 bg-gray-100 rounded w-12" /></div></td>
+                      <td className="py-4 px-6 text-center"><div className="h-6 bg-gray-100 rounded-full w-10 mx-auto" /></td>
+                      <td className="py-4 px-6 text-right"><div className="h-3 bg-gray-200 rounded w-16 ml-auto" /></td>
+                      <td className="py-4 px-6 text-center"><div className="h-6 bg-gray-100 rounded-full w-12 mx-auto" /></td>
+                      <td className="py-4 px-6 text-center"><div className="h-6 bg-gray-100 rounded-full w-14 mx-auto" /></td>
+                      <td className="py-4 px-6"><div className="flex items-center justify-center gap-2"><div className="w-7 h-7 bg-gray-100 rounded-lg" /><div className="w-7 h-7 bg-gray-100 rounded-lg" /><div className="w-7 h-7 bg-gray-100 rounded-lg" /></div></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : filteredAgents.length === 0 ? (
             <div className="py-20 text-center">
@@ -740,23 +788,38 @@ export default function CreateAgent() {
 
 
         {/* Chart Selector */}
-        <div className="mb-6 flex flex-wrap gap-2">
-          {['all', 'distribution', 'performance', 'earnings', 'commission', 'growth'].map((type) => (
-            <button
-              key={type}
-              onClick={() => setSelectedChart(type)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedChart === type
-                ? 'bg-blue-600 text-white shadow-lg'
-                : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-                }`}
-            >
-              {type.charAt(0).toUpperCase() + type.slice(1)} Charts
-            </button>
-          ))}
-        </div>
+        {!fetching && (
+          <div className="mb-6 flex flex-wrap gap-2">
+            {['all', 'distribution', 'performance', 'earnings', 'commission', 'growth'].map((type) => (
+              <button
+                key={type}
+                onClick={() => setSelectedChart(type)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${selectedChart === type
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                  }`}
+              >
+                {type.charAt(0).toUpperCase() + type.slice(1)} Charts
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Charts Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {fetching ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-pulse">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="space-y-2"><div className="h-4 bg-gray-200 rounded w-36" /><div className="h-3 bg-gray-100 rounded w-24" /></div>
+                  <div className="w-9 h-9 bg-gray-200 rounded-lg" />
+                </div>
+                <div className="h-[300px] bg-gray-100 rounded-lg" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Chart 1: Agent Status Distribution */}
           {(selectedChart === 'all' || selectedChart === 'distribution') && (
             <ChartCard title="Agent Status Distribution" subtitle="Active vs Inactive agents" icon={PieChartIcon}>
@@ -943,6 +1006,8 @@ export default function CreateAgent() {
             </ChartCard>
           )}
         </div>
+
+        )}
 
         {/* Agent Table - Only Important Columns */}
 

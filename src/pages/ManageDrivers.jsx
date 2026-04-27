@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useFont } from "../context/FontContext";
 import {
   getAllDrivers, approveDriver, rejectDriver, updateDriver, toggleDriverStatus, deleteDriver, registerDriver,
-  searchDriversByRadius
+  searchDriversByRadius, searchDriversByHomeRadius
 } from "../apis/driver";
 import { toggleDriverOnline } from "../apis/admin";
 import { getAllCarCategories } from "../apis/carCategory";
@@ -22,7 +22,7 @@ import {
   FaToggleOn, FaToggleOff, FaSearch, FaCar, FaCheckCircle,
   FaTimesCircle, FaUserCircle, FaIdCard, FaBuilding, FaPhoneAlt, FaEnvelope,
   FaMoneyBillWave, FaRoute, FaUsers, FaCouch, FaCircle, FaCalendarAlt, FaChevronLeft, FaChevronRight, FaStar, FaTrash,
-  FaBan, FaMapMarkerAlt, FaLandmark, FaPalette, FaHistory, FaGlobe, FaClock, FaFileInvoice,
+  FaBan, FaMapMarkerAlt, FaLandmark, FaPalette, FaHistory, FaGlobe, FaClock, FaFileInvoice, FaHome,
   FaChartPie, FaChartBar, FaChartLine, FaChartArea, FaDownload, FaFilter, FaPrint, FaFilePdf, FaFileExcel,
   FaGasPump, FaCogs, FaChair, FaPallet, FaWrench, FaShieldAlt, FaCreditCard
 } from "react-icons/fa";
@@ -67,7 +67,8 @@ const initialForm = {
   insuranceExpiry: "", permitExpiry: "", pucExpiry: "",
   lastServiceDate: "", nextServiceDate: "", debtLimit: -500,
   accountNumber: "", ifscCode: "", accountHolderName: "", bankName: "",
-  rejectionReason: ""
+  rejectionReason: "",
+  addressLatitude: null, addressLongitude: null
 };
 
 // --- Strategic Visual Components ---
@@ -214,9 +215,24 @@ export default function ManageDrivers() {
     address: "",
     lat: null,
     lng: null,
-    radius: 10, // Default 10km
+    radius: 10,
     results: []
   });
+  const [homeRadiusSearch, setHomeRadiusSearch] = useState({
+    active: false,
+    address: "",
+    lat: null,
+    lng: null,
+    radius: 10,
+    results: []
+  });
+  const addressRef = useRef(null);
+  const liveSearchRef = useRef(null);
+  const homeSearchRef = useRef(null);
+  const mapInstanceRef = useRef(null);
+  const markersRef = useRef([]);
+  const [showMap, setShowMap] = useState(true);
+  const [isAddressSelected, setIsAddressSelected] = useState(false);
 
   const textColorSecondary = useMemo(() => {
     return themeColors.textSecondary || "rgba(107, 114, 128, 1)";
@@ -228,18 +244,45 @@ export default function ManageDrivers() {
 
   useEffect(() => {
     fetchInitialData();
-    
-    // Load Google Maps script for Autocomplete
-    if (!window.google && !document.getElementById("google-maps-script")) {
-      const script = document.createElement("script");
-      script.id = "google-maps-script";
-      const key = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
-      script.async = true;
-      script.defer = true;
-      document.head.appendChild(script);
-    }
   }, []);
+
+  useEffect(() => {
+    if (isEditing && addressRef.current && window.google) {
+      const autocomplete = new window.google.maps.places.Autocomplete(addressRef.current, {
+        types: ['address'],
+        componentRestrictions: { country: 'in' }
+      });
+
+      autocomplete.addListener('place_changed', () => {
+        const place = autocomplete.getPlace();
+        if (!place.geometry) return;
+
+        const lat = place.geometry.location.lat();
+        const lng = place.geometry.location.lng();
+
+        let city = '', state = '';
+        place.address_components.forEach(comp => {
+          if (comp.types.includes('locality')) city = comp.long_name;
+          if (comp.types.includes('administrative_area_level_1')) state = comp.long_name;
+        });
+
+        setEditForm(prev => ({
+          ...prev,
+          address: place.formatted_address,
+          city: city || prev.city,
+          state: state || prev.state,
+          addressLatitude: lat,
+          addressLongitude: lng
+        }));
+        setIsAddressSelected(true);
+      });
+    }
+    if (isEditing && isEditing !== "new") {
+      setIsAddressSelected(true);
+    } else {
+      setIsAddressSelected(false);
+    }
+  }, [isEditing]);
 
   const fetchInitialData = async () => {
     try {
@@ -279,6 +322,41 @@ export default function ManageDrivers() {
     avgRating: (drivers.reduce((sum, d) => sum + (d.rating || 0), 0) / (drivers.length || 1)).toFixed(1)
   }), [drivers]);
 
+  // Dynamic Statistics for Tabs (Based on Search Radius AND Text Search)
+  const baseList = useMemo(() => {
+    if (radiusSearch.active) return radiusSearch.results;
+    if (homeRadiusSearch.active) return homeRadiusSearch.results;
+    return drivers;
+  }, [drivers, radiusSearch.active, radiusSearch.results, homeRadiusSearch.active, homeRadiusSearch.results]);
+
+  // Apply Text Search to baseList for dynamic stats
+  const textFilteredList = useMemo(() => {
+    return baseList.filter(d =>
+      d.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (d.carDetails?.carNumber || d.carNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.phone?.includes(searchQuery) ||
+      d.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.pincode?.includes(searchQuery) ||
+      d.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.documents?.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.documents?.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.state?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      d.documents?.state?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [baseList, searchQuery]);
+
+  const dynamicStats = useMemo(() => ({
+    total: textFilteredList.length,
+    pending: textFilteredList.filter(d => !d.isApproved && !d.isRejected).length,
+    approved: textFilteredList.filter(d => d.isApproved).length,
+    rejected: textFilteredList.filter(d => d.isRejected).length,
+    online: textFilteredList.filter(d => d.isOnline).length,
+    active: textFilteredList.filter(d => d.isActive).length,
+    inactive: textFilteredList.filter(d => d.isApproved && !d.isActive).length,
+  }), [textFilteredList]);
+
+
   // Chart 1: Driver Status Distribution - Pie Chart
   const statusData = [
     { name: 'Approved', value: stats.approved, color: CHART_COLORS.green },
@@ -308,7 +386,7 @@ export default function ManageDrivers() {
   }));
 
   const filteredDrivers = useMemo(() => {
-    let list = radiusSearch.active ? radiusSearch.results : drivers;
+    let list = textFilteredList;
 
     if (activeTab === "pending") {
       list = list.filter(d => !d.isApproved && !d.isRejected);
@@ -322,20 +400,8 @@ export default function ManageDrivers() {
       list = list.filter(d => d.isOnline);
     }
 
-    return list.filter(d =>
-      d.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (d.carDetails?.carNumber || d.carNumber || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.phone?.includes(searchQuery) ||
-      d.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.pincode?.includes(searchQuery) ||
-      d.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.documents?.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.documents?.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.state?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      d.documents?.state?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [drivers, searchQuery, activeTab, radiusSearch]);
+    return list;
+  }, [textFilteredList, activeTab]);
 
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
@@ -343,6 +409,96 @@ export default function ManageDrivers() {
   }, [filteredDrivers, currentPage, rowsPerPage]);
 
   const totalPages = Math.ceil(filteredDrivers.length / rowsPerPage);
+
+  // Map Logic: Initialize and update markers
+  useEffect(() => {
+    if (!window.google || !filteredDrivers) return;
+
+    const mapElement = document.getElementById("drivers-master-map");
+    if (!mapElement) return;
+
+    // Initialize Map if not exists
+    if (!mapInstanceRef.current) {
+      const map = new window.google.maps.Map(mapElement, {
+        center: { lat: 20.5937, lng: 78.9629 }, // India Center
+        zoom: 5,
+        mapTypeControl: false,
+        streetViewControl: false,
+        styles: [
+          {
+            "featureType": "poi",
+            "stylers": [{ "visibility": "off" }]
+          }
+        ]
+      });
+      mapInstanceRef.current = map;
+    }
+
+    const map = mapInstanceRef.current;
+
+    // Clear old markers
+    markersRef.current.forEach(m => m.setMap(null));
+    markersRef.current = [];
+
+    const bounds = new window.google.maps.LatLngBounds();
+    let hasValidPoints = false;
+
+    filteredDrivers.forEach(driver => {
+      if (driver.addressLatitude && driver.addressLongitude) {
+        const pos = { lat: parseFloat(driver.addressLatitude), lng: parseFloat(driver.addressLongitude) };
+        
+        const marker = new window.google.maps.Marker({
+          position: pos,
+          map: map,
+          title: driver.name,
+          icon: {
+            url: driver.isApproved ? 'https://maps.google.com/mapfiles/ms/icons/green-dot.png' : 
+                 driver.isRejected ? 'https://maps.google.com/mapfiles/ms/icons/red-dot.png' : 
+                 'https://maps.google.com/mapfiles/ms/icons/yellow-dot.png',
+            scaledSize: new window.google.maps.Size(32, 32)
+          }
+        });
+
+        const infoWindow = new window.google.maps.InfoWindow({
+          content: `
+            <div style="padding: 8px; min-width: 150px;">
+              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                <img src="${driver.image ? IMAGE_BASE_URL + driver.image : 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" 
+                     style="width: 30px; height: 30px; border-radius: 50%; object-fit: cover; border: 1px solid #eee;" />
+                <strong style="font-size: 14px; color: #1e293b;">${driver.name}</strong>
+              </div>
+              <p style="font-size: 11px; color: #64748b; margin: 0;">${driver.phone}</p>
+              <p style="font-size: 10px; color: #94a3b8; margin: 4px 0 0 0; line-clamp: 2;">${driver.address || ''}</p>
+              <div style="margin-top: 6px; display: flex; gap: 4px;">
+                 <span style="font-size: 9px; padding: 2px 6px; border-radius: 99px; background: ${driver.isApproved ? '#dcfce7' : '#fef9c3'}; color: ${driver.isApproved ? '#166534' : '#854d0e'};">
+                   ${driver.isApproved ? 'Approved' : 'Pending'}
+                 </span>
+              </div>
+            </div>
+          `
+        });
+
+        marker.addListener("click", () => {
+          infoWindow.open(map, marker);
+        });
+
+        markersRef.current.push(marker);
+        bounds.extend(pos);
+        hasValidPoints = true;
+      }
+    });
+
+    if (hasValidPoints) {
+      if (homeRadiusSearch.active && homeRadiusSearch.lat && homeRadiusSearch.lng) {
+        map.setCenter({ lat: parseFloat(homeRadiusSearch.lat), lng: parseFloat(homeRadiusSearch.lng) });
+        map.setZoom(12);
+      } else if (filteredDrivers.length > 0) {
+        map.fitBounds(bounds);
+        // Don't zoom in too much if only one marker
+        if (map.getZoom() > 15) map.setZoom(15);
+      }
+    }
+  }, [filteredDrivers, showMap, homeRadiusSearch.active]);
 
   const handleApprove = async (id) => {
     const res = await Swal.fire({
@@ -487,6 +643,90 @@ export default function ManageDrivers() {
     }
   };
 
+  const autoPerformRadiusSearch = async (lat, lng, radius, addr) => {
+    try {
+      setLoading(true);
+      // Clear home radius search first
+      clearHomeRadiusSearch();
+      
+      const res = await searchDriversByRadius(lat, lng, radius);
+      if (res.success) {
+        setRadiusSearch(prev => ({ 
+          ...prev, 
+          active: true, 
+          results: res.drivers,
+          lat, lng, address: addr 
+        }));
+        setCurrentPage(1);
+        Swal.fire({
+          icon: 'success',
+          title: 'Location Selected!',
+          text: `${res.count} drivers aapke ${radius}KM range mein hain.`,
+          timer: 1500,
+          showConfirmButton: false
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      Swal.fire("Radius search fail ho gaya bhai.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const autoPerformHomeRadiusSearch = async (lat, lng, radius, addr) => {
+    try {
+      setLoading(true);
+      // Clear live radius search first
+      clearRadiusSearch();
+      
+      const res = await searchDriversByHomeRadius(lat, lng, radius);
+      if (res.success) {
+        setHomeRadiusSearch(prev => ({ 
+          ...prev, 
+          active: true, 
+          results: res.drivers,
+          lat, lng, address: addr 
+        }));
+        setCurrentPage(1);
+        Swal.fire({
+          icon: 'success',
+          title: 'Home Search Results!',
+          text: `${res.count} drivers ke ghar aapke ${radius}KM range mein hain.`,
+          timer: 1500,
+          showConfirmButton: false
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      Swal.fire("Home radius search fail ho gaya bhai.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearRadiusSearch = () => {
+    setRadiusSearch({
+      active: false,
+      address: "",
+      lat: null,
+      lng: null,
+      radius: 10,
+      results: []
+    });
+  };
+
+  const clearHomeRadiusSearch = () => {
+    setHomeRadiusSearch({
+      active: false,
+      address: "",
+      lat: null,
+      lng: null,
+      radius: 10,
+      results: []
+    });
+  };
+
   const handleOpenEdit = (d) => {
     setIsEditing(d._id);
     setEditForm({
@@ -519,7 +759,9 @@ export default function ManageDrivers() {
       rejectionReason: d.rejectionReason || d.documents?.rejectionReason || "",
       lastServiceDate: d.carDetails?.lastServiceDate ? d.carDetails.lastServiceDate.substring(0, 10) : "",
       nextServiceDate: d.carDetails?.nextServiceDate ? d.carDetails.nextServiceDate.substring(0, 10) : "",
-      debtLimit: d.debtLimit || -500
+      debtLimit: d.debtLimit || -500,
+      addressLatitude: d.addressLatitude || null,
+      addressLongitude: d.addressLongitude || null
     });
     setImageFile(null);
     setRcFile(null);
@@ -542,6 +784,7 @@ export default function ManageDrivers() {
     const { name, value } = e.target;
     setEditForm(prev => {
       const updated = { ...prev, [name]: value };
+      if (name === "address") setIsAddressSelected(false);
       
       // Auto-fill seat capacity if carType is changed
       if (name === "carType" && value) {
@@ -567,6 +810,16 @@ export default function ManageDrivers() {
 
   const saveDriver = async (e) => {
     e.preventDefault();
+    if (!isAddressSelected) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Address Selection Required',
+        text: 'Please select address from Google suggestions',
+        background: themeColors.surface,
+        color: themeColors.text
+      });
+      return;
+    }
     try {
       setLoading(true);
 
@@ -593,7 +846,8 @@ export default function ManageDrivers() {
       if (editForm.address) formData.append("address", editForm.address);
       if (editForm.city) formData.append("city", editForm.city);
       if (editForm.state) formData.append("state", editForm.state);
-      if (editForm.pincode) formData.append("pincode", editForm.pincode);
+      if (editForm.addressLatitude) formData.append("addressLatitude", editForm.addressLatitude);
+      if (editForm.addressLongitude) formData.append("addressLongitude", editForm.addressLongitude);
 
       // Bank details
       if (editForm.accountNumber) formData.append("accountNumber", editForm.accountNumber);
@@ -681,72 +935,6 @@ export default function ManageDrivers() {
     }
   };
 
-  const autoPerformRadiusSearch = async (lat, lng, radius, addr) => {
-    try {
-      setLoading(true);
-      const res = await searchDriversByRadius(lat, lng, radius);
-      if (res.success) {
-        setRadiusSearch(prev => ({ 
-          ...prev, 
-          active: true, 
-          results: res.drivers,
-          lat, lng, address: addr 
-        }));
-        setCurrentPage(1);
-        Swal.fire({
-          icon: 'success',
-          title: 'Location Selected!',
-          text: `${res.count} drivers aapke ${radius}KM range mein hain.`,
-          timer: 1500,
-          showConfirmButton: false
-        });
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRadiusSearch = async () => {
-    if (!radiusSearch.lat || !radiusSearch.lng) {
-      Swal.fire("Pehle address select karo bhai!");
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      const res = await searchDriversByRadius(radiusSearch.lat, radiusSearch.lng, radiusSearch.radius);
-      if (res.success) {
-        setRadiusSearch(prev => ({ ...prev, active: true, results: res.drivers }));
-        setCurrentPage(1); // Result aane par page 1 par le jao
-        Swal.fire({
-          icon: 'success',
-          title: 'Drivers Mil Gaye!',
-          text: `${res.count} drivers aapke ${radius}KM range mein hain.`,
-          timer: 2000,
-          showConfirmButton: false
-        });
-      }
-    } catch (err) {
-      console.error(err);
-      Swal.fire("Radius search mein error hai bhai.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const clearRadiusSearch = () => {
-    setRadiusSearch({
-      active: false,
-      address: "",
-      lat: null,
-      lng: null,
-      radius: 10,
-      results: []
-    });
-  };
-
   const toggleRowExpansion = (id) => {
     setExpandedRows(prev => ({
       ...prev,
@@ -768,14 +956,6 @@ export default function ManageDrivers() {
             </div>
 
             <div className="flex items-center space-x-2 sm:space-x-3">
-              {/* Refresh */}
-              <button
-                onClick={fetchDrivers}
-                className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                <FaSyncAlt size={16} className={fetching ? 'animate-spin' : ''} />
-              </button>
-
               {/* Add New */}
               {can('DRIVER_CREATE') && (
                 <button
@@ -819,19 +999,174 @@ export default function ManageDrivers() {
 
       <div className="px-4 sm:px-8 py-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-8">
-          <StatCard icon={FaUsers} label="Total Drivers" value={stats.total} color="blue" subtitle="All registered drivers" />
-          <StatCard icon={FaCheckCircle} label="Approved" value={stats.approved} color="green" subtitle={`${((stats.approved / stats.total) * 100 || 0).toFixed(1)}% approval`} />
-          <StatCard icon={FaSyncAlt} label="Pending" value={stats.pending} color="orange" subtitle="Awaiting approval" />
-          <StatCard icon={FaBan} label="Rejected" value={stats.rejected} color="red" subtitle="Denied access" />
-          <StatCard icon={FaCircle} label="Online" value={stats.online} color="green" subtitle="Currently active" />
-          <StatCard icon={FaCircle} label="Offline" value={stats.total - stats.online} color="gray" subtitle="Currently inactive" />
-
-        </div>
+        {fetching ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-8">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 animate-pulse">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-gray-200" />
+                  <div className="w-10 h-5 rounded-full bg-gray-200" />
+                </div>
+                <div className="h-7 bg-gray-300 rounded w-16 mb-2" />
+                <div className="h-3 bg-gray-200 rounded w-24 mb-1" />
+                <div className="h-2 bg-gray-100 rounded w-20" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4 mb-8">
+            <StatCard icon={FaUsers} label="Total Drivers" value={stats.total} color="blue" subtitle="All registered drivers" />
+            <StatCard icon={FaCheckCircle} label="Approved" value={stats.approved} color="green" subtitle={`${((stats.approved / stats.total) * 100 || 0).toFixed(1)}% approval`} />
+            <StatCard icon={FaSyncAlt} label="Pending" value={stats.pending} color="orange" subtitle="Awaiting approval" />
+            <StatCard icon={FaBan} label="Rejected" value={stats.rejected} color="red" subtitle="Denied access" />
+            <StatCard icon={FaCircle} label="Online" value={stats.online} color="green" subtitle="Currently active" />
+            <StatCard icon={FaCircle} label="Offline" value={stats.total - stats.online} color="gray" subtitle="Currently inactive" />
+          </div>
+        )}
 
 
         {/* Navigation Tabs */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+          {/* Row 1: Search Tools & Map Toggle */}
+          <div className="px-6 py-3 border-b border-gray-100 flex flex-wrap items-center justify-between gap-4 bg-gray-50/30">
+            <div className="flex flex-wrap items-center gap-4">
+              {/* Search Bar */}
+              <div className="relative">
+                <FaSearch className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={12} />
+                <input
+                  type="text"
+                  placeholder="Search name, email, phone..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8 pr-7 py-1.5 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 outline-none w-56 bg-gray-50 focus:bg-white transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <FaTimes size={10} />
+                  </button>
+                )}
+              </div>
+
+              {/* Home Address Radius Search */}
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="relative">
+                  <FaHome className="absolute left-2.5 top-1/2 -translate-y-1/2 text-purple-500" size={10} />
+                  <input
+                    id="home-radius-address-input"
+                    type="text"
+                    placeholder="Home Search (Radius)..."
+                    value={homeRadiusSearch.address}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setHomeRadiusSearch(prev => ({ ...prev, address: val }));
+                      if (val === "") {
+                        clearHomeRadiusSearch();
+                      }
+                    }}
+                    onFocus={() => {
+                      if (!window.google || homeSearchRef.current) return;
+                      const autocomplete = new window.google.maps.places.Autocomplete(
+                        document.getElementById("home-radius-address-input"),
+                        { 
+                          types: [], 
+                          componentRestrictions: { country: 'in' } 
+                        }
+                      );
+                      homeSearchRef.current = autocomplete;
+                      autocomplete.addListener("place_changed", () => {
+                        const place = autocomplete.getPlace();
+                        if (place.geometry) {
+                          const newLat = place.geometry.location.lat();
+                          const newLng = place.geometry.location.lng();
+                          const newAddr = place.formatted_address;
+                          
+                          setHomeRadiusSearch(prev => ({
+                            ...prev,
+                            address: newAddr,
+                            lat: newLat,
+                            lng: newLng
+                          }));
+
+                          // Auto Search Trigger
+                          autoPerformHomeRadiusSearch(newLat, newLng, homeRadiusSearch.radius, newAddr);
+                        }
+                      });
+                    }}
+                    className="pl-7 pr-2 py-1.5 border border-purple-200 rounded-lg text-xs focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none w-80 bg-purple-50/30 font-medium"
+                  />
+                </div>
+                
+                <select
+                  value={homeRadiusSearch.radius}
+                  onChange={(e) => {
+                    const newRadius = e.target.value;
+                    setHomeRadiusSearch(prev => ({ ...prev, radius: newRadius }));
+                    
+                    if (homeRadiusSearch.lat && homeRadiusSearch.lng) {
+                      autoPerformHomeRadiusSearch(homeRadiusSearch.lat, homeRadiusSearch.lng, newRadius, homeRadiusSearch.address);
+                    }
+                  }}
+                  className="py-1.5 px-2 border border-gray-200 rounded-lg text-[10px] font-bold focus:outline-none bg-white"
+                >
+                  <option value="5">5 KM</option>
+                  <option value="10">10 KM</option>
+                  <option value="20">20 KM</option>
+                  <option value="30">30 KM</option>
+                  <option value="40">40 KM</option>
+                  <option value="50">50 KM</option>
+                  <option value="100">100 KM</option>
+                </select>
+
+                {homeRadiusSearch.active && (
+                  <button
+                    onClick={clearHomeRadiusSearch}
+                    className="p-1.5 bg-gray-100 text-gray-400 hover:text-gray-600 rounded-lg"
+                    title="Clear"
+                  >
+                    <FaTimes size={12} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowMap(!showMap)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-sm ${
+                showMap ? 'bg-blue-600 text-white shadow-blue-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <FaMapMarkerAlt size={12} />
+              {showMap ? 'Hide Map' : 'Show Map View'}
+            </button>
+          </div>
+
+          {/* Master Map Section */}
+          <div className={`px-6 py-4 bg-gray-50/50 border-b border-gray-100 ${showMap ? '' : 'hidden'}`}>
+            <div 
+              id="drivers-master-map" 
+              className="w-full h-[420px] rounded-xl border border-gray-200 shadow-inner bg-gray-100 overflow-hidden"
+            />
+            <div className="mt-2 flex items-center gap-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest px-1">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-green-500"></span> Approved
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-yellow-500"></span> Pending
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-red-500"></span> Rejected
+              </div>
+              <div className="ml-auto flex items-center gap-1 text-blue-600">
+                <FaSyncAlt size={10} className={fetching ? 'animate-spin' : ''} />
+                Updating with Filters
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: Navigation Tabs */}
           <div className="px-6 py-2 border-b border-gray-200 flex items-center gap-2 sm:gap-4 overflow-x-auto">
             {[
               { id: "all", label: "All", icon: FaUsers },
@@ -851,112 +1186,67 @@ export default function ManageDrivers() {
                 <span className="hidden sm:inline">{tab.label}</span>
                 <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${activeTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
                   }`}>
-                  {tab.id === "all" ? stats.total :
-                    tab.id === "pending" ? stats.pending :
-                      tab.id === "approved" ? stats.approved :
-                        tab.id === "rejected" ? stats.rejected :
-                          tab.id === "inactive" ? (stats.approved - stats.active) :
-                            stats.online}
+                  {tab.id === "all" ? dynamicStats.total :
+                    tab.id === "pending" ? dynamicStats.pending :
+                      tab.id === "approved" ? dynamicStats.approved :
+                        tab.id === "rejected" ? dynamicStats.rejected :
+                          tab.id === "inactive" ? dynamicStats.inactive :
+                            dynamicStats.online}
                 </span>
               </button>
             ))}
-
-            {/* Condensed Radius Search in Table Header */}
-            <div className="ml-auto flex items-center gap-2 shrink-0">
-              <div className="relative">
-                <FaMapMarkerAlt className="absolute left-2.5 top-1/2 -translate-y-1/2 text-blue-500" size={10} />
-                <input
-                  id="radius-address-input"
-                  type="text"
-                  placeholder="Area Search (Radius)..."
-                  value={radiusSearch.address}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setRadiusSearch(prev => ({ ...prev, address: val }));
-                    if (val === "") {
-                      clearRadiusSearch();
-                    }
-                  }}
-                  onFocus={() => {
-                    if (!window.google) return;
-                    const autocomplete = new window.google.maps.places.Autocomplete(
-                      document.getElementById("radius-address-input"),
-                      { types: ["geocode"] }
-                    );
-                    autocomplete.addListener("place_changed", () => {
-                      const place = autocomplete.getPlace();
-                      if (place.geometry) {
-                        const newLat = place.geometry.location.lat();
-                        const newLng = place.geometry.location.lng();
-                        const newAddr = place.formatted_address;
-                        
-                        setRadiusSearch(prev => ({
-                          ...prev,
-                          address: newAddr,
-                          lat: newLat,
-                          lng: newLng
-                        }));
-
-                        // Auto Search Trigger
-                        autoPerformRadiusSearch(newLat, newLng, radiusSearch.radius, newAddr);
-                      }
-                    });
-                  }}
-                  className="pl-7 pr-2 py-1.5 border border-blue-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none w-80 bg-blue-50/30 font-medium"
-                />
-              </div>
-              
-              <select
-                value={radiusSearch.radius}
-                onChange={(e) => {
-                  const newRadius = e.target.value;
-                  setRadiusSearch(prev => ({ ...prev, radius: newRadius }));
-                  
-                  // Agar address pehle se select hai, toh radius badalte hi auto-search karo
-                  if (radiusSearch.lat && radiusSearch.lng) {
-                    autoPerformRadiusSearch(radiusSearch.lat, radiusSearch.lng, newRadius, radiusSearch.address);
-                  }
-                }}
-                className="py-1.5 px-2 border border-gray-200 rounded-lg text-[10px] font-bold focus:outline-none bg-white"
-              >
-                <option value="5">5 KM</option>
-                <option value="10">10 KM</option>
-                <option value="20">20 KM</option>
-                <option value="30">30 KM</option>
-                <option value="40">40 KM</option>
-                <option value="50">50 KM</option>
-                <option value="60">60 KM</option>
-                <option value="70">70 KM</option>
-                <option value="80">80 KM</option>
-                <option value="90">90 KM</option>
-                <option value="100">100 KM</option>
-              </select>
-
-              {radiusSearch.active && (
-                <button
-                  onClick={clearRadiusSearch}
-                  className="p-1.5 bg-gray-100 text-gray-400 hover:text-gray-600 rounded-lg"
-                  title="Clear"
-                >
-                  <FaTimes size={12} />
-                </button>
-              )}
-            </div>
           </div>
 
           {/* Driver Table */}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1600px]">
+            {fetching ? (
+              <table className="w-full min-w-[1600px]">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    {['Driver','Contact','Vehicle','Location','Pincode','Online','Rating','Earnings','Password','Status','Actions'].map((h) => (
+                      <th key={h} className="py-3 px-4 text-left">
+                        <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {[...Array(7)].map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gray-200" />
+                          <div className="space-y-1.5"><div className="h-3 bg-gray-200 rounded w-24" /><div className="h-2 bg-gray-100 rounded w-32" /></div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4"><div className="space-y-1.5"><div className="h-3 bg-gray-200 rounded w-20" /><div className="h-2 bg-gray-100 rounded w-28" /></div></td>
+                      <td className="py-3 px-4"><div className="space-y-1.5"><div className="h-3 bg-gray-200 rounded w-20" /><div className="h-2 bg-gray-100 rounded w-16" /></div></td>
+                      <td className="py-3 px-4"><div className="space-y-1.5"><div className="h-3 bg-gray-200 rounded w-16" /><div className="h-2 bg-gray-100 rounded w-12" /></div></td>
+                      <td className="py-3 px-4"><div className="h-3 bg-gray-200 rounded w-14" /></td>
+                      <td className="py-3 px-4 text-center"><div className="h-6 bg-gray-100 rounded-full w-14 mx-auto" /></td>
+                      <td className="py-3 px-4 text-center"><div className="h-3 bg-gray-200 rounded w-8 mx-auto" /></td>
+                      <td className="py-3 px-4 text-right"><div className="h-3 bg-gray-200 rounded w-16 ml-auto" /></td>
+                      <td className="py-3 px-4"><div className="h-6 bg-gray-100 rounded w-20" /></td>
+                      <td className="py-3 px-4 text-center"><div className="h-6 bg-gray-100 rounded-full w-16 mx-auto" /></td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-6 h-6 bg-gray-100 rounded" />
+                          <div className="w-6 h-6 bg-gray-100 rounded" />
+                          <div className="w-6 h-6 bg-gray-100 rounded" />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <table className="w-full min-w-[1600px]">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Driver</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Contact</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Vehicle</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[250px]">Location</th>
-                  {radiusSearch.active && (
-                    <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[120px]">Distance</th>
-                  )}
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Pincode</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[400px]">Location</th>
                   <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Online</th>
                   <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Rating</th>
                   <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase">Earnings</th>
@@ -968,12 +1258,12 @@ export default function ManageDrivers() {
               <tbody className="divide-y divide-gray-200">
                 {paginatedData.length === 0 ? (
                   <tr>
-                    <td colSpan={radiusSearch.active ? 12 : 11} className="py-20 text-center">
+                    <td colSpan={10} className="py-20 text-center">
                       <div className="flex flex-col items-center justify-center text-gray-400">
                         <p className="text-lg font-medium">Koi Driver nahi mila bhai!</p>
                         <p className="text-sm">Range badha kar ya dusra address try karein.</p>
-                        {radiusSearch.active && (
-                          <button onClick={clearRadiusSearch} className="mt-4 text-blue-600 font-bold hover:underline">
+                        {(radiusSearch.active || homeRadiusSearch.active) && (
+                          <button onClick={radiusSearch.active ? clearRadiusSearch : clearHomeRadiusSearch} className="mt-4 text-blue-600 font-bold hover:underline">
                             Search Clear Karein
                           </button>
                         )}
@@ -1009,19 +1299,31 @@ export default function ManageDrivers() {
                         <p className="text-sm text-gray-900">{d.carDetails?.carModel || d.carModel || '—'}</p>
                         <p className="text-xs text-gray-500">{d.carDetails?.carNumber || d.carNumber || '—'}</p>
                       </td>
-                      <td className="py-3 px-4 min-w-[250px]">
-                        <p className="text-sm text-gray-900 line-clamp-1" title={d.city + ", " + d.state}>{d.city || '—'}</p>
-                        <p className="text-xs text-gray-500 line-clamp-1">{d.state || '—'}</p>
-                      </td>
-                      {radiusSearch.active && (
-                        <td className="py-3 px-4 min-w-[120px]">
-                          <span className="px-2 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-bold">
-                            {d.distanceFromCenter} KM Dur
-                          </span>
-                        </td>
-                      )}
-                      <td className="py-3 px-4">
-                        <span className="text-sm font-mono text-gray-900">{d.pincode || '—'}</span>
+                      <td className="py-3 px-4 min-w-[400px]">
+                        <div className="flex items-start gap-2 group">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-gray-900 font-medium line-clamp-2" title={d.address}>
+                              {d.address || d.city || '—'}
+                            </p>
+                            {(d.city || d.state) && (
+                              <p className="text-[10px] text-gray-500 truncate">
+                                {d.city}{d.city && d.state ? ', ' : ''}{d.state}
+                              </p>
+                            )}
+                          </div>
+                          {d.addressLatitude && d.addressLongitude && (
+                            <a
+                              href={`https://www.google.com/maps?q=${d.addressLatitude},${d.addressLongitude}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 bg-blue-50 text-blue-600 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-100"
+                              title="Google Map par dekhein"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <FaMapMarkerAlt size={12} />
+                            </a>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4 text-center">
                         <div className="flex flex-col items-center gap-1">
@@ -1125,7 +1427,7 @@ export default function ManageDrivers() {
                     </tr>
                     {expandedRows[d._id] && (
                       <tr className="bg-gray-50">
-                        <td colSpan="8" className="p-4">
+                        <td colSpan="10" className="p-4">
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {/* Personal Details */}
                             <div className="bg-white p-4 rounded-lg border border-gray-200">
@@ -1260,7 +1562,8 @@ export default function ManageDrivers() {
                   </React.Fragment>
                 ))}
               </tbody>
-            </table>
+              </table>
+            )}
           </div>
 
           {/* Pagination */}
@@ -1713,13 +2016,32 @@ export default function ManageDrivers() {
                     </div>
                     <h3 className="text-sm font-semibold text-gray-800">Address Details</h3>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="lg:col-span-3">
-                      <Field label="Full Address" name="address" value={editForm.address} onChange={handleEditChange} icon={Home} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <div className="space-y-1 w-full">
+                        <label className="text-xs font-medium flex items-center gap-1.5 text-gray-600">
+                          <Home size={14} className="text-gray-400" />
+                          Full Address <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          ref={addressRef}
+                          type="text"
+                          name="address"
+                          value={editForm.address}
+                          onChange={handleEditChange}
+                          required
+                          placeholder="Type address and select from suggestions..."
+                          className="w-full h-10 px-3 rounded-lg border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition-all text-sm"
+                          style={{
+                            backgroundColor: themeColors.background || themeColors.surface || "#ffffff",
+                            borderColor: themeColors.border,
+                            color: themeColors.text
+                          }}
+                        />
+                      </div>
                     </div>
                     <Field label="City" name="city" value={editForm.city} onChange={handleEditChange} icon={MapPin} />
                     <Field label="State" name="state" value={editForm.state} onChange={handleEditChange} icon={Map} />
-                    <Field label="Pincode" name="pincode" value={editForm.pincode} onChange={handleEditChange} icon={Map} />
                   </div>
                 </div>
 

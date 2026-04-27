@@ -84,9 +84,79 @@ export default function BulkMarketplace() {
 
   if (loading) {
     return (
-      <div className="flex h-[80vh] items-center justify-center flex-col gap-3">
-        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-gray-400 text-sm">Loading Marketplace...</p>
+      <div className="min-h-screen bg-gray-50 p-6">
+        {/* Header Skeleton */}
+        <div className="flex items-center justify-between mb-6 animate-pulse">
+          <div className="space-y-2">
+            <div className="h-7 bg-gray-200 rounded w-48" />
+            <div className="h-3 bg-gray-100 rounded w-36" />
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="h-9 bg-gray-200 rounded-lg w-28" />
+            <div className="w-9 h-9 bg-gray-200 rounded-lg" />
+          </div>
+        </div>
+
+        {/* Deal Cards Skeleton */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden animate-pulse">
+              {/* Top Strip */}
+              <div className="px-5 py-4 border-b border-gray-100 bg-gray-200 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-gray-300" />
+                  <div className="space-y-1.5">
+                    <div className="h-3 bg-gray-300 rounded w-16" />
+                    <div className="h-2 bg-gray-300 rounded w-12" />
+                  </div>
+                </div>
+                <div className="h-8 bg-gray-300 rounded w-20" />
+              </div>
+
+              {/* Body */}
+              <div className="p-5 space-y-4">
+                {/* Requester */}
+                <div className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3">
+                  <div className="w-9 h-9 rounded-full bg-gray-200" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3 bg-gray-200 rounded w-32" />
+                    <div className="h-2 bg-gray-100 rounded w-24" />
+                  </div>
+                  <div className="h-5 bg-gray-200 rounded-full w-16" />
+                </div>
+
+                {/* Route */}
+                <div className="space-y-2">
+                  <div className="h-12 bg-green-50 border border-green-100 rounded-lg" />
+                  <div className="h-12 bg-red-50 border border-red-100 rounded-lg" />
+                </div>
+
+                {/* Stats */}
+                <div className="flex gap-2">
+                  {[...Array(3)].map((_, j) => (
+                    <div key={j} className="flex-1 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <div className="w-4 h-4 bg-gray-200 rounded mx-auto mb-2" />
+                      <div className="h-2 bg-gray-200 rounded w-full mb-1" />
+                      <div className="h-4 bg-gray-300 rounded w-3/4 mx-auto" />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Vehicles */}
+                <div className="space-y-2">
+                  <div className="h-2 bg-gray-200 rounded w-28" />
+                  <div className="flex gap-2">
+                    <div className="h-7 bg-blue-50 border border-blue-100 rounded-lg w-28" />
+                    <div className="h-7 bg-blue-50 border border-blue-100 rounded-lg w-24" />
+                  </div>
+                </div>
+
+                {/* Button */}
+                <div className="h-10 bg-gray-200 rounded-xl w-full" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }

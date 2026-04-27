@@ -1241,10 +1241,22 @@ export default function LiveTracking() {
       </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-          <StatCard label="Total Drivers" value={stats.total} icon={FaCar} color="#3B82F6" />
-          <StatCard label="Idle" value={stats.idle} icon={FaCheckCircle} color="#10B981" />
-          <StatCard label="On Ride" value={stats.onRide} icon={FaMapPin} color="#F59E0B" />
-          <StatCard label="Offline" value={stats.offline} icon={FaCircle} color="#EF4444" />
+          {loading ? (
+            [...Array(4)].map((_, i) => (
+              <div key={i} className="bg-white rounded-xl p-5 shadow-sm border border-gray-200 animate-pulse">
+                <div className="w-12 h-12 bg-gray-200 rounded-xl mb-3" />
+                <div className="h-7 bg-gray-300 rounded w-12 mb-2" />
+                <div className="h-3 bg-gray-200 rounded w-20" />
+              </div>
+            ))
+          ) : (
+            <>
+              <StatCard label="Total Drivers" value={stats.total} icon={FaCar} color="#3B82F6" />
+              <StatCard label="Idle" value={stats.idle} icon={FaCheckCircle} color="#10B981" />
+              <StatCard label="On Ride" value={stats.onRide} icon={FaMapPin} color="#F59E0B" />
+              <StatCard label="Offline" value={stats.offline} icon={FaCircle} color="#EF4444" />
+            </>
+          )}
         </div>
 
 
@@ -1392,9 +1404,26 @@ export default function LiveTracking() {
             </div>
           </div>
           {loading ? (
-            <div className="py-12 text-center">
-              <div className="animate-spin h-10 w-10 border-4 border-blue-600 border-t-transparent rounded-full mx-auto" />
-              <p className="mt-3 text-gray-500">Loading drivers...</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+              {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 animate-pulse">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="w-12 h-12 rounded-full bg-gray-200" />
+                      <div className="space-y-2 flex-1">
+                        <div className="h-3 bg-gray-200 rounded w-28" />
+                        <div className="h-2 bg-gray-100 rounded w-20" />
+                        <div className="h-2 bg-gray-100 rounded w-16" />
+                      </div>
+                    </div>
+                    <div className="h-5 bg-gray-100 rounded-full w-16" />
+                  </div>
+                  <div className="space-y-2">
+                    <div className="h-3 bg-gray-100 rounded w-full" />
+                    <div className="h-2 bg-gray-100 rounded w-32" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : filteredDrivers.length === 0 ? (
             <div className="py-16 text-center bg-white rounded-xl border border-gray-200">

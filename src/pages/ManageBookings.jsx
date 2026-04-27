@@ -515,13 +515,29 @@ export default function ManageBookings() {
       {/* Main Content */}
       <div className="px-4 sm:px-8 py-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
-          <StatCard icon={FaRoute} label="Total Bookings" value={stats.total} color="blue" trend={12} subtitle="All time bookings" />
-          <StatCard icon={FaClock} label="Pending" value={stats.pending} color="yellow" trend={-5} subtitle="Awaiting confirmation" />
-          <StatCard icon={FaPlayCircle} label="Ongoing" value={stats.ongoing} color="purple" trend={8} subtitle="Active rides" />
-          <StatCard icon={FaCheckCircle} label="Completed" value={stats.completed} color="green" trend={15} subtitle="Successfully finished" />
-          <StatCard icon={DollarSign} label="Total Revenue" value={`₹${stats.totalRevenue.toLocaleString('en-IN')}`} color="orange" trend={10} subtitle={`Avg ₹${Math.round(stats.avgFare)} per ride`} />
-        </div>
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 animate-pulse">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-gray-200" />
+                  <div className="w-10 h-5 rounded-full bg-gray-200" />
+                </div>
+                <div className="h-7 bg-gray-300 rounded w-16 mb-2" />
+                <div className="h-3 bg-gray-200 rounded w-24 mb-1" />
+                <div className="h-2 bg-gray-100 rounded w-20" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 mb-8">
+            <StatCard icon={FaRoute} label="Total Bookings" value={stats.total} color="blue" trend={12} subtitle="All time bookings" />
+            <StatCard icon={FaClock} label="Pending" value={stats.pending} color="yellow" trend={-5} subtitle="Awaiting confirmation" />
+            <StatCard icon={FaPlayCircle} label="Ongoing" value={stats.ongoing} color="purple" trend={8} subtitle="Active rides" />
+            <StatCard icon={FaCheckCircle} label="Completed" value={stats.completed} color="green" trend={15} subtitle="Successfully finished" />
+            <StatCard icon={DollarSign} label="Total Revenue" value={`₹${stats.totalRevenue.toLocaleString('en-IN')}`} color="orange" trend={10} subtitle={`Avg ₹${Math.round(stats.avgFare)} per ride`} />
+          </div>
+        )}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
           <div className="px-6 py-2 border-b border-gray-200 flex items-center gap-4 overflow-x-auto">
             {[
@@ -552,7 +568,70 @@ export default function ManageBookings() {
 
           {/* Bookings Table */}
           <div className="overflow-x-auto">
-            <table className="w-full min-w-max">
+            {loading ? (
+              <table className="w-full min-w-max">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    {['Ref ID','Passenger','Booked By','Route','Vehicle','Driver','Fare','Status','Actions'].map((h) => (
+                      <th key={h} className="py-4 px-6 text-left">
+                        <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {[...Array(6)].map((_, i) => (
+                    <tr key={i} className="animate-pulse">
+                      <td className="py-4 px-6">
+                        <div className="h-3 bg-gray-200 rounded w-20 mb-1" />
+                        <div className="h-2 bg-gray-100 rounded w-16" />
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="h-3 bg-gray-200 rounded w-24 mb-1" />
+                        <div className="h-2 bg-gray-100 rounded w-20" />
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-lg bg-gray-200" />
+                          <div className="space-y-1.5">
+                            <div className="h-3 bg-gray-200 rounded w-20" />
+                            <div className="h-2 bg-gray-100 rounded w-12" />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4 px-6 min-w-[400px]">
+                        <div className="space-y-2">
+                          <div className="h-2 bg-gray-200 rounded w-full" />
+                          <div className="h-2 bg-gray-100 rounded w-3/4" />
+                        </div>
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="h-6 bg-gray-100 rounded-lg w-24 mb-1" />
+                        <div className="h-2 bg-gray-100 rounded w-16" />
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="h-3 bg-gray-200 rounded w-20 mb-1" />
+                        <div className="h-2 bg-gray-100 rounded w-16" />
+                      </td>
+                      <td className="py-4 px-6 text-right">
+                        <div className="h-5 bg-gray-200 rounded w-16 ml-auto mb-1" />
+                        <div className="h-2 bg-gray-100 rounded w-12 ml-auto" />
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <div className="h-6 bg-gray-100 rounded-full w-16 mx-auto" />
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-7 h-7 bg-gray-100 rounded-lg" />
+                          <div className="w-7 h-7 bg-gray-100 rounded-lg" />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <table className="w-full min-w-max">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Ref ID</th>
@@ -756,6 +835,7 @@ export default function ManageBookings() {
                 ))}
               </tbody>
             </table>
+            )}
           </div>
 
           {/* Pagination */}
