@@ -1203,7 +1203,7 @@ export default function ManageDrivers() {
               <table className="w-full min-w-[1600px]">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    {['Driver','Contact','Vehicle','Location','Pincode','Online','Rating','Earnings','Password','Status','Actions'].map((h) => (
+                    {['Driver','Contact','Vehicle','Location','Joined On','Updated','By','Creator Name','Online','Rating','Earnings','Password','Status','Actions'].map((h) => (
                       <th key={h} className="py-3 px-4 text-left">
                         <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
                       </th>
@@ -1225,6 +1225,9 @@ export default function ManageDrivers() {
                       <td className="py-3 px-4"><div className="h-3 bg-gray-200 rounded w-14" /></td>
                       <td className="py-3 px-4 text-center"><div className="h-6 bg-gray-100 rounded-full w-14 mx-auto" /></td>
                       <td className="py-3 px-4 text-center"><div className="h-3 bg-gray-200 rounded w-8 mx-auto" /></td>
+                      <td className="py-3 px-4 text-center"><div className="h-3 bg-gray-200 rounded w-8 mx-auto" /></td>
+                      <td className="py-3 px-4 text-center"><div className="h-3 bg-gray-200 rounded w-8 mx-auto" /></td>
+                      <td className="py-3 px-4 text-center"><div className="h-3 bg-gray-200 rounded w-8 mx-auto" /></td>
                       <td className="py-3 px-4 text-right"><div className="h-3 bg-gray-200 rounded w-16 ml-auto" /></td>
                       <td className="py-3 px-4"><div className="h-6 bg-gray-100 rounded w-20" /></td>
                       <td className="py-3 px-4 text-center"><div className="h-6 bg-gray-100 rounded-full w-16 mx-auto" /></td>
@@ -1245,12 +1248,16 @@ export default function ManageDrivers() {
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Driver</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Contact</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Vehicle</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[200px]">Vehicle</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[400px]">Location</th>
-                  <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Online</th>
-                  <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Rating</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase">Earnings</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase">Password</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[150px]">Joined On</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[150px]">Last Updated</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[120px]">Created By</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[180px]">Creator Name</th>
+                  <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[100px]">Online</th>
+                  <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[100px]">Rating</th>
+                  <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[120px]">Earnings</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[200px]">Password</th>
                   <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
@@ -1258,7 +1265,7 @@ export default function ManageDrivers() {
               <tbody className="divide-y divide-gray-200">
                 {paginatedData.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="py-20 text-center">
+                    <td colSpan={14} className="py-20 text-center">
                       <div className="flex flex-col items-center justify-center text-gray-400">
                         <p className="text-lg font-medium">Koi Driver nahi mila bhai!</p>
                         <p className="text-sm">Range badha kar ya dusra address try karein.</p>
@@ -1295,7 +1302,7 @@ export default function ManageDrivers() {
                         <p className="text-sm text-gray-900">{d.phone}</p>
                         <p className="text-xs text-gray-500">{d.email}</p>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 min-w-[200px]">
                         <p className="text-sm text-gray-900">{d.carDetails?.carModel || d.carModel || '—'}</p>
                         <p className="text-xs text-gray-500">{d.carDetails?.carNumber || d.carNumber || '—'}</p>
                       </td>
@@ -1325,7 +1332,37 @@ export default function ManageDrivers() {
                           )}
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3 px-4 min-w-[150px]">
+                        <p className="text-sm font-medium text-gray-900">
+                          {d.createdAt ? new Date(d.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                        </p>
+                        <p className="text-[10px] text-gray-500">
+                          {d.createdAt ? new Date(d.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </p>
+                      </td>
+                      <td className="py-3 px-4 min-w-[150px]">
+                        <p className="text-sm font-medium text-gray-900">
+                          {d.updatedAt ? new Date(d.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                        </p>
+                        <p className="text-[10px] text-gray-500">
+                          {d.updatedAt ? new Date(d.updatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </p>
+                      </td>
+                      <td className="py-3 px-4 min-w-[120px]">
+                        <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-tighter ${
+                          d.createdByModel === 'Admin' ? 'bg-purple-100 text-purple-700' :
+                          d.createdByModel === 'Fleet' ? 'bg-blue-100 text-blue-700' :
+                          'bg-gray-50 text-gray-600 border border-gray-100'
+                        }`}>
+                          {d.createdByModel || 'Self'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 min-w-[180px]">
+                        <p className="text-sm font-bold text-gray-900 truncate" title={d.createdBy?.name || (d.createdByModel === 'Self' ? 'Self Registered' : '—')}>
+                          {d.createdBy?.name || (d.createdByModel === 'Self' ? 'Self Registered' : '—')}
+                        </p>
+                      </td>
+                      <td className="py-3 px-4 text-center min-w-[100px]">
                         <div className="flex flex-col items-center gap-1">
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
                             d.isOnline ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
@@ -1341,16 +1378,16 @@ export default function ManageDrivers() {
                           </button>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3 px-4 text-center min-w-[100px]">
                         <div className="flex items-center justify-center gap-1">
                           <FaStar size={10} className="text-yellow-400" />
                           <span className="text-sm font-medium text-gray-900">{d.rating || '0.0'}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-right">
+                      <td className="py-3 px-4 text-right min-w-[120px]">
                         <span className="text-sm font-medium text-gray-900">₹{(d.totalEarnings || 0).toLocaleString()}</span>
                       </td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-4 min-w-[200px]">
                         <p className="text-sm font-mono text-gray-900 bg-gray-100 px-2 py-1 rounded">
                           {d.password && d.password.length > 20 ? '••••••••••••••••••••' : d.password || 'N/A'}
                         </p>
@@ -1427,7 +1464,7 @@ export default function ManageDrivers() {
                     </tr>
                     {expandedRows[d._id] && (
                       <tr className="bg-gray-50">
-                        <td colSpan="10" className="p-4">
+                        <td colSpan="14" className="p-4">
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {/* Personal Details */}
                             <div className="bg-white p-4 rounded-lg border border-gray-200">
