@@ -754,60 +754,6 @@ const AdminDashboard = () => {
                </div>
             </div>
 
-            {/* Row 8: Payouts & Infrastructure */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-green-600">
-                  <div className="flex items-center justify-between">
-                     <div>
-                        <p className="text-sm text-gray-500">Total Payouts Done</p>
-                        <p className="text-xl font-bold text-gray-800">₹{totalPayouts}</p>
-                     </div>
-                     <div className="bg-green-50 p-3 rounded-lg"><CreditCard className="text-green-600" size={24} /></div>
-                  </div>
-                  <div className="mt-2"><span className="text-[10px] text-gray-400">Total withdrawal amount paid</span></div>
-               </div>
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-orange-500">
-                  <div className="flex items-center justify-between">
-                     <div>
-                        <p className="text-sm text-gray-500">Pending Payouts</p>
-                        <p className="text-2xl font-bold text-orange-600">{pendingPayoutsCount}</p>
-                     </div>
-                     <div className="bg-orange-50 p-3 rounded-lg"><Clock className="text-orange-600" size={24} /></div>
-                  </div>
-                  <div className="mt-2"><span className="text-[10px] text-gray-400">Withdrawals to be processed</span></div>
-               </div>
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-red-600">
-                  <div className="flex items-center justify-between">
-                     <div>
-                        <p className="text-sm text-gray-500">Rejected Drivers</p>
-                        <p className="text-2xl font-bold text-red-600">{rejectedDrivers}</p>
-                     </div>
-                     <div className="bg-red-50 p-3 rounded-lg"><XCircle className="text-red-600" size={24} /></div>
-                  </div>
-                  <div className="mt-2"><span className="text-[10px] text-gray-400">Drivers not allowed on platform</span></div>
-               </div>
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-teal-500">
-                  <div className="flex items-center justify-between">
-                     <div>
-                        <p className="text-sm text-gray-500">Active Cities</p>
-                        <p className="text-2xl font-bold text-gray-800">{activeAreas}</p>
-                     </div>
-                     <div className="bg-teal-50 p-3 rounded-lg"><MapPin className="text-teal-600" size={24} /></div>
-                  </div>
-                  <div className="mt-2"><span className="text-[10px] text-gray-400">Operational service areas</span></div>
-               </div>
-               <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-gray-500">
-                  <div className="flex items-center justify-between">
-                     <div>
-                        <p className="text-sm text-gray-500">Inactive Cities</p>
-                        <p className="text-2xl font-bold text-gray-800">{inactiveAreas}</p>
-                     </div>
-                     <div className="bg-gray-50 p-3 rounded-lg"><Filter className="text-gray-600" size={24} /></div>
-                  </div>
-                  <div className="mt-2"><span className="text-[10px] text-gray-400">Service areas currently disabled</span></div>
-               </div>
-            </div>
-
             {/* Row 9: User Distribution and Booking Status */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                {/* Online Payments */}
