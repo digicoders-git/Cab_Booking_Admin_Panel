@@ -17,17 +17,6 @@ import autoTable from "jspdf-autotable";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
-// --- Helper: Load Razorpay Script ---
-const loadRazorpay = () => {
-  return new Promise((resolve) => {
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
-  });
-};
-
 export default function CreateBulkBooking() {
   const { themeColors } = useTheme();
   const { currentFont } = useFont();
@@ -371,60 +360,10 @@ export default function CreateBulkBooking() {
 
       if (result.isConfirmed) {
         const res = await createBulkBooking(payload);
-        if (res.success && res.advanceAmount) {
-          // 💳 TRIGGER RAZORPAY FOR 25% ADVANCE
-          const sdkLoaded = await loadRazorpay();
-          if (!sdkLoaded) {
-            toast.error("Razorpay SDK failed to load");
-            return;
-          }
-
-          const options = {
-            key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_your_key",
-            amount: res.advanceAmount * 100, // paise
-            currency: "INR",
-            name: "Bulk Booking Advance",
-            description: `25% Advance for Booking ${res.bookingId}`,
-            handler: async (response) => {
-              try {
-                const verifyRes = await verifyBulkPayment({
-                  bookingId: res.bookingId,
-                  paymentId: response.razorpay_payment_id,
-                  type: 'advance'
-                });
-                if (verifyRes.success) {
-                  toast.success("Advance Paid! Booking live on Marketplace.");
-                  
-                  // 📄 AUTO-DOWNLOAD RECEIPT
-                  try {
-                    const fullBookingRes = await getMyCreatedRequests();
-                    const justCreated = fullBookingRes.bookings?.find(b => b._id === res.bookingId);
-                    if (justCreated) generateReceipt(justCreated);
-                  } catch (err) {}
-
-                  fetchMyRequests();
-                  // Reset
-                  setSelectedCars([]);
-                  setFormData({
-                    pickup: "", drop: "", date: "", time: "",
-                    tripType: "OneWay", returnDate: "",
-                    days: 1, distance: 0, notes: "", offeredPrice: 0, priceModifier: 0
-                  });
-                  setShowBookingModal(false);
-                }
-              } catch (err) {
-                toast.error("Payment verification failed");
-              }
-            },
-            prefill: {
-              name: "Admin / Agent",
-            },
-            theme: { color: "#3b82f6" },
-          };
-
-          const rzp = new window.Razorpay(options);
-          rzp.open();
-
+        if (res.success && res.paymentLinks && res.paymentLinks.web) {
+          // 💳 REDIRECT TO HDFC PAYMENT GATEWAY
+          toast.success("Redirecting to secure payment gateway...");
+          window.location.href = res.paymentLinks.web;
         } else if (res.success) {
           toast.success("Bulk Booking live on Marketplace!");
           fetchMyRequests();
