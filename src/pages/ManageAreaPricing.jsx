@@ -21,7 +21,9 @@ const ManageAreaPricing = () => {
     radiusKm: 5,
     baseFareMultiplier: 1,
     privateRateMultiplier: 1,
-    sharedRateMultiplier: 1
+    sharedRateMultiplier: 1,
+    validFrom: "",
+    validUntil: ""
   });
 
   const [loading, setLoading] = useState(false);
@@ -109,7 +111,9 @@ const ManageAreaPricing = () => {
         location: {
           type: "Point",
           coordinates: [formData.centerLng, formData.centerLat] 
-        }
+        },
+        validFrom: formData.validFrom || null,
+        validUntil: formData.validUntil || null
       };
 
       if (editId) {
@@ -138,7 +142,9 @@ const ManageAreaPricing = () => {
       radiusKm: 5,
       baseFareMultiplier: 1,
       privateRateMultiplier: 1,
-      sharedRateMultiplier: 1
+      sharedRateMultiplier: 1,
+      validFrom: "",
+      validUntil: ""
     });
     setEditId(null);
   };
@@ -153,7 +159,9 @@ const ManageAreaPricing = () => {
       radiusKm: item.radiusKm || 5,
       baseFareMultiplier: item.baseFareMultiplier || 1,
       privateRateMultiplier: item.privateRateMultiplier || 1,
-      sharedRateMultiplier: item.sharedRateMultiplier || 1
+      sharedRateMultiplier: item.sharedRateMultiplier || 1,
+      validFrom: item.validFrom ? new Date(new Date(item.validFrom).getTime() - new Date(item.validFrom).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "",
+      validUntil: item.validUntil ? new Date(new Date(item.validUntil).getTime() - new Date(item.validUntil).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""
     });
     setShowModal(true);
   };
@@ -357,6 +365,7 @@ const ManageAreaPricing = () => {
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Base</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Private</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Shared</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Validity</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Priority</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Status</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Actions</th>
@@ -391,6 +400,16 @@ const ManageAreaPricing = () => {
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className="text-sm font-bold text-green-600">{item.sharedRateMultiplier}x</span>
+                    </td>
+                    <td className="px-6 py-4 text-center text-xs text-gray-600">
+                      {item.validUntil ? (
+                         <div className="flex flex-col gap-0.5">
+                           <span className="text-[10px] text-gray-400">Expires:</span>
+                           <span className="font-semibold">{new Date(item.validUntil).toLocaleString('en-IN', {day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit'})}</span>
+                         </div>
+                      ) : (
+                         <span className="text-gray-400">Lifetime</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-lg">L{item.priority}</span>
@@ -592,6 +611,28 @@ const ManageAreaPricing = () => {
                   ))}
                 </div>
                 <p className="text-xs text-gray-500 text-center mt-2">Default 1.00 = No change</p>
+              </div>
+
+              {/* Time-Bound Validity */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Valid From (Optional)</label>
+                  <input
+                    type="datetime-local"
+                    value={formData.validFrom}
+                    onChange={(e) => setFormData({ ...formData, validFrom: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Valid Until (Auto-Expire)</label>
+                  <input
+                    type="datetime-local"
+                    value={formData.validUntil}
+                    onChange={(e) => setFormData({ ...formData, validUntil: e.target.value })}
+                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all"
+                  />
+                </div>
               </div>
 
               {/* Footer Buttons */}
