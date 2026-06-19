@@ -23,7 +23,10 @@ const ManageAreaPricing = () => {
     privateRateMultiplier: 1,
     sharedRateMultiplier: 1,
     validFrom: "",
-    validUntil: ""
+    validUntil: "",
+    daysOfWeek: [],
+    startTime: "",
+    endTime: ""
   });
 
   const [loading, setLoading] = useState(false);
@@ -113,7 +116,10 @@ const ManageAreaPricing = () => {
           coordinates: [formData.centerLng, formData.centerLat] 
         },
         validFrom: formData.validFrom || null,
-        validUntil: formData.validUntil || null
+        validUntil: formData.validUntil || null,
+        daysOfWeek: formData.daysOfWeek || [],
+        startTime: formData.startTime || null,
+        endTime: formData.endTime || null
       };
 
       if (editId) {
@@ -144,7 +150,10 @@ const ManageAreaPricing = () => {
       privateRateMultiplier: 1,
       sharedRateMultiplier: 1,
       validFrom: "",
-      validUntil: ""
+      validUntil: "",
+      daysOfWeek: [],
+      startTime: "",
+      endTime: ""
     });
     setEditId(null);
   };
@@ -161,7 +170,10 @@ const ManageAreaPricing = () => {
       privateRateMultiplier: item.privateRateMultiplier || 1,
       sharedRateMultiplier: item.sharedRateMultiplier || 1,
       validFrom: item.validFrom ? new Date(new Date(item.validFrom).getTime() - new Date(item.validFrom).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "",
-      validUntil: item.validUntil ? new Date(new Date(item.validUntil).getTime() - new Date(item.validUntil).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : ""
+      validUntil: item.validUntil ? new Date(new Date(item.validUntil).getTime() - new Date(item.validUntil).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "",
+      daysOfWeek: item.daysOfWeek || [],
+      startTime: item.startTime || "",
+      endTime: item.endTime || ""
     });
     setShowModal(true);
   };
@@ -402,14 +414,25 @@ const ManageAreaPricing = () => {
                       <span className="text-sm font-bold text-green-600">{item.sharedRateMultiplier}x</span>
                     </td>
                     <td className="px-6 py-4 text-center text-xs text-gray-600">
-                      {item.validUntil ? (
-                         <div className="flex flex-col gap-0.5">
-                           <span className="text-[10px] text-gray-400">Expires:</span>
-                           <span className="font-semibold">{new Date(item.validUntil).toLocaleString('en-IN', {day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit'})}</span>
-                         </div>
-                      ) : (
-                         <span className="text-gray-400">Lifetime</span>
-                      )}
+                      <div className="flex flex-col gap-1.5 items-center">
+                        {/* Recurring Schedule Badge */}
+                        {(item.daysOfWeek?.length > 0 || item.startTime) && (
+                          <div className="bg-blue-50 border border-blue-100 text-blue-700 px-2 py-1 rounded-md text-[10px] font-bold flex flex-col items-center leading-tight">
+                            <span>{item.daysOfWeek?.length > 0 ? item.daysOfWeek.map(d => d.slice(0,3)).join(', ') : 'Daily'}</span>
+                            {item.startTime && <span className="text-blue-500">{item.startTime} - {item.endTime}</span>}
+                          </div>
+                        )}
+                        
+                        {/* Date Expiry */}
+                        {item.validUntil ? (
+                           <div className="flex flex-col gap-0.5">
+                             <span className="text-[10px] text-gray-400">Expires:</span>
+                             <span className="font-semibold">{new Date(item.validUntil).toLocaleString('en-IN', {day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit'})}</span>
+                           </div>
+                        ) : (
+                           !(item.daysOfWeek?.length > 0 || item.startTime) && <span className="text-gray-400">Lifetime</span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-lg">L{item.priority}</span>
@@ -496,7 +519,7 @@ const ManageAreaPricing = () => {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden">
+          <div className="bg-white w-full max-w-2xl max-h-[95vh] overflow-y-auto rounded-2xl shadow-2xl">
 
             {/* Modal Header */}
             <div className="px-6 py-5 border-b border-gray-100">
@@ -611,6 +634,55 @@ const ManageAreaPricing = () => {
                   ))}
                 </div>
                 <p className="text-xs text-gray-500 text-center mt-2">Default 1.00 = No change</p>
+              </div>
+
+              {/* Recurring Peak Time Setup */}
+              <div className="p-4 bg-blue-50/40 rounded-xl border border-blue-100">
+                <label className="block text-sm font-bold text-gray-800 mb-3">Recurring Peak Hours (Optional)</label>
+                
+                <div className="mb-4">
+                  <label className="block text-xs font-semibold text-gray-600 mb-2">Select Days</label>
+                  <div className="flex flex-wrap gap-2">
+                    {["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].map(day => (
+                      <label key={day} className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg cursor-pointer transition-colors ${formData.daysOfWeek.includes(day) ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
+                        <input 
+                          type="checkbox" 
+                          checked={formData.daysOfWeek.includes(day)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setFormData({ ...formData, daysOfWeek: [...formData.daysOfWeek, day] });
+                            } else {
+                              setFormData({ ...formData, daysOfWeek: formData.daysOfWeek.filter(d => d !== day) });
+                            }
+                          }}
+                          className="hidden"
+                        />
+                        <span className="text-xs font-semibold">{day.slice(0,3)}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">Start Time</label>
+                    <input
+                      type="time"
+                      value={formData.startTime}
+                      onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-600 mb-1.5">End Time</label>
+                    <input
+                      type="time"
+                      value={formData.endTime}
+                      onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Time-Bound Validity */}

@@ -49,8 +49,17 @@ export default function AdminProfile() {
   });
 
   const [bulkSettings, setBulkSettings] = useState({
-    advancePercentage: 25,
-    securityPercentage: 20
+    userBulkAdvancePct: 25,
+    userPayViaBank: true,
+    agentBulkAdvancePct: 5,
+    agentPayViaBank: false,
+    vendorBulkAdvancePct: 15,
+    vendorPayViaBank: true,
+    adminBulkAdvancePct: 0,
+    adminPayViaBank: false,
+    fleetBulkSecurityPct: 20,
+    fleetSecurityPayViaBank: true,
+    maxNegativeWalletLimit: 3000
   });
 
   const fileInputRef = useRef(null);
@@ -72,11 +81,8 @@ export default function AdminProfile() {
   const fetchBulkSettings = async () => {
     try {
       const res = await getBulkSettings();
-      if (res.success) {
-        setBulkSettings({
-          advancePercentage: res.advancePercentage,
-          securityPercentage: res.securityPercentage
-        });
+      if (res.success && res.settings) {
+        setBulkSettings(res.settings);
       }
     } catch (err) { console.error(err); }
   };
@@ -196,6 +202,18 @@ export default function AdminProfile() {
 
   const handleBulkSettingsUpdate = async (e) => {
     e.preventDefault();
+
+    // Validation: ensure no value is less than 1
+    const keysToCheck = [
+      "userBulkAdvancePct", "agentBulkAdvancePct", "vendorBulkAdvancePct", 
+      "adminBulkAdvancePct", "fleetBulkSecurityPct", "maxNegativeWalletLimit"
+    ];
+    for (let key of keysToCheck) {
+      if (bulkSettings[key] === '' || bulkSettings[key] < 1) {
+        return toast.error("All values must be 1 or greater.");
+      }
+    }
+
     try {
       setUpdating(true);
       const res = await updateBulkSettings(bulkSettings);
@@ -623,41 +641,72 @@ export default function AdminProfile() {
                 </div>
 
                 <form onSubmit={handleBulkSettingsUpdate} className="p-6 space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: textDim }}>User/Agent Advance (%)</label>
-                      <div className="relative">
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
-                          <Settings size={18} style={{ color: textDim }} />
+                  <div className="space-y-6">
+                    {/* Reusable Setting Row component-like structure */}
+                    {[
+                      { label: "User Advance", pctKey: "userBulkAdvancePct", bankKey: "userPayViaBank" },
+                      { label: "Agent Advance", pctKey: "agentBulkAdvancePct", bankKey: "agentPayViaBank" },
+                      { label: "Vendor Advance", pctKey: "vendorBulkAdvancePct", bankKey: "vendorPayViaBank" },
+                      { label: "Admin/SubAdmin Advance", pctKey: "adminBulkAdvancePct", bankKey: "adminPayViaBank" },
+                      { label: "Fleet Security", pctKey: "fleetBulkSecurityPct", bankKey: "fleetSecurityPayViaBank" }
+                    ].map((role) => (
+                      <div key={role.pctKey} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-xl border" style={{ borderColor, backgroundColor: inputBg }}>
+                        {/* Percentage Input */}
+                        <div>
+                          <label className="block text-sm font-medium mb-2" style={{ color: textDim }}>{role.label} (%)</label>
+                          <div className="relative">
+                            <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+                              <Settings size={18} style={{ color: textDim }} />
+                            </div>
+                            <input
+                              type="number"
+                              value={bulkSettings[role.pctKey] === '' ? '' : bulkSettings[role.pctKey]}
+                              onChange={(e) => setBulkSettings({ ...bulkSettings, [role.pctKey]: e.target.value === '' ? '' : Number(e.target.value) })}
+                              className="w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                              style={{ backgroundColor: inputBg, borderColor, color: textMain }}
+                              min="1" max="100"
+                            />
+                          </div>
                         </div>
-                        <input
-                          type="number"
-                          value={bulkSettings.advancePercentage}
-                          onChange={(e) => setBulkSettings({ ...bulkSettings, advancePercentage: e.target.value })}
-                          className="w-full pl-10 pr-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
-                          style={{ backgroundColor: inputBg, borderColor, color: textMain }}
-                          min="0" max="100"
-                        />
-                      </div>
-                      <p className="text-xs mt-1 text-blue-500 font-medium">* Required from User/Agent to post on Marketplace</p>
-                    </div>
 
-                    <div>
-                      <label className="block text-sm font-medium mb-2" style={{ color: textDim }}>Fleet Security Commission (%)</label>
-                      <div className="relative">
+                        {/* Pay Via Bank Toggle */}
+                        <div className="flex flex-col justify-center">
+                          <label className="block text-sm font-medium mb-2" style={{ color: textDim }}>Pay Via Bank Gateway</label>
+                          <div className="flex items-center gap-3">
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={bulkSettings[role.bankKey]}
+                                onChange={(e) => setBulkSettings({ ...bulkSettings, [role.bankKey]: e.target.checked })}
+                                className="sr-only peer"
+                              />
+                              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                            </label>
+                            <span className="text-sm font-medium" style={{ color: bulkSettings[role.bankKey] ? '#10B981' : '#EF4444' }}>
+                              {bulkSettings[role.bankKey] ? "ON (Bank)" : "OFF (Wallet Deduction)"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    
+                    {/* Max Negative Limit */}
+                    <div className="p-4 rounded-xl border" style={{ borderColor, backgroundColor: inputBg }}>
+                      <label className="block text-sm font-medium mb-2" style={{ color: textDim }}>Maximum Wallet Negative Limit (₹)</label>
+                      <div className="relative md:w-1/2">
                         <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
                           <Shield size={18} style={{ color: textDim }} />
                         </div>
                         <input
                           type="number"
-                          value={bulkSettings.securityPercentage}
-                          onChange={(e) => setBulkSettings({ ...bulkSettings, securityPercentage: e.target.value })}
-                          className="w-full pl-10 pr-4 py-3 rounded-xl border focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                          value={bulkSettings.maxNegativeWalletLimit === '' ? '' : bulkSettings.maxNegativeWalletLimit}
+                          onChange={(e) => setBulkSettings({ ...bulkSettings, maxNegativeWalletLimit: e.target.value === '' ? '' : Number(e.target.value) })}
+                          className="w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                           style={{ backgroundColor: inputBg, borderColor, color: textMain }}
-                          min="0" max="100"
+                          min="1"
                         />
                       </div>
-                      <p className="text-xs mt-1 text-green-500 font-medium">* Required from Fleet to accept a deal</p>
+                      <p className="text-xs mt-2" style={{ color: textDim }}>If 'Pay Via Bank' is OFF, users can owe up to this amount before their bookings are blocked.</p>
                     </div>
                   </div>
 

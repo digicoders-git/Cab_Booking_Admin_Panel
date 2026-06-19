@@ -8,6 +8,7 @@ import {
 const Dashboard = lazy(() => import("../pages/Dashboard"));
 const CreateFleet = lazy(() => import("../pages/CreateFleet"));
 const CreateAgent = lazy(() => import("../pages/CreateAgent"));
+const PendingAgents = lazy(() => import("../pages/PendingAgents"));
 const ManageDrivers = lazy(() => import("../pages/ManageDrivers"));
 const ManageUsers = lazy(() => import("../pages/ManageUsers"));
 const ManageNotifications = lazy(() => import("../pages/ManageNotifications"));
@@ -30,6 +31,7 @@ const routes = [
   { path: "/dashboard", component: Dashboard, name: "Dashboard", icon: FaTachometerAlt, permission: "DASHBOARD_READ" },
   { path: "/fleet/create", component: CreateFleet, name: "Create Fleet", icon: FaTruck, permission: "FLEET_CREATE" },
   { path: "/agent/create", component: CreateAgent, name: "Create Agent", icon: FaUserTie, permission: "AGENT_CREATE" },
+  { path: "/agent/pending", component: PendingAgents, name: "Pending Agents", icon: FaUserTie, permission: "AGENT_CREATE" },
   { path: "/vendors/manage", component: Vendor, name: "Manage Vendors", icon: FaStore, permission: "VENDOR_READ" },
   { path: "/subadmins/manage", component: ManageSubAdmins, name: "Sub Admin", icon: FaUserShield, permission: "STAFF_VIEW" },
   { path: "/users/manage", component: ManageUsers, name: "Manage Users", icon: FaUsers, permission: "USER_READ" },

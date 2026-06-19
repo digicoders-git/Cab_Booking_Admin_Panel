@@ -360,7 +360,25 @@ export default function CreateBulkBooking() {
 
       if (result.isConfirmed) {
         const res = await createBulkBooking(payload);
-        if (res.success && res.paymentLinks && res.paymentLinks.web) {
+        
+        if (res.success && res.walletDeducted) {
+          Swal.fire({
+            icon: 'success',
+            title: 'Request Live!',
+            text: 'Your bulk booking request has been posted directly to the marketplace.',
+            confirmButtonColor: '#10B981',
+            confirmButtonText: 'Great!'
+          });
+          fetchMyRequests();
+          // Reset
+          setSelectedCars([]);
+          setFormData({
+            pickup: "", drop: "", date: "", time: "",
+            tripType: "OneWay", returnDate: "",
+            days: 1, distance: 0, notes: "", offeredPrice: 0, priceModifier: 0
+          });
+          setShowBookingModal(false);
+        } else if (res.success && res.paymentLinks && res.paymentLinks.web) {
           // 💳 REDIRECT TO HDFC PAYMENT GATEWAY
           toast.success("Redirecting to secure payment gateway...");
           window.location.href = res.paymentLinks.web;
@@ -375,10 +393,13 @@ export default function CreateBulkBooking() {
             days: 1, distance: 0, notes: "", offeredPrice: 0, priceModifier: 0
           });
           setShowBookingModal(false);
+        } else {
+          toast.error(res.message || "Failed to create booking");
         }
       }
     } catch (err) {
-      toast.error("Process failed");
+      const errMsg = err.response?.data?.message || err.message || err || "Process failed";
+      toast.error(errMsg);
     }
   };
 
