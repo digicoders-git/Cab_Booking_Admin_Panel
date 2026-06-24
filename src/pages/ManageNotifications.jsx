@@ -189,7 +189,14 @@ export default function ManageNotifications() {
     try {
       setFetching(true);
       const res = await getAllNotifications();
-      const fetched = res.notifications || [];
+      let fetched = res.notifications || [];
+      
+      // Filter: Show only if Created By model is admin or Admin (or SuperAdmin)
+      fetched = fetched.filter(n => {
+        const model = (n.createdByModel || '').toLowerCase();
+        return model === 'admin' || model === 'superadmin';
+      });
+
       const sorted = [...fetched].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       setNotifications(sorted);
     } catch { setNotifications([]); }

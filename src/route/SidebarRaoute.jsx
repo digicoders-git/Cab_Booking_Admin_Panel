@@ -2,7 +2,7 @@ import { lazy } from "react";
 import {
   FaTachometerAlt, FaTruck, FaUserTie, FaCar, FaUsers,
   FaBell, FaUserShield, FaWallet, FaRoute, FaCarSide,
-  FaAddressCard, FaSitemap, FaMap, FaStore, FaMapMarkerAlt, FaGlobe, FaTag, FaPlus
+  FaAddressCard, FaSitemap, FaMap, FaStore, FaMapMarkerAlt, FaGlobe, FaTag, FaPlus, FaBriefcase, FaMoneyBillWave
 } from "react-icons/fa";
 
 const Dashboard = lazy(() => import("../pages/Dashboard"));
@@ -26,6 +26,8 @@ const ManageAreaPricing = lazy(() => import("../pages/ManageAreaPricing"));
 const ManageServiceAreas = lazy(() => import("../pages/ManageServiceAreas"));
 const BulkMarketplace = lazy(() => import("../pages/BulkMarketplace"));
 const CreateBulkBooking = lazy(() => import("../pages/CreateBulkBooking"));
+const ManageAgentLeads = lazy(() => import("../pages/ManageAgentLeads"));
+const ManageStateTaxes = lazy(() => import("../pages/ManageStateTaxes"));
 
 const routes = [
   { path: "/dashboard", component: Dashboard, name: "Dashboard", icon: FaTachometerAlt, permission: "DASHBOARD_READ" },
@@ -44,9 +46,11 @@ const routes = [
   { path: "/bookings/manage", component: ManageBookings, name: "Manage Bookings", icon: FaRoute, permission: "BOOKING_READ" },
   { path: "/bulk-marketplace", component: BulkMarketplace, name: "Bulk Marketplace", icon: FaTag, permission: "FLEET_READ" },
   { path: "/bulk-booking/create", component: CreateBulkBooking, name: "Create Bulk Request", icon: FaPlus, permission: "BOOKING_CREATE" },
+  { path: "/agent-leads/manage", component: ManageAgentLeads, name: "Agent Leads", icon: FaBriefcase, permission: "BOOKING_READ" },
   { path: "/car-categories/manage", component: ManageCarCategories, name: "CarCategargary", icon: FaCar, permission: "CAT_VIEW" },
   { path: "/service-areas/manage", component: ManageServiceAreas, name: "Service Areas", icon: FaGlobe, permission: "CAT_VIEW" },
   { path: "/pricing/area-wise", component: ManageAreaPricing, name: "Area Pricing", icon: FaMapMarkerAlt, permission: "CAT_VIEW" },
+  { path: "/taxes/state-taxes", component: ManageStateTaxes, name: "State Taxes", icon: FaMoneyBillWave, permission: "CAT_VIEW" },
   { path: "/admin/profile", component: AdminProfile, name: "Profile", icon: FaUserShield },
   { path: "/reports", component: Reports, name: "Reports", icon: FaTachometerAlt, permission: "REPORT_READ" },
 ];

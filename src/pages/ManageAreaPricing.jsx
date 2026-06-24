@@ -26,8 +26,7 @@ const ManageAreaPricing = () => {
     validUntil: "",
     daysOfWeek: [],
     startTime: "",
-    endTime: "",
-    mcdStateTax: 0
+    endTime: ""
   });
 
   const [loading, setLoading] = useState(false);
@@ -120,8 +119,7 @@ const ManageAreaPricing = () => {
         validUntil: formData.validUntil || null,
         daysOfWeek: formData.daysOfWeek || [],
         startTime: formData.startTime || null,
-        endTime: formData.endTime || null,
-        mcdStateTax: formData.mcdStateTax || 0
+        endTime: formData.endTime || null
       };
 
       if (editId) {
@@ -155,8 +153,7 @@ const ManageAreaPricing = () => {
       validUntil: "",
       daysOfWeek: [],
       startTime: "",
-      endTime: "",
-      mcdStateTax: 0
+      endTime: ""
     });
     setEditId(null);
   };
@@ -176,8 +173,7 @@ const ManageAreaPricing = () => {
       validUntil: item.validUntil ? new Date(new Date(item.validUntil).getTime() - new Date(item.validUntil).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "",
       daysOfWeek: item.daysOfWeek || [],
       startTime: item.startTime || "",
-      endTime: item.endTime || "",
-      mcdStateTax: item.mcdStateTax || 0
+      endTime: item.endTime || ""
     });
     setShowModal(true);
   };
@@ -589,30 +585,17 @@ const ManageAreaPricing = () => {
                 </div>
               </div>
 
-              {/* Priority & MCD Tax */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Priority (0–100)</label>
-                  <input
-                    type="number"
-                    required
-                    value={formData.priority === 0 ? '' : formData.priority}
-                    onChange={(e) => setFormData({ ...formData, priority: e.target.value === '' ? '' : parseInt(e.target.value) })}
-                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all"
-                    placeholder="Higher number = higher priority"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">MCD / State Tax (₹) (Bulkbooking)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={formData.mcdStateTax === 0 ? '' : formData.mcdStateTax}
-                    onChange={(e) => setFormData({ ...formData, mcdStateTax: e.target.value === '' ? '' : parseInt(e.target.value) })}
-                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all"
-                    placeholder="e.g. 100"
-                  />
-                </div>
+              {/* Priority */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Priority (0–100)</label>
+                <input
+                  type="number"
+                  required
+                  value={formData.priority === 0 ? '' : formData.priority}
+                  onChange={(e) => setFormData({ ...formData, priority: e.target.value === '' ? '' : parseInt(e.target.value) })}
+                  className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all"
+                  placeholder="Higher number = higher priority"
+                />
               </div>
 
               {/* Multipliers */}

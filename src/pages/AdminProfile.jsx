@@ -49,6 +49,7 @@ export default function AdminProfile() {
   });
 
   const [bulkSettings, setBulkSettings] = useState({
+    defaultCommission: 10,
     userBulkAdvancePct: 25,
     userPayViaBank: true,
     agentBulkAdvancePct: 5,
@@ -59,7 +60,8 @@ export default function AdminProfile() {
     adminPayViaBank: false,
     fleetBulkSecurityPct: 20,
     fleetSecurityPayViaBank: true,
-    maxNegativeWalletLimit: 3000
+    maxNegativeWalletLimit: 3000,
+    agentLeadAdminProfitPct: 10
   });
 
   const fileInputRef = useRef(null);
@@ -203,15 +205,18 @@ export default function AdminProfile() {
   const handleBulkSettingsUpdate = async (e) => {
     e.preventDefault();
 
-    // Validation: ensure no value is less than 1
+    // Validation: ensure no value is less than 1 (except defaultCommission which can be 0)
     const keysToCheck = [
       "userBulkAdvancePct", "agentBulkAdvancePct", "vendorBulkAdvancePct", 
       "adminBulkAdvancePct", "fleetBulkSecurityPct", "maxNegativeWalletLimit"
     ];
     for (let key of keysToCheck) {
       if (bulkSettings[key] === '' || bulkSettings[key] < 1) {
-        return toast.error("All values must be 1 or greater.");
+        return toast.error(`${key} must be 1 or greater.`);
       }
+    }
+    if (bulkSettings.defaultCommission === '' || bulkSettings.defaultCommission < 0) {
+       return toast.error("Default Commission cannot be negative.");
     }
 
     try {
@@ -642,6 +647,27 @@ export default function AdminProfile() {
 
                 <form onSubmit={handleBulkSettingsUpdate} className="p-6 space-y-6">
                   <div className="space-y-6">
+                    {/* Normal Trip Default Commission */}
+                    <div className="p-4 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/30 dark:bg-indigo-900/10">
+                      <h4 className="text-sm font-bold text-indigo-700 dark:text-indigo-400 mb-3 uppercase tracking-wider">Normal Trips Settings</h4>
+                      <label className="block text-sm font-medium mb-2" style={{ color: textDim }}>Global Default Commission (%)</label>
+                      <div className="relative md:w-1/2">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+                          <Settings size={18} style={{ color: textDim }} />
+                        </div>
+                        <input
+                          type="number"
+                          value={bulkSettings.defaultCommission === '' ? '' : bulkSettings.defaultCommission}
+                          onChange={(e) => setBulkSettings({ ...bulkSettings, defaultCommission: e.target.value === '' ? '' : Number(e.target.value) })}
+                          className="w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                          style={{ backgroundColor: inputBg, borderColor, color: textMain }}
+                          min="0" max="100"
+                        />
+                      </div>
+                      <p className="text-xs mt-2" style={{ color: textDim }}>This is the platform fee % charged on standard individual trips.</p>
+                    </div>
+
+                    <h4 className="text-sm font-bold mt-8 mb-4 uppercase tracking-wider" style={{ color: textDim }}>Bulk Booking Settings</h4>
                     {/* Reusable Setting Row component-like structure */}
                     {[
                       { label: "User Advance", pctKey: "userBulkAdvancePct", bankKey: "userPayViaBank" },
@@ -707,6 +733,26 @@ export default function AdminProfile() {
                         />
                       </div>
                       <p className="text-xs mt-2" style={{ color: textDim }}>If 'Pay Via Bank' is OFF, users can owe up to this amount before their bookings are blocked.</p>
+                    </div>
+
+                    {/* Agent Lead Marketplace Profit */}
+                    <div className="p-4 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-900/10">
+                      <h4 className="text-sm font-bold text-blue-700 dark:text-blue-400 mb-3 uppercase tracking-wider">Agent Lead Marketplace</h4>
+                      <label className="block text-sm font-medium mb-2" style={{ color: textDim }}>Admin Profit Cut (%)</label>
+                      <div className="relative md:w-1/2">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center pointer-events-none">
+                          <Settings size={18} style={{ color: textDim }} />
+                        </div>
+                        <input
+                          type="number"
+                          value={bulkSettings.agentLeadAdminProfitPct === '' ? '' : bulkSettings.agentLeadAdminProfitPct}
+                          onChange={(e) => setBulkSettings({ ...bulkSettings, agentLeadAdminProfitPct: e.target.value === '' ? '' : Number(e.target.value) })}
+                          className="w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                          style={{ backgroundColor: inputBg, borderColor, color: textMain }}
+                          min="0" max="100"
+                        />
+                      </div>
+                      <p className="text-xs mt-2" style={{ color: textDim }}>The percentage Admin deducts from the Agent's Commission when a lead is completed.</p>
                     </div>
                   </div>
 
