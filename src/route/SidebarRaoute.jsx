@@ -28,6 +28,7 @@ const BulkMarketplace = lazy(() => import("../pages/BulkMarketplace"));
 const CreateBulkBooking = lazy(() => import("../pages/CreateBulkBooking"));
 const ManageAgentLeads = lazy(() => import("../pages/ManageAgentLeads"));
 const ManageStateTaxes = lazy(() => import("../pages/ManageStateTaxes"));
+const ManageOffers = lazy(() => import("../pages/ManageOffers"));
 
 const routes = [
   { path: "/dashboard", component: Dashboard, name: "Dashboard", icon: FaTachometerAlt, permission: "DASHBOARD_READ" },
@@ -51,6 +52,7 @@ const routes = [
   { path: "/service-areas/manage", component: ManageServiceAreas, name: "Service Areas", icon: FaGlobe, permission: "CAT_VIEW" },
   { path: "/pricing/area-wise", component: ManageAreaPricing, name: "Area Pricing", icon: FaMapMarkerAlt, permission: "CAT_VIEW" },
   { path: "/taxes/state-taxes", component: ManageStateTaxes, name: "State Taxes", icon: FaMoneyBillWave, permission: "CAT_VIEW" },
+  { path: "/offers/manage", component: ManageOffers, name: "Manage Offers", icon: FaTag, permission: "CAT_VIEW" },
   { path: "/admin/profile", component: AdminProfile, name: "Profile", icon: FaUserShield },
   { path: "/reports", component: Reports, name: "Reports", icon: FaTachometerAlt, permission: "REPORT_READ" },
 ];
