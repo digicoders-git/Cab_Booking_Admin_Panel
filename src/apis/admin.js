@@ -71,3 +71,12 @@ export const toggleDriverOnline = async (driverId, status) => {
     const response = await http.put(`/api/admin/driver/toggle-online`, { driverId, status });
     return response.data;
 };
+
+export const exportTransactionsCSV = async (timeframe) => {
+    // responseType: 'blob' is important to handle binary/file data correctly in Axios
+    const response = await http.get(`/api/wallet/admin/transactions/export`, {
+        params: { timeframe, format: 'csv' },
+        responseType: 'blob'
+    });
+    return response.data;
+};

@@ -29,3 +29,13 @@ export const getAdminWallet = async () => {
   const res = await http.get("/api/wallet/my-wallet");
   return res.data;
 };
+
+export const addManualBalance = async (targetUserId, targetUserModel, amount, description) => {
+  const res = await http.post("/api/wallet/admin/wallet/add-balance", {
+    targetUserId,
+    targetUserModel,
+    amount,
+    description
+  });
+  return res.data;
+};

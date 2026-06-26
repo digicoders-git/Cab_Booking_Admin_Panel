@@ -71,3 +71,12 @@ export const verifyBulkPayment = async (data) => {
         return err.response?.data || { success: false, message: "Network Error" };
     }
 };
+
+export const getAllBulkBookingsHistory = async () => {
+    try {
+        const res = await http.get("/api/bulk-bookings/admin/all-history");
+        return res.data;
+    } catch (err) {
+        return err.response?.data || { success: false, message: "Network Error" };
+    }
+};

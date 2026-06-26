@@ -10,7 +10,7 @@ import {
   RadialBarChart, RadialBar,
   FunnelChart, Funnel
 } from 'recharts';
-import { getFullReport as fetchReportAPI } from '../apis/admin';
+import { getFullReport as fetchReportAPI, exportTransactionsCSV } from '../apis/admin';
 import {
   Download, RefreshCw, Filter, Calendar, DollarSign, TrendingUp,
   TrendingDown, Users, Car, CreditCard, Banknote, Wallet,
@@ -85,10 +85,32 @@ const AdminReportPage = () => {
     fetchFullReport();
   }, []);
 
-  const handleExport = (format) => {
-    console.log(`Exporting as ${format}...`);
-  };
+  const [exportTimeframe, setExportTimeframe] = useState('monthly');
+  const [isExporting, setIsExporting] = useState(false);
 
+  const handleExport = async () => {
+    try {
+      setIsExporting(true);
+      const blob = await exportTransactionsCSV(exportTimeframe);
+      
+      // Create a URL for the blob and trigger download
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `transactions-${exportTimeframe}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting transactions:', error);
+      alert('Failed to export transactions');
+    } finally {
+      setIsExporting(false);
+    }
+  };
   const toggleRowExpansion = (id) => {
     setExpandedRows(prev => ({
       ...prev,
@@ -746,9 +768,24 @@ const AdminReportPage = () => {
           <h3 className="text-lg font-semibold text-gray-900">All Transactions</h3>
           <p className="text-sm text-gray-500">Complete transaction history</p>
         </div>
-        <div className="flex gap-2">
-          <button className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-            Export All
+        <div className="flex items-center gap-3">
+          <select 
+            value={exportTimeframe} 
+            onChange={(e) => setExportTimeframe(e.target.value)}
+            className="px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          >
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+          </select>
+          <button 
+            onClick={handleExport}
+            disabled={isExporting}
+            className={`px-4 py-2 text-sm flex items-center gap-2 text-white rounded-lg transition-colors ${isExporting ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'}`}
+          >
+            <DownloadCloud size={16} />
+            {isExporting ? 'Exporting...' : 'Export Transactions'}
           </button>
         </div>
       </div>
@@ -879,28 +916,31 @@ const AdminReportPage = () => {
 
       {/* Export Options */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-2 sm:p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Export Reports</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Export Reports</h3>
+          <select 
+            value={exportTimeframe} 
+            onChange={(e) => setExportTimeframe(e.target.value)}
+            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          >
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+          </select>
+        </div>
         <div className="space-y-3">
-          <button onClick={() => handleExport('pdf')} className="w-full p-3 border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <FileText size={18} className="text-red-500" />
-              <span className="text-sm font-medium text-gray-700">PDF Report</span>
-            </div>
-            <Download size={16} className="text-gray-400" />
-          </button>
 
-          <button onClick={() => handleExport('excel')} className="w-full p-3 border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <FileSpreadsheet size={18} className="text-green-500" />
-              <span className="text-sm font-medium text-gray-700">Excel Spreadsheet</span>
-            </div>
-            <Download size={16} className="text-gray-400" />
-          </button>
-
-          <button onClick={() => handleExport('csv')} className="w-full p-3 border border-gray-200 rounded-lg hover:bg-gray-50 flex items-center justify-between">
+          <button 
+            onClick={handleExport} 
+            disabled={isExporting}
+            className={`w-full p-3 border border-gray-200 rounded-lg flex items-center justify-between ${isExporting ? 'bg-gray-100 opacity-70' : 'hover:bg-gray-50'}`}
+          >
             <div className="flex items-center gap-3">
               <DownloadCloud size={18} className="text-blue-500" />
-              <span className="text-sm font-medium text-gray-700">CSV File</span>
+              <span className="text-sm font-medium text-gray-700">
+                {isExporting ? 'Exporting CSV...' : 'CSV File (Transactions)'}
+              </span>
             </div>
             <Download size={16} className="text-gray-400" />
           </button>

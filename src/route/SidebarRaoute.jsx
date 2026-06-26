@@ -2,7 +2,7 @@ import { lazy } from "react";
 import {
   FaTachometerAlt, FaTruck, FaUserTie, FaCar, FaUsers,
   FaBell, FaUserShield, FaWallet, FaRoute, FaCarSide,
-  FaAddressCard, FaSitemap, FaMap, FaStore, FaMapMarkerAlt, FaGlobe, FaTag, FaPlus, FaBriefcase, FaMoneyBillWave
+  FaAddressCard, FaSitemap, FaMap, FaStore, FaMapMarkerAlt, FaGlobe, FaTag, FaPlus, FaBriefcase, FaMoneyBillWave, FaHistory
 } from "react-icons/fa";
 
 const Dashboard = lazy(() => import("../pages/Dashboard"));
@@ -29,6 +29,7 @@ const CreateBulkBooking = lazy(() => import("../pages/CreateBulkBooking"));
 const ManageAgentLeads = lazy(() => import("../pages/ManageAgentLeads"));
 const ManageStateTaxes = lazy(() => import("../pages/ManageStateTaxes"));
 const ManageOffers = lazy(() => import("../pages/ManageOffers"));
+const BulkBookingHistory = lazy(() => import("../pages/BulkBookingHistory")); // Add this line
 
 const routes = [
   { path: "/dashboard", component: Dashboard, name: "Dashboard", icon: FaTachometerAlt, permission: "DASHBOARD_READ" },
@@ -47,6 +48,7 @@ const routes = [
   { path: "/bookings/manage", component: ManageBookings, name: "Manage Bookings", icon: FaRoute, permission: "BOOKING_READ" },
   { path: "/bulk-marketplace", component: BulkMarketplace, name: "Bulk Marketplace", icon: FaTag, permission: "FLEET_READ" },
   { path: "/bulk-booking/create", component: CreateBulkBooking, name: "Create Bulk Request", icon: FaPlus, permission: "BOOKING_CREATE" },
+  { path: "/bulk-booking/history", component: BulkBookingHistory, name: "Bulk Booking History", icon: FaHistory, permission: "BOOKING_READ" }, // Add this line
   { path: "/agent-leads/manage", component: ManageAgentLeads, name: "Agent Leads", icon: FaBriefcase, permission: "BOOKING_READ" },
   { path: "/car-categories/manage", component: ManageCarCategories, name: "CarCategargary", icon: FaCar, permission: "CAT_VIEW" },
   { path: "/service-areas/manage", component: ManageServiceAreas, name: "Service Areas", icon: FaGlobe, permission: "CAT_VIEW" },

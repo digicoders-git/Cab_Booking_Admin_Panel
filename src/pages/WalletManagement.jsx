@@ -8,7 +8,7 @@ import {
   getPendingPayouts,
   approvePayout,
   rejectPayout,
-  updateFleetWallet
+  addManualBalance
 } from "../apis/wallet";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -368,12 +368,19 @@ export default function WalletManagement() {
       title: "Manual Ledger Entry",
       html:
         `<div class="flex flex-col gap-3 py-2">
-           <input id="sw-id" placeholder="Entity (Fleet/Driver/Agent) ID" class="swal2-input !mx-0 !w-full !rounded-xl text-sm">
+           <select id="sw-model" class="swal2-input !mx-0 !w-full !rounded-xl text-sm">
+             <option value="Driver">Driver</option>
+             <option value="User">User</option>
+             <option value="Agent">Agent</option>
+             <option value="Fleet">Fleet</option>
+           </select>
+           <input id="sw-id" placeholder="Email, Phone, or ID" class="swal2-input !mx-0 !w-full !rounded-xl text-sm">
            <input id="sw-amt" type="number" placeholder="Adjustment Amount (₹)" class="swal2-input !mx-0 !w-full !rounded-xl text-sm">
            <select id="sw-type" class="swal2-input !mx-0 !w-full !rounded-xl text-sm">
              <option value="credit">Credit (Increase Balance)</option>
              <option value="debit">Debit (Deduct Balance)</option>
            </select>
+           <input id="sw-desc" placeholder="Description (Optional)" class="swal2-input !mx-0 !w-full !rounded-xl text-sm">
          </div>`,
       focusConfirm: false,
       showCancelButton: true,
@@ -381,17 +388,22 @@ export default function WalletManagement() {
       background: themeColors.surface,
       color: themeColors.text,
       preConfirm: () => [
+        document.getElementById('sw-model').value,
         document.getElementById('sw-id').value,
         document.getElementById('sw-amt').value,
-        document.getElementById('sw-type').value
+        document.getElementById('sw-type').value,
+        document.getElementById('sw-desc').value
       ]
     });
 
     if (formValues) {
-      const [id, amt, type] = formValues;
-      if (!id || !amt) return Swal.fire({ icon: "warning", title: "Incomplete", text: "All fields required", background: themeColors.surface, color: themeColors.text });
+      const [model, id, amt, type, desc] = formValues;
+      if (!id || !amt || !model) return Swal.fire({ icon: "warning", title: "Incomplete", text: "All fields required", background: themeColors.surface, color: themeColors.text });
+      
+      const adjustedAmt = type === 'credit' ? Math.abs(Number(amt)) : -Math.abs(Number(amt));
+
       try {
-        const res = await updateFleetWallet(id, amt, type);
+        const res = await addManualBalance(id, model, adjustedAmt, desc);
         if (res.success) {
           Swal.fire({ icon: "success", title: "Synchronised", timer: 1500, showConfirmButton: false, background: themeColors.surface, color: themeColors.text });
           initData();
