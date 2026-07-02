@@ -1,18 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { useFont } from '../context/FontContext';
-import { getAllBulkBookingsHistory, deleteBulkBooking } from '../apis/bulkBooking';
-import { FaHistory, FaSearch, FaSyncAlt, FaCar, FaTrash, FaEye, FaFilePdf } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
+import { getAllBulkBookingsHistory, deleteBulkBooking, endBulkBooking } from '../apis/bulkBooking';
+import { FaHistory, FaSearch, FaSyncAlt, FaCar, FaTrash, FaEye, FaFilePdf, FaCheckCircle } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 
 export default function BulkBookingHistory() {
   const { themeColors, theme } = useTheme();
   const { currentFont } = useFont();
+  const { admin } = useAuth();
 
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [activeTab, setActiveTab] = useState("all");
 
   const BASE = import.meta.env.VITE_API_BASE_URL || '';
   const IMAGE_BASE_URL = BASE.replace(/\/api\/?$/, '').replace(/\/$/, '') + '/uploads/';
@@ -60,6 +63,32 @@ export default function BulkBookingHistory() {
     }
   };
 
+  const handleEndTrip = async (id) => {
+    const res = await Swal.fire({
+      title: 'Complete Trip?',
+      text: 'Are you sure you want to mark this bulk booking as Completed?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, Complete it!'
+    });
+
+    if (res.isConfirmed) {
+      try {
+        const response = await endBulkBooking(id);
+        if (response.success) {
+          Swal.fire('Completed!', 'Trip has been marked as Completed successfully.', 'success');
+          fetchBookings();
+        } else {
+          Swal.fire('Error', response.message || 'Failed to complete trip', 'error');
+        }
+      } catch (err) {
+        Swal.fire('Error', 'An unexpected error occurred', 'error');
+      }
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'PendingPayment': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
@@ -81,9 +110,15 @@ export default function BulkBookingHistory() {
                           (b.assignedFleet?.companyName || '').toLowerCase().includes(searchQuery.toLowerCase());
       
       const matchStatus = statusFilter === 'all' || b.status === statusFilter;
-      return matchSearch && matchStatus;
+      
+      let matchTab = true;
+      if (activeTab === 'accepted_by_me') {
+        matchTab = Boolean(b.assignedAdmin && admin?.id && b.assignedAdmin.toString() === admin.id.toString());
+      }
+      
+      return matchSearch && matchStatus && matchTab;
     });
-  }, [bookings, searchQuery, statusFilter]);
+  }, [bookings, searchQuery, statusFilter, activeTab, admin]);
 
   return (
     <div className="min-h-screen pt-8" style={{ backgroundColor: theme === 'dark' ? '#121212' : '#f8fafc', color: themeColors.text }}>
@@ -104,6 +139,22 @@ export default function BulkBookingHistory() {
             className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-xl shadow-md hover:bg-blue-600 transition"
           >
             <FaSyncAlt className={loading ? 'animate-spin' : ''} /> Refresh Data
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-6 mb-6 border-b" style={{ borderColor: theme === 'dark' ? '#374151' : '#e5e7eb' }}>
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`pb-2 px-2 text-sm font-semibold transition-colors border-b-2 ${activeTab === 'all' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            All Bookings
+          </button>
+          <button
+            onClick={() => setActiveTab('accepted_by_me')}
+            className={`pb-2 px-2 text-sm font-semibold transition-colors border-b-2 ${activeTab === 'accepted_by_me' ? 'border-blue-500 text-blue-500' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            My Accepted Rides
           </button>
         </div>
 
@@ -238,6 +289,15 @@ export default function BulkBookingHistory() {
                       {/* Actions */}
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {(b.status === 'Accepted' || b.status === 'Ongoing') && (
+                            <button 
+                              onClick={() => handleEndTrip(b._id)}
+                              className="p-2 bg-green-50 hover:bg-green-100 text-green-600 rounded-lg transition"
+                              title="Complete Trip"
+                            >
+                              <FaCheckCircle size={14} />
+                            </button>
+                          )}
                           <button 
                             onClick={() => window.open(`${BASE}/api/bulk-bookings/receipt/${b._id}`, '_blank')}
                             className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition"

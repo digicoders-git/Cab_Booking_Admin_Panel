@@ -80,3 +80,12 @@ export const getAllBulkBookingsHistory = async () => {
         return err.response?.data || { success: false, message: "Network Error" };
     }
 };
+
+export const endBulkBooking = async (id) => {
+    try {
+        const res = await http.post(`/api/bulk-bookings/end/${id}`);
+        return res.data;
+    } catch (err) {
+        return err.response?.data || { success: false, message: "Network Error" };
+    }
+};

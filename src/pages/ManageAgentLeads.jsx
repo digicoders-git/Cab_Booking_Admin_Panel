@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { getAllAgentLeadsAdmin, cancelAgentLead } from "../apis/agentLead";
+import { getAllAgentLeadsAdmin, cancelAgentLead, adminAcceptAgentLead, adminCompleteAgentLead } from "../apis/agentLead";
 import Swal from "sweetalert2";
-import { FaSyncAlt, FaBriefcase, FaTimesCircle, FaCheckCircle, FaUserTie, FaCar } from "react-icons/fa";
+import { FaSyncAlt, FaBriefcase, FaTimesCircle, FaCheckCircle, FaUserTie, FaCar, FaHandshake } from "react-icons/fa";
+import { useAuth } from '../context/AuthContext';
 
 export default function ManageAgentLeads() {
+  const { admin } = useAuth();
+  const [activeTab, setActiveTab] = useState('Marketplace');
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
@@ -53,6 +56,58 @@ export default function ManageAgentLeads() {
     }
   };
 
+  const handleAcceptLead = async (leadId) => {
+    const result = await Swal.fire({
+      title: 'Accept Agent Lead?',
+      text: "You will accept this lead directly (Admin Bypass) without paying upfront commission.",
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#3B82F6',
+      cancelButtonColor: '#6B7280',
+      confirmButtonText: 'Yes, Accept it!'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const res = await adminAcceptAgentLead(leadId);
+        if (res.success) {
+          Swal.fire('Accepted!', 'Lead accepted successfully via Admin Bypass.', 'success');
+          fetchLeads();
+        } else {
+          Swal.fire('Error!', res.message || 'Failed to accept lead', 'error');
+        }
+      } catch (err) {
+        Swal.fire('Error!', 'Server error', 'error');
+      }
+    }
+  };
+
+  const handleCompleteLead = async (leadId) => {
+    const result = await Swal.fire({
+      title: 'Complete Agent Lead?',
+      text: "Mark this lead as completed. The agent's commission will be deducted from your wallet and paid to the agent.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#10B981',
+      cancelButtonColor: '#6B7280',
+      confirmButtonText: 'Yes, Complete it!'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        const res = await adminCompleteAgentLead(leadId);
+        if (res.success) {
+          Swal.fire('Completed!', 'Lead completed and commission settled.', 'success');
+          fetchLeads();
+        } else {
+          Swal.fire('Error!', res.message || 'Failed to complete lead', 'error');
+        }
+      } catch (err) {
+        Swal.fire('Error!', 'Server error', 'error');
+      }
+    }
+  };
+
   const getStatusStyle = (status) => {
     const s = status?.toLowerCase();
     if (s === "marketplace") return { color: "#3B82F6", bg: "rgba(59, 130, 246, 0.1)" };
@@ -61,6 +116,16 @@ export default function ManageAgentLeads() {
     if (s === "cancelled") return { color: "#EF4444", bg: "rgba(239, 68, 68, 0.1)" };
     return { color: "#6B7280", bg: "rgba(107, 114, 128, 0.1)" };
   };
+
+  const filteredLeads = leads.filter(lead => {
+    if (activeTab === 'Marketplace') return lead.status === 'Marketplace';
+    if (activeTab === 'Accepted') return lead.status === 'Accepted';
+    if (activeTab === 'My Accepted') return lead.status === 'Accepted' && lead.assignedAdmin;
+    if (activeTab === 'History') return lead.status === 'Completed' || lead.status === 'Cancelled';
+    return true;
+  });
+
+  const tabs = ['Marketplace', 'Accepted', 'My Accepted', 'History'];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -77,6 +142,25 @@ export default function ManageAgentLeads() {
             >
               <FaSyncAlt size={18} className={fetching ? 'animate-spin' : ''} />
             </button>
+          </div>
+        </div>
+
+        {/* TABS */}
+        <div className="px-4 sm:px-8 mt-4">
+          <div className="flex space-x-1 border-b border-gray-200">
+            {tabs.map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`py-2 px-4 text-sm font-medium border-b-2 transition-colors duration-200 ${
+                  activeTab === tab 
+                    ? 'border-blue-600 text-blue-600' 
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -100,7 +184,7 @@ export default function ManageAgentLeads() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {leads.map((lead) => (
+                  {filteredLeads.map((lead) => (
                     <tr key={lead._id} className="hover:bg-gray-50 transition-colors">
                       <td className="py-4 px-6">
                         <span className="text-xs font-mono text-blue-600 font-bold">#{lead._id?.slice(-8).toUpperCase()}</span>
@@ -140,6 +224,8 @@ export default function ManageAgentLeads() {
                               <p className="text-xs text-gray-500">{lead.assignedDriver.phone}</p>
                             </div>
                           </div>
+                        ) : lead.assignedAdmin ? (
+                          <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">Admin</span>
                         ) : (
                           <span className="text-xs text-gray-400 italic">No Driver Yet</span>
                         )}
@@ -157,22 +243,42 @@ export default function ManageAgentLeads() {
                         <p className="text-[9px] text-gray-500 mt-1 uppercase">Pay: {lead.paymentStatus}</p>
                       </td>
                       <td className="py-4 px-6 text-center">
-                        {['Marketplace', 'Accepted'].includes(lead.status) && (
-                          <button
-                            onClick={() => handleCancelLead(lead._id)}
-                            className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"
-                            title="Cancel Lead"
-                          >
-                            <FaTimesCircle size={18} />
-                          </button>
-                        )}
+                        <div className="flex items-center justify-center gap-2">
+                          {lead.status === 'Marketplace' && (
+                            <button
+                              onClick={() => handleAcceptLead(lead._id)}
+                              className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-colors"
+                              title="Accept Lead (Bypass)"
+                            >
+                              <FaHandshake size={18} />
+                            </button>
+                          )}
+                          {lead.status === 'Accepted' && lead.assignedAdmin && (
+                            <button
+                              onClick={() => handleCompleteLead(lead._id)}
+                              className="text-green-500 hover:bg-green-50 p-2 rounded-lg transition-colors"
+                              title="Complete Lead"
+                            >
+                              <FaCheckCircle size={18} />
+                            </button>
+                          )}
+                          {['Marketplace', 'Accepted'].includes(lead.status) && (
+                            <button
+                              onClick={() => handleCancelLead(lead._id)}
+                              className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                              title="Cancel Lead"
+                            >
+                              <FaTimesCircle size={18} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
-                  {leads.length === 0 && !loading && (
+                  {filteredLeads.length === 0 && !loading && (
                     <tr>
                       <td colSpan="7" className="py-8 text-center text-gray-500">
-                        No agent leads found
+                        No leads found in this tab.
                       </td>
                     </tr>
                   )}

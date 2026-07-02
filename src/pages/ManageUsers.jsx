@@ -125,7 +125,7 @@ export default function ManageUsers() {
   const [viewing, setViewing] = useState(null);
   const [viewingImage, setViewingImage] = useState(null);
   const [isEditing, setIsEditing] = useState(null);
-  const [editForm, setEditForm] = useState({ name: "", email: "" });
+  const [editForm, setEditForm] = useState({ name: "", email: "", aadhaarCard: "" });
   const [showFilters, setShowFilters] = useState(false);
   const [dateRange, setDateRange] = useState('month');
   const [selectedChart, setSelectedChart] = useState('all');
@@ -415,14 +415,26 @@ export default function ManageUsers() {
 
 
         <div className="bg-white   mb-12 rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+          <div className="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-lg font-semibold text-gray-900">User Directory</h3>
               <p className="text-sm text-gray-500">Manage your user base</p>
             </div>
-            <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium">
-              {filteredUsers.length} Records
-            </span>
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  type="text"
+                  placeholder="Search by Name or Mobile..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <span className="px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium whitespace-nowrap">
+                {filteredUsers.length} Records
+              </span>
+            </div>
           </div>
 
           {fetching ? (
@@ -515,6 +527,7 @@ export default function ManageUsers() {
                           </td>
                           <td className="py-4 px-6">
                             <p className="text-sm text-gray-900">{u.phone || '—'}</p>
+                            <p className="text-xs text-gray-500 mt-1">Aadhaar: {u.aadhaarCard || 'N/A'}</p>
                           </td>
                           <td className="py-4 px-6">
                             <p className="text-sm text-gray-900">{new Date(u.createdAt).toLocaleDateString()}</p>
@@ -970,6 +983,17 @@ export default function ManageUsers() {
                   onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
                   required
                   className="w-full h-11 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-500">Aadhaar Card (Optional)</label>
+                <input
+                  type="text"
+                  value={editForm.aadhaarCard || ""}
+                  onChange={(e) => setEditForm({ ...editForm, aadhaarCard: e.target.value })}
+                  className="w-full h-11 px-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  placeholder="Enter Aadhaar Number"
                 />
               </div>
 
