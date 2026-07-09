@@ -949,8 +949,12 @@ const AdminReportPage = () => {
         <div className="mt-6 p-4 bg-blue-50 rounded-lg">
           <h4 className="text-sm font-semibold text-blue-700 mb-2">Schedule Reports</h4>
           <p className="text-xs text-blue-600 mb-3">Get regular reports delivered to your email</p>
-          <button className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
-            Set Up Schedule
+          <button 
+            onClick={handleExport}
+            disabled={isExporting}
+            className={`w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm ${isExporting ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'}`}
+          >
+            {isExporting ? 'Downloading...' : 'Set Up Schedule'}
           </button>
         </div>
       </div>

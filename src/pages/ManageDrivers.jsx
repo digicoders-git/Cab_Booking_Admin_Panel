@@ -34,6 +34,7 @@ import {
   Map, Home, CreditCard, Award, Star as StarIcon
 } from 'lucide-react';
 import Swal from "sweetalert2";
+import ReviewsModal from "../components/ReviewsModal";
 
 // Chart Colors
 const CHART_COLORS = {
@@ -233,6 +234,7 @@ export default function ManageDrivers() {
   const markersRef = useRef([]);
   const [showMap, setShowMap] = useState(true);
   const [isAddressSelected, setIsAddressSelected] = useState(false);
+  const [reviewModal, setReviewModal] = useState({ isOpen: false, targetId: null });
 
   const textColorSecondary = useMemo(() => {
     return themeColors.textSecondary || "rgba(107, 114, 128, 1)";
@@ -1374,10 +1376,11 @@ export default function ManageDrivers() {
                         </div>
                       </td>
                       <td className="py-3 px-4 text-center min-w-[100px]">
-                        <div className="flex items-center justify-center gap-1">
-                          <FaStar size={10} className="text-yellow-400" />
-                          <span className="text-sm font-medium text-gray-900">{d.rating || '0.0'}</span>
+                        <div className="flex items-center justify-center gap-1 text-yellow-500 text-sm font-bold">
+                          <FaStar size={12} className="fill-current" />
+                          <span className="text-sm font-medium text-gray-900">{d.rating ? Number(d.rating).toFixed(1) : 'New'}</span>
                         </div>
+                        <p className="text-[9px] text-gray-400 mt-0.5">{d.totalRatings || 0} reviews</p>
                       </td>
                       <td className="py-3 px-4 text-right min-w-[120px]">
                         <span className="text-sm font-medium text-gray-900">₹{(d.totalEarnings || 0).toLocaleString()}</span>
@@ -1585,6 +1588,20 @@ export default function ManageDrivers() {
                                   <span className="text-gray-500">Joined:</span>
                                   <span className="font-medium text-gray-900">{new Date(d.createdAt).toLocaleDateString()}</span>
                                 </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Rating:</span>
+                                  <span className="font-medium text-yellow-600 flex items-center gap-1">
+                                    <FaStar size={10} className="fill-current" /> {d.rating || 'N/A'} ({d.totalRatings || 0})
+                                  </span>
+                                </div>
+                                {d.totalRatings > 0 && (
+                                  <button 
+                                    onClick={(e) => { e.stopPropagation(); setReviewModal({ isOpen: true, targetId: d._id }); }}
+                                    className="mt-3 w-full py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-colors"
+                                  >
+                                    View All Reviews
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -2203,6 +2220,14 @@ export default function ManageDrivers() {
           </div>
         </div>
       )}
+
+      {/* Reviews Modal */}
+      <ReviewsModal
+        isOpen={reviewModal.isOpen}
+        onClose={() => setReviewModal({ isOpen: false, targetId: null })}
+        targetId={reviewModal.targetId}
+        type="driver"
+      />
     </div>
   );
 }

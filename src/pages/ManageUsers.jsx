@@ -21,9 +21,10 @@ import {
   DollarSign, Activity, PieChart as PieChartIcon, BarChart3,
   LineChart as LineChartIcon, Target, Gauge, Zap, Shield,
   MoreVertical, DownloadCloud, Printer, UserCheck, UserPlus,
-  X, CheckCircle, AlertCircle, Clock
+  X, CheckCircle, AlertCircle, Clock, Star
 } from 'lucide-react';
 import Swal from "sweetalert2";
+import ReviewsModal from "../components/ReviewsModal";
 
 // Chart Colors
 const CHART_COLORS = {
@@ -130,6 +131,7 @@ export default function ManageUsers() {
   const [dateRange, setDateRange] = useState('month');
   const [selectedChart, setSelectedChart] = useState('all');
   const [expandedRows, setExpandedRows] = useState({});
+  const [reviewModal, setReviewModal] = useState({ isOpen: false, targetId: null });
 
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -442,7 +444,7 @@ export default function ManageUsers() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    {['User','Contact','Joined','Status','Actions'].map((h) => (
+                    {['User','Contact','Joined','Rating','Status','Actions'].map((h) => (
                       <th key={h} className="py-4 px-6 text-left">
                         <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
                       </th>
@@ -467,6 +469,9 @@ export default function ManageUsers() {
                           <div className="h-3 bg-gray-200 rounded w-20" />
                           <div className="h-2 bg-gray-100 rounded w-16" />
                         </div>
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        <div className="h-4 bg-gray-200 rounded w-12 mx-auto" />
                       </td>
                       <td className="py-4 px-6 text-center"><div className="h-6 bg-gray-100 rounded-full w-16 mx-auto" /></td>
                       <td className="py-4 px-6">
@@ -494,6 +499,7 @@ export default function ManageUsers() {
                       <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">User</th>
                       <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Contact</th>
                       <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Joined</th>
+                      <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase">Rating</th>
                       <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase">Status</th>
                       <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
@@ -532,6 +538,12 @@ export default function ManageUsers() {
                           <td className="py-4 px-6">
                             <p className="text-sm text-gray-900">{new Date(u.createdAt).toLocaleDateString()}</p>
                             <p className="text-xs text-gray-500">{Math.ceil((new Date() - new Date(u.createdAt)) / (1000 * 60 * 60 * 24))} days ago</p>
+                          </td>
+                          <td className="py-4 px-6 text-center">
+                            <div className="flex items-center justify-center gap-1 text-yellow-500 text-sm font-bold">
+                              <Star size={14} className="fill-current" /> {u.averageRating ? Number(u.averageRating).toFixed(1) : 'N/A'}
+                            </div>
+                            <p className="text-[9px] text-gray-400 mt-0.5">{u.totalRatings || 0} reviews</p>
                           </td>
                           <td className="py-4 px-6 text-center">
                             {can('USER_STATUS') ? (
@@ -601,9 +613,22 @@ export default function ManageUsers() {
                                     </div>
                                     <div className="flex justify-between">
                                       <span className="text-xs text-gray-500">Total Spent:</span>
-                                      <span className="text-xs font-medium text-green-600">₹{u.totalSpent || 0}</span>
+                                      <span className="text-xs font-medium text-gray-900">₹{(u.totalSpent || 0).toLocaleString()}</span>
                                     </div>
-
+                                    <div className="flex justify-between">
+                                      <span className="text-xs text-gray-500">Rating:</span>
+                                      <span className="text-xs font-medium text-yellow-600 flex items-center gap-1">
+                                        <Star size={10} className="fill-current" /> {u.averageRating || 'N/A'} ({u.totalRatings || 0})
+                                      </span>
+                                    </div>
+                                    {u.totalRatings > 0 && (
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); setReviewModal({ isOpen: true, targetId: u._id }); }}
+                                        className="mt-3 w-full py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-colors"
+                                      >
+                                        View All Reviews
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -1017,6 +1042,14 @@ export default function ManageUsers() {
           </div>
         </div>
       )}
+
+      {/* Reviews Modal */}
+      <ReviewsModal
+        isOpen={reviewModal.isOpen}
+        onClose={() => setReviewModal({ isOpen: false, targetId: null })}
+        targetId={reviewModal.targetId}
+        type="user"
+      />
     </div>
   );
 }

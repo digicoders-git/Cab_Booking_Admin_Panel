@@ -80,3 +80,13 @@ export const exportTransactionsCSV = async (timeframe) => {
     });
     return response.data;
 };
+
+export const getAppSettings = async () => {
+    const response = await http.get(`/api/settings`);
+    return response.data;
+};
+
+export const toggleShareRide = async (isShareRideEnabled) => {
+    const response = await http.put(`/api/settings/toggle-share-ride`, { isShareRideEnabled });
+    return response.data;
+};

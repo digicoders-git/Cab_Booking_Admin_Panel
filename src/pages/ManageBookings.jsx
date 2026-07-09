@@ -16,7 +16,7 @@ import {
   FaRoute, FaCar, FaUserAlt, FaMapMarkerAlt, FaCalendarAlt,
   FaClock, FaUsers, FaArrowRight, FaSearch, FaSyncAlt,
   FaInfoCircle, FaCheckCircle, FaTimesCircle, FaPlayCircle, FaHistory, FaCircle, FaChevronLeft, FaChevronRight, FaEye, FaCreditCard,
-  FaChartPie, FaChartBar, FaChartLine, FaChartArea
+  FaChartPie, FaChartBar, FaChartLine, FaChartArea, FaStar
 } from "react-icons/fa";
 import {
   Download, Filter, TrendingUp, Activity, DollarSign,
@@ -764,7 +764,7 @@ export default function ManageBookings() {
                     {expandedRows[b._id] && (
                       <tr className="bg-gray-50">
                         <td colSpan="9" className="p-6">
-                          <div className="grid grid-cols-3 gap-6">
+                          <div className="grid grid-cols-4 gap-6">
                              <div className="col-span-1">
                               <h4 className="text-xs font-black text-gray-500 mb-3 uppercase tracking-widest">Waypoints Itinerary</h4>
                               <div className="space-y-3 max-h-[150px] overflow-y-auto pr-2 custom-scrollbar">
@@ -824,6 +824,37 @@ export default function ManageBookings() {
                                 <div className="flex justify-between">
                                   <span className="text-xs text-gray-500">Ended At:</span>
                                   <span className="text-xs font-medium text-gray-900">{b.tripData?.endedAt ? new Date(b.tripData.endedAt).toLocaleString() : 'Not ended'}</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-medium text-gray-500 mb-3 uppercase">Ratings & Reviews</h4>
+                              <div className="space-y-3">
+                                <div className="bg-white p-2 rounded border border-gray-100">
+                                  <p className="text-[10px] font-black text-blue-600 uppercase mb-1">By Driver (For User)</p>
+                                  {b.userRating ? (
+                                    <>
+                                      <div className="flex items-center gap-1 text-yellow-500 text-xs font-bold">
+                                        <FaStar size={10} /> {b.userRating}/5
+                                      </div>
+                                      {b.userReview && <p className="text-[10px] text-gray-600 mt-1 italic">"{b.userReview}"</p>}
+                                    </>
+                                  ) : (
+                                    <span className="text-[10px] text-gray-400">Not rated yet</span>
+                                  )}
+                                </div>
+                                <div className="bg-white p-2 rounded border border-gray-100">
+                                  <p className="text-[10px] font-black text-purple-600 uppercase mb-1">By User (For Driver)</p>
+                                  {b.driverRating ? (
+                                    <>
+                                      <div className="flex items-center gap-1 text-yellow-500 text-xs font-bold">
+                                        <FaStar size={10} /> {b.driverRating}/5
+                                      </div>
+                                      {b.driverReview && <p className="text-[10px] text-gray-600 mt-1 italic">"{b.driverReview}"</p>}
+                                    </>
+                                  ) : (
+                                    <span className="text-[10px] text-gray-400">Not rated yet</span>
+                                  )}
                                 </div>
                               </div>
                             </div>

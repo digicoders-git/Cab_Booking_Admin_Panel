@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import { useAuth } from "../context/AuthContext";
-import { getAdminProfile, updateAdminProfile, getBulkSettings, updateBulkSettings } from "../apis/admin";
+import { getAdminProfile, updateAdminProfile, getBulkSettings, updateBulkSettings, getAppSettings, toggleShareRide } from "../apis/admin";
 import {
   User, Mail, Lock, Camera, Save, Shield, CheckCircle,
   AlertCircle, Bell, Key, Edit2, LogOut, Settings,
@@ -64,6 +64,10 @@ export default function AdminProfile() {
     agentLeadAdminProfitPct: 10
   });
 
+  const [appSettings, setAppSettings] = useState({
+    isShareRideEnabled: true
+  });
+
   const fileInputRef = useRef(null);
 
   // Theme-based colors
@@ -77,6 +81,7 @@ export default function AdminProfile() {
     fetchProfile();
     if (admin?.role === 'SuperAdmin') {
       fetchBulkSettings();
+      fetchAppSettings();
     }
   }, []);
 
@@ -87,6 +92,32 @@ export default function AdminProfile() {
         setBulkSettings(res.settings);
       }
     } catch (err) { console.error(err); }
+  };
+
+  const fetchAppSettings = async () => {
+    try {
+      const res = await getAppSettings();
+      if (res.success && res.settings) {
+        setAppSettings(res.settings);
+      }
+    } catch (err) { console.error(err); }
+  };
+
+  const handleShareRideToggle = async (e) => {
+    const newValue = e.target.checked;
+    setAppSettings({ ...appSettings, isShareRideEnabled: newValue });
+    try {
+      const res = await toggleShareRide(newValue);
+      if (res.success) {
+        toast.success(res.message || "Share Ride feature toggled");
+      } else {
+        toast.error("Failed to update setting");
+        setAppSettings({ ...appSettings, isShareRideEnabled: !newValue }); // revert
+      }
+    } catch(err) {
+      toast.error("API error");
+      setAppSettings({ ...appSettings, isShareRideEnabled: !newValue }); // revert
+    }
   };
 
   const fetchProfile = async () => {
@@ -665,6 +696,31 @@ export default function AdminProfile() {
                         />
                       </div>
                       <p className="text-xs mt-2" style={{ color: textDim }}>This is the platform fee % charged on standard individual trips.</p>
+                    </div>
+
+                    {/* App Features Toggles */}
+                    <div className="p-4 rounded-xl border border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-900/10">
+                      <h4 className="text-sm font-bold text-green-700 dark:text-green-400 mb-3 uppercase tracking-wider">App Features Settings</h4>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <label className="block text-sm font-medium mb-1" style={{ color: textMain }}>Enable Share Ride Option</label>
+                          <p className="text-xs" style={{ color: textDim }}>Toggle whether customers can see and select the "Share" car category.</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={appSettings.isShareRideEnabled}
+                              onChange={handleShareRideToggle}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 dark:peer-focus:ring-green-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-green-600"></div>
+                          </label>
+                          <span className="text-sm font-bold" style={{ color: appSettings.isShareRideEnabled ? '#16A34A' : '#DC2626' }}>
+                            {appSettings.isShareRideEnabled ? "ON" : "OFF"}
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
                     <h4 className="text-sm font-bold mt-8 mb-4 uppercase tracking-wider" style={{ color: textDim }}>Bulk Booking Settings</h4>
