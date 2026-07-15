@@ -5,6 +5,7 @@ import { getBulkMarketplace, acceptBulkBooking, deleteBulkBooking } from "../api
 import { FaRoute, FaCar, FaCalendarAlt, FaClock, FaGavel, FaRoad, FaUser, FaPhone, FaSync, FaMapMarkerAlt, FaTrash } from "react-icons/fa";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
+import { io } from 'socket.io-client';
 
 export default function BulkMarketplace() {
   const { themeColors } = useTheme();
@@ -13,7 +14,51 @@ export default function BulkMarketplace() {
   const [deals, setDeals] = useState([]);
   const [fetching, setFetching] = useState(false);
 
-  useEffect(() => { fetchMarketplace(); }, []);
+  useEffect(() => { 
+    fetchMarketplace(); 
+
+    // Setup Socket.io for Real-time Bulk Deals Ringtone
+    const socketUrl = import.meta.env.VITE_API_BASE_URL?.replace(/\/api$/, '') || 'http://localhost:5000';
+    const socket = io(socketUrl, { transports: ['polling', 'websocket'] });
+
+    socket.on('connect', () => {
+      // Get user from local storage to join room
+      const savedUserStr = localStorage.getItem('admin-data') || localStorage.getItem('user');
+      if (savedUserStr) {
+        try {
+          const user = JSON.parse(savedUserStr);
+          const userId = user.id || user.adminId || user._id;
+          const userRole = (user.role === 'SuperAdmin' || user.role === 'admin') ? 'admin' : user.role;
+          socket.emit('join_room', { userId, role: userRole });
+        } catch (e) {}
+      }
+    });
+
+    socket.on('new_bulk_deal', (data) => {
+      console.log('New Bulk Deal Received via Socket:', data);
+      
+      // Play Ringtone
+      try {
+        const audio = new Audio('/ringtone.mp3');
+        audio.play().catch(e => console.log('Audio autoplay blocked', e));
+      } catch (err) {
+        console.error('Error playing ringtone', err);
+      }
+
+      // Show Notification
+      toast.success(`📦 New Bulk Deal Available: ₹${data.offeredPrice}`, {
+        description: `${data.pickup} to ${data.drop}`,
+        duration: 5000
+      });
+
+      // Auto-refresh the marketplace
+      fetchMarketplace();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   const fetchMarketplace = async () => {
     try {

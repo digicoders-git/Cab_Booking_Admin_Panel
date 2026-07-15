@@ -12,6 +12,7 @@ const ManageAreaPricing = () => {
   const [activeTab, setActiveTab] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [searchTerm, setSearchTerm] = useState("");
   
   const [formData, setFormData] = useState({
     areaName: "",
@@ -254,10 +255,17 @@ const ManageAreaPricing = () => {
 
   // Filtering Logic
   const filteredData = useMemo(() => {
-    if (activeTab === "active") return data.filter(i => i.isActive);
-    if (activeTab === "inactive") return data.filter(i => !i.isActive);
-    return data;
-  }, [data, activeTab]);
+    let result = data;
+    if (activeTab === "active") result = result.filter(i => i.isActive);
+    if (activeTab === "inactive") result = result.filter(i => !i.isActive);
+    
+    if (searchTerm) {
+      result = result.filter(i => 
+        i.areaName?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    return result;
+  }, [data, activeTab, searchTerm]);
 
   // Pagination Logic
   const paginatedData = useMemo(() => {
@@ -267,7 +275,7 @@ const ManageAreaPricing = () => {
 
   const totalPages = Math.ceil(filteredData.length / rowsPerPage);
 
-  useEffect(() => { setCurrentPage(1); }, [activeTab, rowsPerPage]);
+  useEffect(() => { setCurrentPage(1); }, [activeTab, rowsPerPage, searchTerm]);
 
   return (
     <div className="p-6 bg-[#F9FAFB] min-h-screen text-gray-800">
@@ -344,29 +352,42 @@ const ManageAreaPricing = () => {
 
       {/* Main Table Container */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        {/* Tab Filters */}
-        <div className="px-6 py-2 border-b border-gray-200 flex items-center gap-4 overflow-x-auto">
-          {[
-            { id: "all", label: "All Zones", icon: MapPin },
-            { id: "active", label: "Active", icon: CheckCircle, count: data.filter(i => i.isActive).length },
-            { id: "inactive", label: "Inactive", icon: XCircle, count: data.filter(i => !i.isActive).length }
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 py-4 text-xs font-medium transition-all border-b-2 ${activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-            >
-              <tab.icon size={14} />
-              <span>{tab.label}</span>
-              {tab.count !== undefined && (
-                <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
-                  }`}>
-                  {tab.count}
-                </span>
-              )}
-            </button>
-          ))}
+        {/* Tab Filters & Search */}
+        <div className="px-6 py-3 border-b border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-4 overflow-x-auto w-full sm:w-auto">
+            {[
+              { id: "all", label: "All Zones", icon: MapPin },
+              { id: "active", label: "Active", icon: CheckCircle, count: data.filter(i => i.isActive).length },
+              { id: "inactive", label: "Inactive", icon: XCircle, count: data.filter(i => !i.isActive).length }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 py-2 text-xs font-medium transition-all border-b-2 ${activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+              >
+                <tab.icon size={14} />
+                <span>{tab.label}</span>
+                {tab.count !== undefined && (
+                  <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                    }`}>
+                    {tab.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+          {/* Search Bar */}
+          <div className="relative w-full sm:w-64 shrink-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+            <input
+              type="text"
+              placeholder="Search by area name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-gray-50 hover:bg-white focus:bg-white"
+            />
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left">

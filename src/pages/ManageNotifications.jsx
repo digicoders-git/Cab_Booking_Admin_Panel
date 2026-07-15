@@ -170,6 +170,7 @@ export default function ManageNotifications() {
     targetRoles: ["all"],
     recipient: "",
     recipientModel: "User",
+    media: null,
   });
 
   const [rowsPerPage, setRowsPerPage] = useState(10);
@@ -354,15 +355,21 @@ export default function ManageNotifications() {
     e.preventDefault();
     try {
       setLoading(true);
-      let payload = { title: form.title, message: form.message };
+      const payload = new FormData();
+      payload.append("title", form.title);
+      payload.append("message", form.message);
 
       if (form.targetType === "all") {
-        payload.targetRoles = ["all"];
+        payload.append("targetRoles[]", "all");
       } else if (form.targetType === "role") {
-        payload.targetRoles = form.targetRoles;
+        form.targetRoles.forEach(r => payload.append("targetRoles[]", r));
       } else {
-        payload.recipient = form.recipient;
-        payload.recipientModel = form.recipientModel;
+        payload.append("recipient", form.recipient);
+        payload.append("recipientModel", form.recipientModel);
+      }
+
+      if (form.media) {
+        payload.append("media", form.media);
       }
 
       await createNotification(payload);
@@ -382,6 +389,7 @@ export default function ManageNotifications() {
         targetRoles: ["all"],
         recipient: "",
         recipientModel: "User",
+        media: null,
       });
       fetchNotifications();
     } catch (err) {
@@ -442,6 +450,7 @@ export default function ManageNotifications() {
       targetRoles: ["all"],
       recipient: "",
       recipientModel: "User",
+      media: null,
     });
   };
 
@@ -635,6 +644,16 @@ export default function ManageNotifications() {
                             <p className="text-sm text-gray-900 bg-white p-4 rounded-lg border border-gray-200">
                               {n.message}
                             </p>
+                            {n.mediaUrl && (
+                              <div className="mt-4">
+                                <h4 className="text-xs font-medium text-gray-500 mb-2">Attached Media</h4>
+                                {n.mediaUrl.match(/\.(mp4|webm|ogg)$/i) ? (
+                                  <video src={`${BASE.replace(/\/api\/?$/, '').replace(/\/$/, '')}${n.mediaUrl}`} controls className="max-w-md max-h-64 rounded-lg shadow-sm border border-gray-200" />
+                                ) : (
+                                  <img src={`${BASE.replace(/\/api\/?$/, '').replace(/\/$/, '')}${n.mediaUrl}`} alt="Attachment" className="max-w-md max-h-64 object-contain rounded-lg shadow-sm border border-gray-200" />
+                                )}
+                              </div>
+                            )}
                             <div className="grid grid-cols-2 gap-4 mt-4">
                               <div>
                                 <span className="text-xs text-gray-500">Notification ID:</span>
@@ -990,6 +1009,16 @@ export default function ManageNotifications() {
                       rows={4}
                       className="w-full p-4 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                       placeholder="Enter your message here..."
+                    />
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-gray-500">Attach Media (Image / Video)</label>
+                    <input
+                      type="file"
+                      accept="image/*,video/*"
+                      onChange={e => setForm({ ...form, media: e.target.files[0] })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:outline-none text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                     />
                   </div>
                 </div>

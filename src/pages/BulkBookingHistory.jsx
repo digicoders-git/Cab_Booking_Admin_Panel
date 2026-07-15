@@ -17,6 +17,9 @@ export default function BulkBookingHistory() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("all");
 
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const BASE = import.meta.env.VITE_API_BASE_URL || '';
   const IMAGE_BASE_URL = BASE.replace(/\/api\/?$/, '').replace(/\/$/, '') + '/uploads/';
 
@@ -87,6 +90,12 @@ export default function BulkBookingHistory() {
         Swal.fire('Error', 'An unexpected error occurred', 'error');
       }
     }
+  };
+
+  const handleDownloadReceipt = (bookingId) => {
+    const token = localStorage.getItem("admin-token") || localStorage.getItem("token");
+    const url = `${BASE}/api/bulk-bookings/receipt/${bookingId}?token=${token}`;
+    window.open(url, '_blank');
   };
 
   const getStatusColor = (status) => {
@@ -289,6 +298,13 @@ export default function BulkBookingHistory() {
                       {/* Actions */}
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => { setSelectedBooking(b); setIsModalOpen(true); }}
+                            className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition"
+                            title="View Details"
+                          >
+                            <FaEye size={14} />
+                          </button>
                           {(b.status === 'Accepted' || b.status === 'Ongoing') && (
                             <button 
                               onClick={() => handleEndTrip(b._id)}
@@ -299,7 +315,7 @@ export default function BulkBookingHistory() {
                             </button>
                           )}
                           <button 
-                            onClick={() => window.open(`${BASE}/api/bulk-bookings/receipt/${b._id}`, '_blank')}
+                            onClick={() => handleDownloadReceipt(b._id)}
                             className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition"
                             title="Download Receipt"
                           >
@@ -323,6 +339,142 @@ export default function BulkBookingHistory() {
           </div>
         </div>
       </div>
+
+      {/* Booking Details Modal */}
+      {isModalOpen && selectedBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col" style={{ backgroundColor: themeColors.surface, color: themeColors.text }}>
+            
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b flex justify-between items-center" style={{ borderColor: theme === 'dark' ? '#374151' : '#e5e7eb' }}>
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                Booking #{selectedBooking._id.slice(-6).toUpperCase()}
+                <span className={`px-2 py-1 text-[10px] uppercase tracking-wider rounded-full border ${getStatusColor(selectedBooking.status)}`}>
+                  {selectedBooking.status.replace(/([A-Z])/g, ' $1').trim()}
+                </span>
+              </h2>
+              <button 
+                onClick={() => setIsModalOpen(false)} 
+                className="text-gray-400 hover:text-red-500 transition-colors w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-red-50"
+                style={{ backgroundColor: theme === 'dark' ? '#374151' : '#f3f4f6' }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-6">
+              
+              {/* Creator Info */}
+              <div className="rounded-xl border p-5" style={{ borderColor: theme === 'dark' ? '#374151' : '#e5e7eb' }}>
+                <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">👤</div>
+                  Creator Information
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div><span className="text-xs text-gray-500 block">Name</span><p className="font-medium">{selectedBooking.createdBy?.name || 'N/A'}</p></div>
+                  <div><span className="text-xs text-gray-500 block">Email</span><p className="font-medium">{selectedBooking.createdBy?.email || 'N/A'}</p></div>
+                  <div><span className="text-xs text-gray-500 block">Phone</span><p className="font-medium">{selectedBooking.createdBy?.phone || 'N/A'}</p></div>
+                  <div>
+                    <span className="text-xs text-gray-500 block">Role</span>
+                    <span className="inline-block px-2 py-1 mt-1 text-xs font-semibold bg-gray-100 text-gray-700 rounded-md">
+                      {selectedBooking.createdByModel}
+                    </span>
+                  </div>
+                  
+                  {/* Customer Info (If booked by agent/admin for a customer) */}
+                  {(selectedBooking.customerName || selectedBooking.customerPhone) && (
+                    <div className="col-span-1 sm:col-span-2 mt-2 pt-4 border-t" style={{ borderColor: theme === 'dark' ? '#374151' : '#e5e7eb' }}>
+                      <span className="text-sm font-semibold block mb-2" style={{ color: theme === 'dark' ? '#9ca3af' : '#4b5563' }}>Customer / Passenger Details</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div><span className="text-xs text-gray-500 block">Customer Name</span><p className="font-medium">{selectedBooking.customerName || 'N/A'}</p></div>
+                        <div><span className="text-xs text-gray-500 block">Customer Phone</span><p className="font-medium">{selectedBooking.customerPhone || 'N/A'}</p></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Route Info */}
+              <div className="rounded-xl border p-5" style={{ borderColor: theme === 'dark' ? '#374151' : '#e5e7eb' }}>
+                <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center">🗺️</div>
+                  Route Details
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="col-span-1 sm:col-span-2"><span className="text-xs text-gray-500 block">Pickup Address</span><p className="font-medium">{selectedBooking.pickup?.address}</p></div>
+                  <div className="col-span-1 sm:col-span-2"><span className="text-xs text-gray-500 block">Drop Address</span><p className="font-medium">{selectedBooking.drop?.address}</p></div>
+                  <div><span className="text-xs text-gray-500 block">Pickup Time</span><p className="font-medium">{new Date(selectedBooking.pickupDateTime).toLocaleString()}</p></div>
+                  <div><span className="text-xs text-gray-500 block">Trip Type</span><p className="font-medium">{selectedBooking.tripType}</p></div>
+                  {selectedBooking.tripType === 'RoundTrip' && (
+                    <div><span className="text-xs text-gray-500 block">Return Time</span><p className="font-medium">{new Date(selectedBooking.returnDateTime).toLocaleString()}</p></div>
+                  )}
+                  <div><span className="text-xs text-gray-500 block">Number of Days</span><p className="font-medium">{selectedBooking.numberOfDays}</p></div>
+                  <div><span className="text-xs text-gray-500 block">Total Distance</span><p className="font-medium">{selectedBooking.totalDistance} km</p></div>
+                </div>
+              </div>
+
+              {/* Cars Required */}
+              <div className="rounded-xl border p-5" style={{ borderColor: theme === 'dark' ? '#374151' : '#e5e7eb' }}>
+                <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-yellow-100 text-yellow-600 flex items-center justify-center">🚘</div>
+                  Cars Required
+                </h3>
+                <div className="flex flex-wrap gap-3">
+                  {selectedBooking.carsRequired?.map((c, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg border bg-gray-50" style={{ backgroundColor: theme === 'dark' ? '#1f2937' : '#f9fafb', borderColor: theme === 'dark' ? '#374151' : '#e5e7eb' }}>
+                      <span className="font-semibold">{c.category?.name || 'Category'}</span>
+                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full font-bold">x{c.quantity}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Financials */}
+              <div className="rounded-xl border p-5" style={{ borderColor: theme === 'dark' ? '#374151' : '#e5e7eb' }}>
+                <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center">💰</div>
+                  Financials
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div><span className="text-xs text-gray-500 block">Offered Price</span><p className="font-bold text-lg text-green-600">₹{selectedBooking.offeredPrice?.toLocaleString('en-IN')}</p></div>
+                  <div><span className="text-xs text-gray-500 block">System Est. Price</span><p className="font-medium text-gray-600">₹{selectedBooking.systemEstimatedPrice?.toLocaleString('en-IN')}</p></div>
+                  <div>
+                    <span className="text-xs text-gray-500 block">Advance Status</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      {selectedBooking.advancePayment?.isPaid ? (
+                        <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded">Paid (₹{selectedBooking.advancePayment?.amount})</span>
+                      ) : (
+                        <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-bold rounded">Unpaid (₹{selectedBooking.advancePayment?.amount})</span>
+                      )}
+                    </div>
+                  </div>
+                  {selectedBooking.mcdStateTaxApplied > 0 && (
+                    <div><span className="text-xs text-gray-500 block">MCD/State Tax Applied</span><p className="font-medium text-orange-500">+₹{selectedBooking.mcdStateTaxApplied}</p></div>
+                  )}
+                </div>
+              </div>
+
+              {/* Assigned Fleet Info */}
+              {selectedBooking.assignedFleet && (
+                <div className="rounded-xl border p-5" style={{ borderColor: theme === 'dark' ? '#374151' : '#e5e7eb' }}>
+                  <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">🏢</div>
+                    Assigned Fleet
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div><span className="text-xs text-gray-500 block">Company Name</span><p className="font-medium">{selectedBooking.assignedFleet.companyName}</p></div>
+                    <div><span className="text-xs text-gray-500 block">Owner Name</span><p className="font-medium">{selectedBooking.assignedFleet.ownerName}</p></div>
+                    <div><span className="text-xs text-gray-500 block">Email</span><p className="font-medium">{selectedBooking.assignedFleet.email}</p></div>
+                    <div><span className="text-xs text-gray-500 block">Phone</span><p className="font-medium">{selectedBooking.assignedFleet.phone}</p></div>
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
