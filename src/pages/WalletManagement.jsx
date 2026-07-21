@@ -190,6 +190,7 @@ export default function WalletManagement() {
     const pendingAmount = pendingPayouts.reduce((sum, p) => sum + (p.amount || 0), 0);
     const completedCount = transactions.filter(t => t.status?.toLowerCase() === 'completed').length;
     const pendingCount = transactions.filter(t => t.status?.toLowerCase() === 'pending').length;
+    const manualCount = transactions.filter(t => t.description?.toLowerCase().includes("manual credit by admin") || t.category?.toLowerCase().includes("manual")).length;
 
     return {
       balance: adminWallet.balance || 0,
@@ -199,6 +200,7 @@ export default function WalletManagement() {
       pendingAmount,
       pendingCount,
       completedCount,
+      manualCount,
       totalTransactions: transactions.length,
       totalPayouts: pendingPayouts.length
     };
@@ -427,6 +429,8 @@ export default function WalletManagement() {
       list = pendingPayouts;
     } else if (activeTab === "completed") {
       list = transactions.filter(t => t.status?.toLowerCase() === "completed");
+    } else if (activeTab === "manual") {
+      list = transactions.filter(t => t.description?.toLowerCase().includes("manual credit by admin") || t.category?.toLowerCase().includes("manual"));
     } else {
       list = transactions;
     }
@@ -524,7 +528,8 @@ export default function WalletManagement() {
             {[
               { id: "all", label: "Audit History", icon: FaHistory },
               { id: "payouts", label: "Payout Queue", icon: Clock, count: stats.totalPayouts },
-              { id: "completed", label: "Settled Logs", icon: FaCheckCircle, count: stats.completedCount }
+              { id: "completed", label: "Settled Logs", icon: FaCheckCircle, count: stats.completedCount },
+              { id: "manual", label: "Manual Credits", icon: FaExchangeAlt, count: stats.manualCount }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -595,7 +600,10 @@ export default function WalletManagement() {
                           </div>
                           <div>
                             <p className="text-sm font-medium text-gray-900">{t.user?.name || t.recipient?.name || 'Anonymous'}</p>
-                            <p className="text-xs text-gray-500">{t.userModel || t.recipientModel || 'System'}</p>
+                            <p className="text-xs text-gray-500">
+                              {t.user?.phone || t.recipient?.phone ? `${t.user?.phone || t.recipient?.phone} • ` : ''}
+                              {t.userModel || t.recipientModel || 'System'}
+                            </p>
                           </div>
                         </div>
                       </td>

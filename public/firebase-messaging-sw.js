@@ -32,6 +32,7 @@ messaging.onBackgroundMessage((payload) => {
     body: body,
     icon: icon,
     badge: icon,
+    image: payload.data?.image || payload.data?.mediaUrl || undefined,
     vibrate: [200, 100, 200],
     data: {
       url: payload.data?.url || "/"

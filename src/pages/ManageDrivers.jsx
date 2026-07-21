@@ -1206,7 +1206,7 @@ export default function ManageDrivers() {
               <table className="w-full min-w-[1600px]">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    {['Driver','Contact','Vehicle','Location','Joined On','Updated','By','Online','Rating','Earnings','Password','Status','Actions'].map((h) => (
+                    {['Driver','Contact','Vehicle','Location','Joined On','Updated','By','Online','Rating','Wallet','Earnings','Password','Status','Actions'].map((h) => (
                       <th key={h} className="py-3 px-4 text-left">
                         <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
                       </th>
@@ -1227,6 +1227,7 @@ export default function ManageDrivers() {
                       <td className="py-3 px-4"><div className="space-y-1.5"><div className="h-3 bg-gray-200 rounded w-16" /><div className="h-2 bg-gray-100 rounded w-12" /></div></td>
                       <td className="py-3 px-4"><div className="h-3 bg-gray-200 rounded w-14" /></td>
                       <td className="py-3 px-4 text-center"><div className="h-6 bg-gray-100 rounded-full w-14 mx-auto" /></td>
+                      <td className="py-3 px-4 text-center"><div className="h-3 bg-gray-200 rounded w-8 mx-auto" /></td>
                       <td className="py-3 px-4 text-center"><div className="h-3 bg-gray-200 rounded w-8 mx-auto" /></td>
                       <td className="py-3 px-4 text-center"><div className="h-3 bg-gray-200 rounded w-8 mx-auto" /></td>
                       <td className="py-3 px-4 text-center"><div className="h-3 bg-gray-200 rounded w-8 mx-auto" /></td>
@@ -1257,6 +1258,7 @@ export default function ManageDrivers() {
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[120px]">Created By</th>
                   <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[100px]">Online</th>
                   <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[100px]">Rating</th>
+                  <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[100px]">Wallet</th>
                   <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[120px]">Earnings</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[200px]">Password</th>
                   <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase">Status</th>
@@ -1266,7 +1268,7 @@ export default function ManageDrivers() {
               <tbody className="divide-y divide-gray-200">
                 {paginatedData.length === 0 ? (
                   <tr>
-                    <td colSpan={13} className="py-20 text-center">
+                    <td colSpan={14} className="py-20 text-center">
                       <div className="flex flex-col items-center justify-center text-gray-400">
                         <p className="text-lg font-medium">Koi Driver nahi mila bhai!</p>
                         <p className="text-sm">Range badha kar ya dusra address try karein.</p>
@@ -1382,6 +1384,9 @@ export default function ManageDrivers() {
                         </div>
                         <p className="text-[9px] text-gray-400 mt-0.5">{d.totalRatings || 0} reviews</p>
                       </td>
+                      <td className="py-3 px-4 text-center min-w-[100px]">
+                        <span className="text-sm font-bold text-green-600">₹{(d.walletBalance || 0).toLocaleString()}</span>
+                      </td>
                       <td className="py-3 px-4 text-right min-w-[120px]">
                         <span className="text-sm font-medium text-gray-900">₹{(d.totalEarnings || 0).toLocaleString()}</span>
                       </td>
@@ -1462,7 +1467,7 @@ export default function ManageDrivers() {
                     </tr>
                     {expandedRows[d._id] && (
                       <tr className="bg-gray-50">
-                        <td colSpan="13" className="p-4">
+                        <td colSpan="14" className="p-4">
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {/* Personal Details */}
                             <div className="bg-white p-4 rounded-lg border border-gray-200">

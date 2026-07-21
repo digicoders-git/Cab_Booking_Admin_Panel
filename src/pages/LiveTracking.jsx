@@ -222,7 +222,7 @@ const DriverCard = ({ driver, onSelect, address }) => {
 };
 
 // Google Map Component
-const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
+const GoogleMap = ({ drivers, selectedDriver, onDriverSelect, searchCoords, searchRadius }) => {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef({}); 
@@ -230,6 +230,9 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
   const driversRef = useRef(drivers);
   const lastPositionsRef = useRef({}); // Store last positions for bearing calculation
   const lastHeadingsRef = useRef({}); // Store last headings to prevent jitter
+  
+  const searchMarkerRef = useRef(null);
+  const searchCircleRef = useRef(null);
 
 
   // Keep driversRef always updated with latest prop
@@ -416,7 +419,6 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
       }
     });
 
-    // Fit bounds ONLY ONCE at the start
     if (isInitialLoadRef.current && Object.keys(markersRef.current).length > 0) {
       const bounds = new window.google.maps.LatLngBounds();
       Object.values(markersRef.current).forEach(m => bounds.extend(m.getPosition()));
@@ -428,6 +430,44 @@ const GoogleMap = ({ drivers, selectedDriver, onDriverSelect }) => {
   useEffect(() => {
     updateMarkers();
   }, [drivers]);
+
+  // Radius Visuals Effect
+  useEffect(() => {
+    if (!mapInstanceRef.current || !window.google || !window.google.maps) return;
+
+    if (searchCoords && searchRadius) {
+      if (!searchMarkerRef.current) {
+        searchMarkerRef.current = new window.google.maps.Marker({
+          map: mapInstanceRef.current,
+          title: 'Search Center',
+          icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+          zIndex: 500
+        });
+      }
+      searchMarkerRef.current.setPosition(searchCoords);
+
+      if (!searchCircleRef.current) {
+        searchCircleRef.current = new window.google.maps.Circle({
+          map: mapInstanceRef.current,
+          fillColor: '#3B82F6',
+          fillOpacity: 0.15,
+          strokeColor: '#3B82F6',
+          strokeOpacity: 0.6,
+          strokeWeight: 2,
+        });
+      }
+      searchCircleRef.current.setCenter(searchCoords);
+      searchCircleRef.current.setRadius(searchRadius * 1000);
+      
+      const bounds = searchCircleRef.current.getBounds();
+      if (bounds) {
+        mapInstanceRef.current.fitBounds(bounds);
+      }
+    } else {
+      if (searchMarkerRef.current) { searchMarkerRef.current.setMap(null); searchMarkerRef.current = null; }
+      if (searchCircleRef.current) { searchCircleRef.current.setMap(null); searchCircleRef.current = null; }
+    }
+  }, [searchCoords, searchRadius]);
 
   return (
     <div
@@ -1270,7 +1310,13 @@ export default function LiveTracking() {
               </div>
             </div>
           ) : (
-            <GoogleMap drivers={filteredDrivers} selectedDriver={selectedDriver} onDriverSelect={setSelectedDriver} />
+            <GoogleMap 
+              drivers={filteredDrivers} 
+              selectedDriver={selectedDriver} 
+              onDriverSelect={setSelectedDriver} 
+              searchCoords={searchCoords}
+              searchRadius={radius}
+            />
           )}
         </div>
 

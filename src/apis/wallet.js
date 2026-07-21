@@ -1,7 +1,7 @@
 import http from "./http";
 
 export const getAllTransactions = async () => {
-  const res = await http.get("/api/wallet/admin/transactions/all");
+  const res = await http.get("/api/wallet/admin/transactions/all?all=true");
   return res.data;
 };
 

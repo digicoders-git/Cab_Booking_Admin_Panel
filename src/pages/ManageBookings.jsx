@@ -127,6 +127,9 @@ export default function ManageBookings() {
   const [selectedChart, setSelectedChart] = useState('all');
   const [expandedRows, setExpandedRows] = useState({});
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  
+  // Date Range Filter
+  const [dateFilterRange, setDateFilterRange] = useState('all'); // today, week, month, year, all
 
   const textColorSecondary = useMemo(() => {
     if (theme === "dark") return "rgba(255, 255, 255, 0.6)";
@@ -183,26 +186,53 @@ export default function ManageBookings() {
       }
   };
 
+  const dateFilteredBookings = useMemo(() => {
+    return bookings.filter(b => {
+      if (dateFilterRange !== 'all') {
+        const bDate = new Date(b.createdAt);
+        const today = new Date();
+        
+        if (dateFilterRange === 'today') {
+           if (bDate.toDateString() !== today.toDateString()) return false;
+        } else if (dateFilterRange === 'week') {
+           const weekAgo = new Date();
+           weekAgo.setDate(today.getDate() - 7);
+           if (bDate < weekAgo) return false;
+        } else if (dateFilterRange === 'month') {
+           if (bDate.getMonth() !== today.getMonth() || bDate.getFullYear() !== today.getFullYear()) return false;
+        } else if (dateFilterRange === 'year') {
+           if (bDate.getFullYear() !== today.getFullYear()) return false;
+        } else if (dateFilterRange.endsWith('_year')) {
+           const yearsBack = parseInt(dateFilterRange.split('_')[0], 10);
+           const pastDate = new Date();
+           pastDate.setFullYear(today.getFullYear() - yearsBack);
+           if (bDate < pastDate) return false;
+        }
+      }
+      return true;
+    });
+  }, [bookings, dateFilterRange]);
+
   // Advanced Statistics
   const stats = useMemo(() => {
-    const total = bookings.length;
-    const pending = bookings.filter(b => b.bookingStatus?.toLowerCase() === "pending").length;
-    const ongoing = bookings.filter(b => ["ongoing", "accepted"].includes(b.bookingStatus?.toLowerCase())).length;
-    const completed = bookings.filter(b => b.bookingStatus?.toLowerCase() === "completed").length;
-    const cancelled = bookings.filter(b => b.bookingStatus?.toLowerCase() === "cancelled").length;
-    const expired = bookings.filter(b => b.bookingStatus?.toLowerCase() === "expired").length;
+    const total = dateFilteredBookings.length;
+    const pending = dateFilteredBookings.filter(b => b.bookingStatus?.toLowerCase() === "pending").length;
+    const ongoing = dateFilteredBookings.filter(b => ["ongoing", "accepted"].includes(b.bookingStatus?.toLowerCase())).length;
+    const completed = dateFilteredBookings.filter(b => b.bookingStatus?.toLowerCase() === "completed").length;
+    const cancelled = dateFilteredBookings.filter(b => b.bookingStatus?.toLowerCase() === "cancelled").length;
+    const expired = dateFilteredBookings.filter(b => b.bookingStatus?.toLowerCase() === "expired").length;
 
-    const totalRevenue = bookings.reduce((sum, b) => sum + (b.fareEstimate || 0), 0);
+    const totalRevenue = dateFilteredBookings.reduce((sum, b) => sum + (b.fareEstimate || 0), 0);
     const avgFare = total > 0 ? totalRevenue / total : 0;
-    const cashPayments = bookings.filter(b => b.paymentMethod === "Cash").length;
-    const cardPayments = bookings.filter(b => b.paymentMethod === "Card").length;
-    const onlinePayments = bookings.filter(b => b.paymentMethod === "Online").length;
+    const cashPayments = dateFilteredBookings.filter(b => b.paymentMethod === "Cash").length;
+    const cardPayments = dateFilteredBookings.filter(b => b.paymentMethod === "Card").length;
+    const onlinePayments = dateFilteredBookings.filter(b => b.paymentMethod === "Online").length;
 
     return {
       total, pending, ongoing, completed, cancelled, expired,
       totalRevenue, avgFare, cashPayments, cardPayments, onlinePayments
     };
-  }, [bookings]);
+  }, [dateFilteredBookings]);
 
   // Chart 1: Booking Status Distribution - Pie Chart
   const statusData = [
@@ -224,7 +254,7 @@ export default function ManageBookings() {
   const weeklyData = Array.from({ length: 7 }, (_, i) => {
     const date = new Date();
     date.setDate(date.getDate() - i);
-    const dayBookings = bookings.filter(b =>
+    const dayBookings = dateFilteredBookings.filter(b =>
       new Date(b.createdAt).toDateString() === date.toDateString()
     );
     return {
@@ -247,7 +277,7 @@ export default function ManageBookings() {
     }
     
     // Group bookings by month
-    bookings.forEach(b => {
+    dateFilteredBookings.forEach(b => {
       const bDate = new Date(b.createdAt);
       const monthKey = bDate.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
       if (monthMap.hasOwnProperty(monthKey)) {
@@ -261,10 +291,10 @@ export default function ManageBookings() {
       bookings: data.bookings,
       revenue: data.revenue
     }));
-  }, [bookings]);
+  }, [dateFilteredBookings]);
 
   // Chart 5: Ride Type Distribution - Bar Chart
-  const rideTypeData = bookings.reduce((acc, b) => {
+  const rideTypeData = dateFilteredBookings.reduce((acc, b) => {
     const type = b.rideType || 'Unknown';
     const existing = acc.find(item => item.name === type);
     if (existing) {
@@ -279,7 +309,7 @@ export default function ManageBookings() {
   // Chart 6: Hourly Distribution - Area Chart
   const hourlyData = Array.from({ length: 24 }, (_, i) => {
     const hour = i.toString().padStart(2, '0') + ':00';
-    const hourBookings = bookings.filter(b =>
+    const hourBookings = dateFilteredBookings.filter(b =>
       new Date(b.createdAt).getHours() === i
     );
     return {
@@ -305,7 +335,7 @@ export default function ManageBookings() {
   ];
 
   // Chart 9: Fare Distribution - Scatter Plot
-  const fareData = bookings.map((b, i) => ({
+  const fareData = dateFilteredBookings.map((b, i) => ({
     x: i,
     y: b.fareEstimate || 0,
     status: b.bookingStatus,
@@ -313,7 +343,7 @@ export default function ManageBookings() {
   }));
 
   // Chart 10: Seats Distribution - Bar Chart
-  const seatsData = bookings.reduce((acc, b) => {
+  const seatsData = dateFilteredBookings.reduce((acc, b) => {
     const seats = b.seatsBooked || 1;
     const existing = acc.find(item => item.seats === seats);
     if (existing) {
@@ -325,20 +355,20 @@ export default function ManageBookings() {
   }, []).sort((a, b) => a.seats - b.seats);
 
   const filteredBookings = useMemo(() => {
-    let list = bookings;
+    let list = dateFilteredBookings;
     if (activeTab === "pending") list = list.filter(b => b.bookingStatus?.toLowerCase() === "pending");
     else if (activeTab === "ongoing") list = list.filter(b => ["ongoing", "accepted"].includes(b.bookingStatus?.toLowerCase()));
     else if (activeTab === "completed") list = list.filter(b => b.bookingStatus?.toLowerCase() === "completed");
     else if (activeTab === "cancelled") list = list.filter(b => b.bookingStatus?.toLowerCase() === "cancelled");
     else if (activeTab === "expired") list = list.filter(b => b.bookingStatus?.toLowerCase() === "expired");
 
-    return list.filter(b =>
-      b._id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      b.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      b.passengerDetails?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      b.passengerDetails?.phone?.includes(searchQuery)
-    );
-  }, [bookings, activeTab, searchQuery]);
+    return list.filter(b => {
+      return b._id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        b.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        b.passengerDetails?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        b.passengerDetails?.phone?.includes(searchQuery);
+    });
+  }, [dateFilteredBookings, activeTab, searchQuery]);
 
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * rowsPerPage;
@@ -347,7 +377,7 @@ export default function ManageBookings() {
 
   const totalPages = Math.ceil(filteredBookings.length / rowsPerPage);
 
-  useEffect(() => { setCurrentPage(1); }, [activeTab, searchQuery, rowsPerPage]);
+  useEffect(() => { setCurrentPage(1); }, [activeTab, searchQuery, rowsPerPage, dateFilterRange]);
 
   const getStatusStyle = (status) => {
     const s = status?.toLowerCase();
@@ -539,31 +569,57 @@ export default function ManageBookings() {
           </div>
         )}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
-          <div className="px-6 py-2 border-b border-gray-200 flex items-center gap-4 overflow-x-auto">
-            {[
-              { id: "all", label: "All Bookings", icon: FaRoute },
-              { id: "pending", label: "Pending", icon: FaClock, count: stats.pending },
-              { id: "ongoing", label: "Ongoing", icon: FaPlayCircle, count: stats.ongoing },
-              { id: "completed", label: "Completed", icon: FaCheckCircle, count: stats.completed },
-              { id: "cancelled", label: "Cancelled", icon: FaTimesCircle, count: stats.cancelled },
-              { id: "expired", label: "Expired", icon: FaHistory, count: stats.expired }
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 py-4 text-xs font-medium transition-all border-b-2 ${activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-              >
-                <tab.icon size={14} />
-                <span>{tab.label}</span>
-                {tab.count !== undefined && (
-                  <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
-                    }`}>
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            ))}
+          <div className="px-6 py-2 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4 overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
+              {[
+                { id: "all", label: "All Bookings", icon: FaRoute },
+                { id: "pending", label: "Pending", icon: FaClock, count: stats.pending },
+                { id: "ongoing", label: "Ongoing", icon: FaPlayCircle, count: stats.ongoing },
+                { id: "completed", label: "Completed", icon: FaCheckCircle, count: stats.completed },
+                { id: "cancelled", label: "Cancelled", icon: FaTimesCircle, count: stats.cancelled },
+                { id: "expired", label: "Expired", icon: FaHistory, count: stats.expired }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-2 py-3 sm:py-4 text-xs font-medium transition-all whitespace-nowrap border-b-2 ${activeTab === tab.id ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                  <tab.icon size={14} />
+                  <span>{tab.label}</span>
+                  {tab.count !== undefined && (
+                    <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === tab.id ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                      }`}>
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 bg-gray-50 p-1.5 rounded-lg border border-gray-200 self-start sm:self-auto mb-2 sm:mb-0">
+               <label className="text-xs text-gray-500 font-bold uppercase tracking-wider ml-2">Time:</label>
+               <select
+                 value={dateFilterRange}
+                 onChange={(e) => setDateFilterRange(e.target.value)}
+                 className="px-2 py-1.5 text-xs font-bold border border-gray-300 rounded-md text-gray-700 bg-white shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+               >
+                 <option value="today">Today</option>
+                 <option value="week">This Week</option>
+                 <option value="month">This Month</option>
+                 <option value="year">This Year</option>
+                 <option value="2_year">Last 2 Years</option>
+                 <option value="3_year">Last 3 Years</option>
+                 <option value="4_year">Last 4 Years</option>
+                 <option value="5_year">Last 5 Years</option>
+                 <option value="6_year">Last 6 Years</option>
+                 <option value="7_year">Last 7 Years</option>
+                 <option value="8_year">Last 8 Years</option>
+                 <option value="9_year">Last 9 Years</option>
+                 <option value="10_year">Last 10 Years</option>
+                 <option value="all">All Time</option>
+               </select>
+            </div>
           </div>
 
           {/* Bookings Table */}
@@ -572,7 +628,7 @@ export default function ManageBookings() {
               <table className="w-full min-w-max">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    {['Ref ID','Passenger','Booked By','Route','Vehicle','Driver','Fare','Status','Actions'].map((h) => (
+                    {['Ref ID', 'Date & Time', 'Passenger','Booked By','Route','Vehicle','Driver','Fare','Status','Actions'].map((h) => (
                       <th key={h} className="py-4 px-6 text-left">
                         <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
                       </th>
@@ -584,6 +640,10 @@ export default function ManageBookings() {
                     <tr key={i} className="animate-pulse">
                       <td className="py-4 px-6">
                         <div className="h-3 bg-gray-200 rounded w-20 mb-1" />
+                        <div className="h-2 bg-gray-100 rounded w-16" />
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="h-3 bg-gray-200 rounded w-24 mb-1" />
                         <div className="h-2 bg-gray-100 rounded w-16" />
                       </td>
                       <td className="py-4 px-6">
@@ -635,6 +695,7 @@ export default function ManageBookings() {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Ref ID</th>
+                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Date & Time</th>
                   <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Passenger</th>
                   <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Booked By</th>
                   <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Route</th>
@@ -654,8 +715,13 @@ export default function ManageBookings() {
                     >
                       <td className="py-4 px-6">
                         <span className="text-xs font-mono text-blue-600 font-bold">#{b._id?.slice(-8).toUpperCase()}</span>
-                        <div className="text-[10px] text-gray-500 font-medium">
-                           {new Date(b.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} | {new Date(b.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                      <td className="py-4 px-6">
+                        <div className="text-xs text-gray-900 font-medium">
+                           {new Date(b.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </div>
+                        <div className="text-[10px] text-gray-500 mt-0.5">
+                           {new Date(b.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </td>
                       <td className="py-4 px-6">
@@ -763,7 +829,7 @@ export default function ManageBookings() {
                     </tr>
                     {expandedRows[b._id] && (
                       <tr className="bg-gray-50">
-                        <td colSpan="9" className="p-6">
+                        <td colSpan="10" className="p-6">
                           <div className="grid grid-cols-4 gap-6">
                              <div className="col-span-1">
                               <h4 className="text-xs font-black text-gray-500 mb-3 uppercase tracking-widest">Waypoints Itinerary</h4>

@@ -21,10 +21,30 @@ import {
   DollarSign, Activity, PieChart as PieChartIcon, BarChart3,
   LineChart as LineChartIcon, Target, Gauge, Zap, Shield,
   MoreVertical, DownloadCloud, Printer, UserCheck, UserPlus,
-  X, CheckCircle, AlertCircle, Clock, Star
+  X, CheckCircle, AlertCircle, Clock, Star, MapPin
 } from 'lucide-react';
 import Swal from "sweetalert2";
 import ReviewsModal from "../components/ReviewsModal";
+import { GoogleMap, useJsApiLoader, Marker, Autocomplete, Circle } from '@react-google-maps/api';
+
+const LIBRARIES = ['places'];
+
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+  const toRad = x => (x * Math.PI) / 180;
+  const R = 6371; // km
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+};
+
+const mapContainerStyle = {
+  width: '100%',
+  height: '100%'
+};
+const defaultCenter = { lat: 20.5937, lng: 78.9629 }; // India Center
 
 // Chart Colors
 const CHART_COLORS = {
@@ -110,6 +130,12 @@ export default function ManageUsers() {
   const { admin } = useAuth();
   const { currentFont } = useFont();
 
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '',
+    libraries: LIBRARIES
+  });
+
   // Helper for Granular Permissions
   const can = (permission) => {
     if (admin?.role === 'SuperAdmin') return true;
@@ -132,6 +158,12 @@ export default function ManageUsers() {
   const [selectedChart, setSelectedChart] = useState('all');
   const [expandedRows, setExpandedRows] = useState({});
   const [reviewModal, setReviewModal] = useState({ isOpen: false, targetId: null });
+
+  // Map Filter State
+  const [selectedLocation, setSelectedLocation] = useState(null);
+  const [searchRadius, setSearchRadius] = useState(5); // km
+  const [autocomplete, setAutocomplete] = useState(null);
+  const [mapCenter, setMapCenter] = useState(defaultCenter);
 
   const [rowsPerPage, setRowsPerPage] = useState(10);
 
@@ -158,12 +190,42 @@ export default function ManageUsers() {
   };
 
   const filteredUsers = useMemo(() => {
-    return users.filter(u =>
+    let result = users.filter(u =>
       u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.phone?.includes(searchQuery)
     );
-  }, [users, searchQuery]);
+
+    if (selectedLocation && searchRadius) {
+      result = result.filter(u => {
+        if (!u.firstLocation?.latitude || !u.firstLocation?.longitude) return false;
+        const dist = calculateDistance(
+          selectedLocation.lat, selectedLocation.lng,
+          u.firstLocation.latitude, u.firstLocation.longitude
+        );
+        return dist <= searchRadius;
+      });
+    }
+
+    return result;
+  }, [users, searchQuery, selectedLocation, searchRadius]);
+
+  const onLoadAutocomplete = (ac) => setAutocomplete(ac);
+  const onPlaceChanged = () => {
+    if (autocomplete !== null) {
+      const place = autocomplete.getPlace();
+      if (place.geometry && place.geometry.location) {
+        const lat = place.geometry.location.lat();
+        const lng = place.geometry.location.lng();
+        setSelectedLocation({ lat, lng });
+        setMapCenter({ lat, lng });
+      }
+    }
+  };
+  const clearLocationSearch = () => {
+    setSelectedLocation(null);
+    setMapCenter(defaultCenter);
+  };
 
   useEffect(() => { setCurrentPage(1); }, [searchQuery, rowsPerPage]);
 
@@ -419,10 +481,43 @@ export default function ManageUsers() {
         <div className="bg-white   mb-12 rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">User Directory</h3>
-              <p className="text-sm text-gray-500">Manage your user base</p>
+              <h3 className="text-lg font-semibold text-gray-900">User Directory & Map</h3>
+              <p className="text-sm text-gray-500">Manage users and view their locations</p>
             </div>
-            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+            <div className="flex flex-col xl:flex-row items-center gap-3 w-full xl:w-auto">
+              {/* Location & Radius Search */}
+              {isLoaded && (
+                <div className="flex items-center gap-2 w-full xl:w-auto bg-gray-50 p-2 rounded-lg border border-gray-200">
+                  <div className="relative w-full xl:w-80">
+                    <MapPin className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <Autocomplete onLoad={onLoadAutocomplete} onPlaceChanged={onPlaceChanged}>
+                      <input
+                        type="text"
+                        placeholder="Search location..."
+                        className="w-full pl-8 pr-8 py-1.5 border border-gray-300 rounded text-sm outline-none focus:border-blue-500 bg-white"
+                      />
+                    </Autocomplete>
+                    {selectedLocation && (
+                      <button onClick={clearLocationSearch} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500">
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-gray-500 whitespace-nowrap">Radius (km):</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="500"
+                      value={searchRadius}
+                      onChange={(e) => setSearchRadius(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="w-16 px-2 py-1.5 border border-gray-300 rounded text-sm outline-none focus:border-blue-500 bg-white"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <input
@@ -439,12 +534,50 @@ export default function ManageUsers() {
             </div>
           </div>
 
+          <div className="w-full h-[400px] border-b border-gray-200">
+            {isLoaded ? (
+              <GoogleMap
+                mapContainerStyle={mapContainerStyle}
+                center={mapCenter}
+                zoom={selectedLocation ? 11 : 4}
+              >
+                {selectedLocation && (
+                  <Circle
+                    center={selectedLocation}
+                    radius={searchRadius * 1000} // meters
+                    options={{
+                      fillColor: CHART_COLORS.blue,
+                      fillOpacity: 0.15,
+                      strokeColor: CHART_COLORS.blue,
+                      strokeOpacity: 0.6,
+                      strokeWeight: 2,
+                    }}
+                  />
+                )}
+
+                {!fetching && filteredUsers.map(u => (
+                  u.firstLocation?.latitude && u.firstLocation?.longitude ? (
+                    <Marker 
+                      key={u._id} 
+                      position={{ lat: u.firstLocation.latitude, lng: u.firstLocation.longitude }}
+                      title={`${u.name} - ${u.phone || 'No phone'}`}
+                    />
+                  ) : null
+                ))}
+              </GoogleMap>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-500 font-medium">
+                Loading Google Maps...
+              </div>
+            )}
+          </div>
+
           {fetching ? (
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    {['User','Contact','Joined','Rating','Status','Actions'].map((h) => (
+                    {['User','Contact','Joined','Location','Rating','Wallet','Status','Actions'].map((h) => (
                       <th key={h} className="py-4 px-6 text-left">
                         <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
                       </th>
@@ -473,6 +606,8 @@ export default function ManageUsers() {
                       <td className="py-4 px-6 text-center">
                         <div className="h-4 bg-gray-200 rounded w-12 mx-auto" />
                       </td>
+                      <td className="py-4 px-6 text-center"><div className="h-4 bg-gray-200 rounded w-12 mx-auto" /></td>
+                      <td className="py-4 px-6 text-center"><div className="h-4 bg-gray-200 rounded w-12 mx-auto" /></td>
                       <td className="py-4 px-6 text-center"><div className="h-6 bg-gray-100 rounded-full w-16 mx-auto" /></td>
                       <td className="py-4 px-6">
                         <div className="flex items-center justify-center gap-2">
@@ -499,7 +634,9 @@ export default function ManageUsers() {
                       <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">User</th>
                       <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Contact</th>
                       <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Joined</th>
+                      <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase">Location</th>
                       <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase">Rating</th>
+                      <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase">Wallet</th>
                       <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase">Status</th>
                       <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase">Actions</th>
                     </tr>
@@ -540,10 +677,32 @@ export default function ManageUsers() {
                             <p className="text-xs text-gray-500">{Math.ceil((new Date() - new Date(u.createdAt)) / (1000 * 60 * 60 * 24))} days ago</p>
                           </td>
                           <td className="py-4 px-6 text-center">
+                            {u.firstLocation?.latitude ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  window.open(`https://www.google.com/maps/search/?api=1&query=${u.firstLocation.latitude},${u.firstLocation.longitude}`, '_blank');
+                                }}
+                                className="flex flex-col items-center justify-center text-blue-600 hover:text-blue-800 transition-colors mx-auto"
+                                title={u.firstLocation?.address || 'View on Map'}
+                              >
+                                <MapPin size={18} />
+                                <span className="text-[10px] mt-1">View Map</span>
+                              </button>
+                            ) : (
+                              <span className="text-xs text-gray-400">Not Available</span>
+                            )}
+                          </td>
+                          <td className="py-4 px-6 text-center">
                             <div className="flex items-center justify-center gap-1 text-yellow-500 text-sm font-bold">
                               <Star size={14} className="fill-current" /> {u.averageRating ? Number(u.averageRating).toFixed(1) : 'N/A'}
                             </div>
                             <p className="text-[9px] text-gray-400 mt-0.5">{u.totalRatings || 0} reviews</p>
+                          </td>
+                          <td className="py-4 px-6 text-center">
+                            <div className="flex items-center justify-center gap-1 text-green-600 text-sm font-bold">
+                              ₹{u.walletBalance || 0}
+                            </div>
                           </td>
                           <td className="py-4 px-6 text-center">
                             {can('USER_STATUS') ? (
@@ -588,7 +747,7 @@ export default function ManageUsers() {
                         </tr>
                         {expandedRows[u._id] && (
                           <tr className="bg-gray-50">
-                            <td colSpan="5" className="p-6">
+                            <td colSpan="7" className="p-6">
                               <div className="grid grid-cols-2 gap-6">
                                 <div>
                                   <h4 className="text-xs font-medium text-gray-500 mb-3 uppercase">Account Details</h4>

@@ -161,6 +161,7 @@ export default function ManageNotifications() {
   const [dateRange, setDateRange] = useState('month');
   const [selectedChart, setSelectedChart] = useState('all');
   const [expandedRows, setExpandedRows] = useState({});
+  const [previewImage, setPreviewImage] = useState(null);
 
   // Form State
   const [form, setForm] = useState({
@@ -559,6 +560,7 @@ export default function ManageNotifications() {
                   <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Created By</th>
                   <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Target</th>
                   <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Title</th>
+                  <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase">Image</th>
                   <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase">Status</th>
                   <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
@@ -616,6 +618,25 @@ export default function ManageNotifications() {
                         <p className="text-xs text-gray-500 truncate max-w-xs">{n.message}</p>
                       </td>
                       <td className="py-4 px-6 text-center">
+                        {n.mediaUrl ? (
+                          <div 
+                            className="w-12 h-12 rounded-lg bg-gray-100 border border-gray-200 overflow-hidden cursor-pointer mx-auto hover:opacity-80 transition-opacity flex items-center justify-center"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPreviewImage(`${BASE.replace(/\/api\/?$/, '').replace(/\/$/, '')}${n.mediaUrl}`);
+                            }}
+                          >
+                            {n.mediaUrl.match(/\.(mp4|webm|ogg)$/i) ? (
+                              <span className="text-[10px] font-bold text-gray-500 uppercase">Video</span>
+                            ) : (
+                              <img src={`${BASE.replace(/\/api\/?$/, '').replace(/\/$/, '')}${n.mediaUrl}`} className="w-full h-full object-cover" alt="Attachment" />
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-gray-400">-</span>
+                        )}
+                      </td>
+                      <td className="py-4 px-6 text-center">
                         <button
                           onClick={(e) => { e.stopPropagation(); can('NEWS_POST') && handleToggle(n._id); }}
                           disabled={!can('NEWS_POST')}
@@ -638,7 +659,7 @@ export default function ManageNotifications() {
                     </tr>
                     {expandedRows[n._id] && (
                       <tr className="bg-gray-50">
-                        <td colSpan="6" className="p-6">
+                        <td colSpan="7" className="p-6">
                           <div className="space-y-2">
                             <h4 className="text-xs font-medium text-gray-500 mb-2">Full Message</h4>
                             <p className="text-sm text-gray-900 bg-white p-4 rounded-lg border border-gray-200">
@@ -1043,6 +1064,24 @@ export default function ManageNotifications() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Image Preview Modal */}
+      {previewImage && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" onClick={() => setPreviewImage(null)}>
+          <div className="relative max-w-4xl max-h-[90vh] w-full bg-transparent flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <button 
+              onClick={() => setPreviewImage(null)}
+              className="absolute -top-12 right-0 p-2 text-white hover:text-gray-300 transition-colors"
+            >
+              <FaTimes size={24} />
+            </button>
+            {previewImage.match(/\.(mp4|webm|ogg)$/i) ? (
+              <video src={previewImage} controls autoPlay className="max-w-full max-h-[85vh] rounded-lg shadow-2xl" />
+            ) : (
+              <img src={previewImage} alt="Preview" className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl" />
+            )}
           </div>
         </div>
       )}
