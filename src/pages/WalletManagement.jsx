@@ -431,6 +431,8 @@ export default function WalletManagement() {
       list = transactions.filter(t => t.status?.toLowerCase() === "completed");
     } else if (activeTab === "manual") {
       list = transactions.filter(t => t.description?.toLowerCase().includes("manual credit by admin") || t.category?.toLowerCase().includes("manual"));
+    } else if (activeTab === "admin_only") {
+      list = transactions.filter(t => t.userModel === "Admin" || t.recipientModel === "Admin");
     } else {
       list = transactions;
     }
@@ -527,6 +529,7 @@ export default function WalletManagement() {
           <div className="px-6 py-2 border-b border-gray-200 flex items-center gap-6">
             {[
               { id: "all", label: "Audit History", icon: FaHistory },
+              { id: "admin_only", label: "Admin Transactions", icon: FaBuilding },
               { id: "payouts", label: "Payout Queue", icon: Clock, count: stats.totalPayouts },
               { id: "completed", label: "Settled Logs", icon: FaCheckCircle, count: stats.completedCount },
               { id: "manual", label: "Manual Credits", icon: FaExchangeAlt, count: stats.manualCount }

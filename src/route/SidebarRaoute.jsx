@@ -29,7 +29,11 @@ const CreateBulkBooking = lazy(() => import("../pages/CreateBulkBooking"));
 const ManageAgentLeads = lazy(() => import("../pages/ManageAgentLeads"));
 const ManageStateTaxes = lazy(() => import("../pages/ManageStateTaxes"));
 const ManageOffers = lazy(() => import("../pages/ManageOffers"));
-const BulkBookingHistory = lazy(() => import("../pages/BulkBookingHistory")); // Add this line
+const BulkBookingHistory = lazy(() => import("../pages/BulkBookingHistory"));
+const DriverLeads = lazy(() => import("../pages/DriverLeads"));
+const ManageFixedRoutes = lazy(() => import("../pages/ManageFixedRoutes"));
+const FixedRouteMarketplace = lazy(() => import("../pages/FixedRouteMarketplace"));
+const FixedBookingsList = lazy(() => import("../pages/FixedBookingsList"));
 
 const routes = [
   { path: "/dashboard", component: Dashboard, name: "Dashboard", icon: FaTachometerAlt, permission: "DASHBOARD_READ" },
@@ -40,6 +44,7 @@ const routes = [
   { path: "/subadmins/manage", component: ManageSubAdmins, name: "Sub Admin", icon: FaUserShield, permission: "STAFF_VIEW" },
   { path: "/users/manage", component: ManageUsers, name: "Manage Users", icon: FaUsers, permission: "USER_READ" },
   { path: "/drivers/manage", component: ManageDrivers, name: "Main Drivers", icon: FaCar, permission: "DRIVER_READ" },
+  { path: "/driver-leads/manage", component: DriverLeads, name: "Driver Leads", icon: FaAddressCard, permission: "DRIVER_READ" },
   { path: "/tracking/live", component: LiveTracking, name: "Live Tracking", icon: FaMap, permission: "TRACKING_READ" },
   { path: "/support", component: Support, name: "Support", icon: FaBell, permission: "SUPPORT_READ" },
   { path: "/notifications/manage", component: ManageNotifications, name: "Announcements", icon: FaBell, permission: "NEWS_VIEW" },
@@ -48,13 +53,16 @@ const routes = [
   { path: "/bookings/manage", component: ManageBookings, name: "Manage Bookings", icon: FaRoute, permission: "BOOKING_READ" },
   { path: "/bulk-marketplace", component: BulkMarketplace, name: "Bulk Marketplace", icon: FaTag, permission: "FLEET_READ" },
   { path: "/bulk-booking/create", component: CreateBulkBooking, name: "Create Bulk Request", icon: FaPlus, permission: "BOOKING_CREATE" },
-  { path: "/bulk-booking/history", component: BulkBookingHistory, name: "Bulk Booking History", icon: FaHistory, permission: "BOOKING_READ" }, // Add this line
+  { path: "/bulk-booking/history", component: BulkBookingHistory, name: "Bulk Booking History", icon: FaHistory, permission: "BOOKING_READ" },
   { path: "/agent-leads/manage", component: ManageAgentLeads, name: "Agent Leads", icon: FaBriefcase, permission: "BOOKING_READ" },
   { path: "/car-categories/manage", component: ManageCarCategories, name: "CarCategargary", icon: FaCar, permission: "CAT_VIEW" },
   { path: "/service-areas/manage", component: ManageServiceAreas, name: "Service Areas", icon: FaGlobe, permission: "CAT_VIEW" },
   { path: "/pricing/area-wise", component: ManageAreaPricing, name: "Area Pricing", icon: FaMapMarkerAlt, permission: "CAT_VIEW" },
   { path: "/taxes/state-taxes", component: ManageStateTaxes, name: "State Taxes", icon: FaMoneyBillWave, permission: "CAT_VIEW" },
   { path: "/offers/manage", component: ManageOffers, name: "Manage Offers", icon: FaTag, permission: "CAT_VIEW" },
+  { path: "/fixed-routes/manage", component: ManageFixedRoutes, name: "Manage Packages", icon: FaRoute, permission: "BOOKING_CREATE" },
+  { path: "/fixed-routes/marketplace", component: FixedRouteMarketplace, name: "Fixed Marketplace", icon: FaBriefcase, permission: "BOOKING_READ" },
+  { path: "/fixed-routes/bookings", component: FixedBookingsList, name: "Fixed Bookings", icon: FaBriefcase, permission: "BOOKING_READ" },
   { path: "/admin/profile", component: AdminProfile, name: "Profile", icon: FaUserShield },
   { path: "/reports", component: Reports, name: "Reports", icon: FaTachometerAlt, permission: "REPORT_READ" },
 ];

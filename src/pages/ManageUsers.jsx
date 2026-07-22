@@ -479,12 +479,12 @@ export default function ManageUsers() {
 
 
         <div className="bg-white   mb-12 rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div>
+          <div className="px-6 py-4 border-b border-gray-200 flex flex-col xl:flex-row items-start xl:items-center justify-between gap-4">
+            <div className="shrink-0">
               <h3 className="text-lg font-semibold text-gray-900">User Directory & Map</h3>
               <p className="text-sm text-gray-500">Manage users and view their locations</p>
             </div>
-            <div className="flex flex-col xl:flex-row items-center gap-3 w-full xl:w-auto">
+            <div className="flex flex-col lg:flex-row items-center gap-3 w-full xl:w-auto">
               {/* Location & Radius Search */}
               {isLoaded && (
                 <div className="flex items-center gap-2 w-full xl:w-auto bg-gray-50 p-2 rounded-lg border border-gray-200">
