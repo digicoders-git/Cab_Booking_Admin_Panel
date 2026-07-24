@@ -9,6 +9,7 @@ const FixedRouteMarketplace = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [drivers, setDrivers] = useState([]);
+  const [filterDate, setFilterDate] = useState('');
 
   useEffect(() => {
     fetchMarketplaceBookings();
@@ -86,16 +87,46 @@ const FixedRouteMarketplace = () => {
     }
   };
 
+  const filteredBookings = bookings.filter(booking => {
+    if (!filterDate) return true;
+    try {
+      const bookingDate = new Date(booking.pickupDate).toISOString().split('T')[0];
+      return bookingDate === filterDate;
+    } catch (e) {
+      return true;
+    }
+  });
+
   if (loading) {
     return <div className="text-gray-800 p-6 min-h-screen bg-gray-100 flex items-center justify-center">Loading marketplace...</div>;
   }
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
-      <h1 className="text-2xl font-bold mb-6 text-gray-800">Fixed Route Marketplace (Open Bids)</h1>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-800 mb-4 md:mb-0">Fixed Route Marketplace (Open Bids)</h1>
+        
+        <div className="flex items-center space-x-3 bg-white p-2 rounded-lg shadow-sm border border-gray-200">
+          <label className="text-sm font-medium text-gray-600 pl-2">Filter by Date:</label>
+          <input
+            type="date"
+            value={filterDate}
+            onChange={(e) => setFilterDate(e.target.value)}
+            className="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-1.5 border"
+          />
+          {filterDate && (
+            <button
+              onClick={() => setFilterDate('')}
+              className="text-xs bg-red-50 text-red-600 px-2 py-1.5 rounded hover:bg-red-100 transition-colors font-medium border border-red-100"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {bookings.map(booking => (
+        {filteredBookings.map(booking => (
           <div key={booking._id} className="bg-white rounded-2xl p-0 shadow-sm border border-gray-200 hover:border-indigo-400 hover:shadow-xl transition-all duration-300 group flex flex-col overflow-hidden">
             {/* Card Header */}
             <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-gray-50 to-white">
@@ -194,9 +225,9 @@ const FixedRouteMarketplace = () => {
           </div>
         ))}
 
-        {bookings.length === 0 && (
+        {filteredBookings.length === 0 && (
           <div className="col-span-full py-12 text-center text-gray-500 bg-white rounded-xl border border-gray-200 shadow-sm">
-            <p className="text-lg">No fixed route bookings currently open in the marketplace.</p>
+            <p className="text-lg">No fixed route bookings currently open in the marketplace for this date.</p>
           </div>
         )}
       </div>

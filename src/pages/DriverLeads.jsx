@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import http from "../apis/http";
 import { toast } from "sonner";
 import { FaPhone, FaEnvelope, FaUser, FaClock, FaSearch } from "react-icons/fa";
 
@@ -8,13 +8,10 @@ export default function DriverLeads() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Assuming API Base URL from .env or default
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-
   const fetchLeads = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API_URL}/driver-leads`);
+      const res = await http.get(`/api/driver-leads`);
       if (res.data.success) {
         setLeads(res.data.leads);
       }
