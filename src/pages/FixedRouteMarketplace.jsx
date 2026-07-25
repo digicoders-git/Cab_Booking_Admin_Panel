@@ -9,7 +9,7 @@ const FixedRouteMarketplace = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [drivers, setDrivers] = useState([]);
-  const [filterDate, setFilterDate] = useState('');
+  const [filterPeriod, setFilterPeriod] = useState('all');
 
   useEffect(() => {
     fetchMarketplaceBookings();
@@ -88,10 +88,31 @@ const FixedRouteMarketplace = () => {
   };
 
   const filteredBookings = bookings.filter(booking => {
-    if (!filterDate) return true;
+    if (filterPeriod === 'all') return true;
     try {
-      const bookingDate = new Date(booking.pickupDate).toISOString().split('T')[0];
-      return bookingDate === filterDate;
+      const bookingDate = new Date(booking.pickupDate);
+      const now = new Date();
+      
+      const isSameDay = bookingDate.getDate() === now.getDate() && 
+                        bookingDate.getMonth() === now.getMonth() && 
+                        bookingDate.getFullYear() === now.getFullYear();
+
+      if (filterPeriod === 'day') return isSameDay;
+      if (filterPeriod === 'week') {
+         const diffTime = Math.abs(now - bookingDate);
+         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+         return diffDays <= 7;
+      }
+      if (filterPeriod === 'month') {
+         return bookingDate.getMonth() === now.getMonth() && bookingDate.getFullYear() === now.getFullYear();
+      }
+      if (filterPeriod === 'year') {
+         return bookingDate.getFullYear() === now.getFullYear();
+      }
+      if (filterPeriod === '10years') {
+         return Math.abs(bookingDate.getFullYear() - now.getFullYear()) <= 10;
+      }
+      return true;
     } catch (e) {
       return true;
     }
@@ -107,21 +128,19 @@ const FixedRouteMarketplace = () => {
         <h1 className="text-2xl font-bold text-gray-800 mb-4 md:mb-0">Fixed Route Marketplace (Open Bids)</h1>
         
         <div className="flex items-center space-x-3 bg-white p-2 rounded-lg shadow-sm border border-gray-200">
-          <label className="text-sm font-medium text-gray-600 pl-2">Filter by Date:</label>
-          <input
-            type="date"
-            value={filterDate}
-            onChange={(e) => setFilterDate(e.target.value)}
+          <label className="text-sm font-medium text-gray-600 pl-2">Filter:</label>
+          <select
+            value={filterPeriod}
+            onChange={(e) => setFilterPeriod(e.target.value)}
             className="border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-1.5 border"
-          />
-          {filterDate && (
-            <button
-              onClick={() => setFilterDate('')}
-              className="text-xs bg-red-50 text-red-600 px-2 py-1.5 rounded hover:bg-red-100 transition-colors font-medium border border-red-100"
-            >
-              Clear
-            </button>
-          )}
+          >
+            <option value="all">All</option>
+            <option value="day">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">This Month</option>
+            <option value="year">This Year</option>
+            <option value="10years">10 Years</option>
+          </select>
         </div>
       </div>
       
