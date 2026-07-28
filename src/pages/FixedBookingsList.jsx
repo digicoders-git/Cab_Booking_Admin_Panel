@@ -6,6 +6,9 @@ import { FaCar, FaClock, FaCheckCircle, FaTimesCircle, FaMapMarkerAlt, FaMoneyBi
 const FixedBookingsList = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [dateFilter, setDateFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [paymentFilter, setPaymentFilter] = useState('all');
   
   // Pagination States
   const [currentPage, setCurrentPage] = useState(1);
@@ -47,10 +50,44 @@ const FixedBookingsList = () => {
   }
 
   // Pagination Logic
+  const filteredBookings = bookings.filter((booking) => {
+    // 1. Date Filter
+    if (dateFilter !== 'all') {
+      const bookingDate = new Date(booking.createdAt || booking.pickupDate);
+      const now = new Date();
+      const daysDiff = Math.abs(now.getTime() - bookingDate.getTime()) / (1000 * 3600 * 24);
+      
+      let passDate = false;
+      switch (dateFilter) {
+        case 'day': passDate = daysDiff <= 1; break;
+        case 'week': passDate = daysDiff <= 7; break;
+        case 'month': passDate = daysDiff <= 30; break;
+        case '3month': passDate = daysDiff <= 90; break;
+        case '6month': passDate = daysDiff <= 180; break;
+        case 'year': passDate = daysDiff <= 365; break;
+        case '5year': passDate = daysDiff <= 1825; break;
+      }
+      if (!passDate) return false;
+    }
+
+    // 2. Status Filter
+    if (statusFilter !== 'all') {
+      if (booking.status !== statusFilter) return false;
+    }
+
+    // 3. Payment Filter (Online vs Cash)
+    if (paymentFilter !== 'all') {
+      if (paymentFilter === 'Cash' && booking.paymentMethod !== 'Cash') return false;
+      if (paymentFilter === 'Online' && booking.paymentMethod === 'Cash') return false;
+    }
+
+    return true;
+  });
+
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentBookings = bookings.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(bookings.length / itemsPerPage);
+  const currentBookings = filteredBookings.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
@@ -60,6 +97,58 @@ const FixedBookingsList = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Fixed Package Bookings</h1>
           <p className="text-gray-500 text-sm mt-1">View all user bookings and their current status</p>
+        </div>
+
+        {/* Filters Container */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Status Filter */}
+          <select 
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer"
+          >
+            <option value="all">All Status</option>
+            <option value="Marketplace">Marketplace</option>
+            <option value="Accepted">Accepted</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+
+          {/* Payment Method Filter */}
+          <select 
+            value={paymentFilter}
+            onChange={(e) => {
+              setPaymentFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer"
+          >
+            <option value="all">All Payment</option>
+            <option value="Online">Online</option>
+            <option value="Cash">Offline (Cash)</option>
+          </select>
+
+          {/* Date Filter Dropdown */}
+          <select 
+            value={dateFilter}
+            onChange={(e) => {
+              setDateFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer"
+          >
+            <option value="all">All Time</option>
+            <option value="day">Today (1 Day)</option>
+            <option value="week">1 Week</option>
+            <option value="month">1 Month</option>
+            <option value="3month">3 Months</option>
+            <option value="6month">6 Months</option>
+            <option value="year">1 Year</option>
+            <option value="5year">5 Years</option>
+          </select>
         </div>
       </div>
 
@@ -141,7 +230,7 @@ const FixedBookingsList = () => {
         {totalPages > 1 && (
           <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
             <span className="text-sm text-gray-500">
-              Showing <span className="font-semibold text-gray-800">{indexOfFirstItem + 1}</span> to <span className="font-semibold text-gray-800">{Math.min(indexOfLastItem, bookings.length)}</span> of <span className="font-semibold text-gray-800">{bookings.length}</span> entries
+              Showing <span className="font-semibold text-gray-800">{filteredBookings.length > 0 ? indexOfFirstItem + 1 : 0}</span> to <span className="font-semibold text-gray-800">{Math.min(indexOfLastItem, filteredBookings.length)}</span> of <span className="font-semibold text-gray-800">{filteredBookings.length}</span> entries
             </span>
             
             <div className="flex space-x-1">

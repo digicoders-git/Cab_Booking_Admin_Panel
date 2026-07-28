@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import http from "../apis/http";
 import { toast } from "sonner";
-import { FaPhone, FaEnvelope, FaUser, FaClock, FaSearch } from "react-icons/fa";
+import Swal from "sweetalert2";
+import { FaPhone, FaEnvelope, FaUser, FaClock, FaSearch, FaTrash } from "react-icons/fa";
 
 export default function DriverLeads() {
   const [leads, setLeads] = useState([]);
@@ -26,6 +27,33 @@ export default function DriverLeads() {
   useEffect(() => {
     fetchLeads();
   }, []);
+
+  const handleDelete = async (id) => {
+    const result = await Swal.fire({
+      title: "Are you sure?",
+      text: "You want to delete this lead?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "Yes, delete it!"
+    });
+
+    if (!result.isConfirmed) return;
+    try {
+      setLoading(true);
+      const res = await http.delete(`/api/driver-leads/${id}`);
+      if (res.data.success) {
+        toast.success("Lead deleted successfully");
+        fetchLeads();
+      }
+    } catch (error) {
+      console.error("Failed to delete lead:", error);
+      toast.error("Failed to delete lead");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredLeads = leads.filter((lead) =>
     (lead.name?.toLowerCase().includes(searchQuery.toLowerCase()) || false) ||
@@ -82,6 +110,7 @@ export default function DriverLeads() {
                   <th className="p-4 font-medium">Email</th>
                   <th className="p-4 font-medium">Status</th>
                   <th className="p-4 font-medium">Date</th>
+                  <th className="p-4 font-medium text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -122,6 +151,17 @@ export default function DriverLeads() {
                         <FaClock className="text-gray-400 text-xs" />
                         {new Date(lead.createdAt).toLocaleDateString()}{" "}
                         {new Date(lead.createdAt).toLocaleTimeString()}
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex items-center justify-end gap-2 text-gray-500 text-sm">
+                        <button
+                          onClick={() => handleDelete(lead._id)}
+                          className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-2 rounded-full transition"
+                          title="Delete Lead"
+                        >
+                          <FaTrash />
+                        </button>
                       </div>
                     </td>
                   </tr>

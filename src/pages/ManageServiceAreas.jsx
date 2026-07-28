@@ -9,9 +9,11 @@ import Swal from "sweetalert2";
 import { 
   getAllServiceAreas, createServiceArea, updateServiceArea, deleteServiceArea 
 } from "../apis/serviceArea";
+import { getAllCarCategories } from "../apis/carCategory";
 
 const ManageServiceAreas = () => {
   const [data, setData] = useState([]);
+  const [carCategories, setCarCategories] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
@@ -24,7 +26,8 @@ const ManageServiceAreas = () => {
     centerLat: null,
     centerLng: null,
     radiusKm: 50,
-    isActive: true
+    isActive: true,
+    disabledCategories: []
   });
 
   const [loading, setLoading] = useState(false);
@@ -38,6 +41,10 @@ const ManageServiceAreas = () => {
       const res = await getAllServiceAreas();
       if (res.success) {
         setData(res.areas || []);
+      }
+      const catRes = await getAllCarCategories();
+      if (catRes.success) {
+        setCarCategories(catRes.categories || []);
       }
     } catch (err) {
       console.error("Fetch Error:", err);
@@ -136,7 +143,8 @@ const ManageServiceAreas = () => {
       centerLat: null,
       centerLng: null,
       radiusKm: 50,
-      isActive: true
+      isActive: true,
+      disabledCategories: []
     });
     setEditId(null);
   };
@@ -148,7 +156,8 @@ const ManageServiceAreas = () => {
       centerLat: item.centerLat,
       centerLng: item.centerLng,
       radiusKm: item.radiusKm || 50,
-      isActive: item.isActive
+      isActive: item.isActive,
+      disabledCategories: item.disabledCategories || []
     });
     setShowModal(true);
   };
@@ -603,6 +612,40 @@ const ManageServiceAreas = () => {
                   </div>
                 </div>
               )}
+
+              {/* Disabled Categories */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Disabled Categories in this Area</label>
+                <div className="flex flex-wrap gap-2">
+                  {carCategories.map(cat => {
+                    const isSelected = formData.disabledCategories.includes(cat._id);
+                    return (
+                      <button
+                        type="button"
+                        key={cat._id}
+                        onClick={() => {
+                          setFormData(prev => ({
+                            ...prev,
+                            disabledCategories: isSelected
+                              ? prev.disabledCategories.filter(id => id !== cat._id)
+                              : [...prev.disabledCategories, cat._id]
+                          }));
+                        }}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                          isSelected 
+                            ? "bg-red-50 text-red-700 border-red-200" 
+                            : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+                        }`}
+                      >
+                        {isSelected && <X size={12} className="inline mr-1" />}
+                        {cat.name}
+                      </button>
+                    );
+                  })}
+                  {carCategories.length === 0 && <span className="text-xs text-gray-400">Loading categories...</span>}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Select vehicles you want to hide in this city</p>
+              </div>
 
               {/* Footer Buttons */}
               <div className="flex gap-3 pt-2">

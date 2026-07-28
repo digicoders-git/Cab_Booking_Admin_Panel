@@ -16,6 +16,9 @@ const ManageFixedRoutes = () => {
     carCategory: '',
     price: '',
     adminCommission: '',
+    tripType: 'One-Way',
+    maxTimeHours: '',
+    extraTimeChargePerHour: '',
     isActive: true
   });
   const [loading, setLoading] = useState(false);
@@ -115,7 +118,9 @@ const ManageFixedRoutes = () => {
     setFormData({ 
       pickupLocation: '', pickupLat: '', pickupLng: '', 
       dropLocation: '', dropLat: '', dropLng: '', 
-      carCategory: '', price: '', adminCommission: '', isActive: true 
+      carCategory: '', price: '', adminCommission: '',
+      tripType: 'One-Way', maxTimeHours: '', extraTimeChargePerHour: '',
+      isActive: true 
     });
     setEditingId(null);
     if (pickupRef.current) pickupRef.current.value = '';
@@ -134,6 +139,9 @@ const ManageFixedRoutes = () => {
       carCategory: route.carCategory?._id || '',
       price: route.price,
       adminCommission: route.adminCommission,
+      tripType: route.tripType || 'One-Way',
+      maxTimeHours: route.maxTimeHours || '',
+      extraTimeChargePerHour: route.extraTimeChargePerHour || '',
       isActive: route.isActive
     });
     if (pickupRef.current) pickupRef.current.value = route.pickupLocation;
@@ -198,6 +206,28 @@ const ManageFixedRoutes = () => {
             <label className="block text-gray-700 text-sm font-bold mb-2">Admin Commission (₹)</label>
             <input type="number" name="adminCommission" value={formData.adminCommission} onChange={handleChange} required className="w-full bg-gray-50 border border-gray-300 text-gray-800 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="e.g. 100" />
           </div>
+
+          {/* NEW: Trip Type */}
+          <div>
+            <label className="block text-gray-700 text-sm font-bold mb-2">Trip Type</label>
+            <select name="tripType" value={formData.tripType} onChange={handleChange} className="w-full bg-gray-50 border border-gray-300 text-gray-800 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all">
+              <option value="One-Way">One-Way</option>
+              <option value="Round-Trip">Round-Trip</option>
+            </select>
+          </div>
+
+          {/* NEW: Max Time Limit */}
+          <div>
+            <label className="block text-gray-700 text-sm font-bold mb-2">Max Time Limit (Hours) <span className="font-normal text-gray-400">(0 = No Limit)</span></label>
+            <input type="number" step="any" name="maxTimeHours" value={formData.maxTimeHours} onChange={handleChange} min="0" className="w-full bg-gray-50 border border-gray-300 text-gray-800 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="e.g. 8" />
+          </div>
+
+          {/* NEW: Extra Time Charge */}
+          <div>
+            <label className="block text-gray-700 text-sm font-bold mb-2">Extra Time Charge (₹/Hour) <span className="font-normal text-gray-400">(if limit exceeded)</span></label>
+            <input type="number" name="extraTimeChargePerHour" value={formData.extraTimeChargePerHour} onChange={handleChange} min="0" className="w-full bg-gray-50 border border-gray-300 text-gray-800 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="e.g. 200" />
+          </div>
+
           <div className="flex items-end space-x-2">
             <button type="submit" disabled={loading} className={`flex-1 ${editingId ? 'bg-green-600 hover:bg-green-700' : 'bg-indigo-600 hover:bg-indigo-700'} text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-200`}>
               {loading ? 'Saving...' : (editingId ? 'Update Package' : 'Create Package')}
@@ -262,19 +292,28 @@ const ManageFixedRoutes = () => {
 
               {/* Card Footer - Pricing & Actions */}
               <div className="p-5 bg-gray-50 border-t border-gray-100 mt-auto">
-                <div className="flex justify-between items-center mb-4">
+                <div className="flex justify-between items-center mb-3">
                   <div>
                     <p className="text-[11px] text-gray-500 font-medium mb-0.5">Total Price</p>
-                    <p className="text-gray-800 font-bold text-lg flex items-center">
-                      ₹{route.price}
-                    </p>
+                    <p className="text-gray-800 font-bold text-lg">₹{route.price}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-[11px] text-gray-500 font-medium mb-0.5">Admin Comm.</p>
-                    <p className="text-indigo-600 font-bold text-lg">
-                      ₹{route.adminCommission}
-                    </p>
+                    <p className="text-indigo-600 font-bold text-lg">₹{route.adminCommission}</p>
                   </div>
+                </div>
+                {/* Trip Type + Time Info */}
+                <div className="flex items-center justify-between text-xs mt-2 mb-1">
+                  <span className={`px-2 py-0.5 rounded-full font-bold ${route.tripType === 'Round-Trip' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                    {route.tripType || 'One-Way'}
+                  </span>
+                  {route.maxTimeHours > 0 ? (
+                    <span className="text-orange-600 font-semibold">
+                      ⏱ {route.maxTimeHours}h | +₹{route.extraTimeChargePerHour}/hr
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">No Time Limit</span>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 mt-4">

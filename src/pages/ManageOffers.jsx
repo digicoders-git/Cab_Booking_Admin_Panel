@@ -16,6 +16,8 @@ const ManageOffers = () => {
   const [formData, setFormData] = useState({
     code: "",
     discountAmount: 0,
+    discountType: "FLAT",
+    maxDiscountAmount: "",
     bookingType: "Normal",
     validTill: "",
     isActive: true
@@ -56,6 +58,8 @@ const ManageOffers = () => {
       const payload = {
         code: formData.code.toUpperCase(),
         discountAmount: Number(formData.discountAmount),
+        discountType: formData.discountType,
+        maxDiscountAmount: formData.discountType === "PERCENTAGE" && formData.maxDiscountAmount ? Number(formData.maxDiscountAmount) : null,
         bookingType: formData.bookingType,
         validTill: formData.validTill,
         isActive: formData.isActive
@@ -86,6 +90,8 @@ const ManageOffers = () => {
     setFormData({
       code: "",
       discountAmount: 0,
+      discountType: "FLAT",
+      maxDiscountAmount: "",
       bookingType: "Normal",
       validTill: "",
       isActive: true
@@ -98,6 +104,8 @@ const ManageOffers = () => {
     setFormData({
       code: item.code,
       discountAmount: item.discountAmount,
+      discountType: item.discountType || "FLAT",
+      maxDiscountAmount: item.maxDiscountAmount || "",
       bookingType: item.bookingType,
       validTill: item.validTill ? new Date(new Date(item.validTill).getTime() - new Date(item.validTill).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "",
       isActive: item.isActive
@@ -304,7 +312,11 @@ const ManageOffers = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <span className="text-sm font-bold text-gray-900">₹{item.discountAmount} Flat Off</span>
+                      <span className="text-sm font-bold text-gray-900">
+                        {item.discountType === "PERCENTAGE" 
+                          ? `${item.discountAmount}% Off ${item.maxDiscountAmount ? `(Max ₹${item.maxDiscountAmount})` : ''}` 
+                          : `₹${item.discountAmount} Flat Off`}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className={`text-xs font-semibold px-3 py-1 rounded-full ${item.bookingType === 'Bulk' ? 'bg-purple-100 text-purple-700' : 'bg-gray-100 text-gray-700'}`}>
@@ -434,20 +446,52 @@ const ManageOffers = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Flat Discount (₹) *</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Discount Type *</label>
+                <select
+                  value={formData.discountType}
+                  onChange={(e) => setFormData({ ...formData, discountType: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all"
+                >
+                  <option value="FLAT">Flat Value (₹)</option>
+                  <option value="PERCENTAGE">Percentage (%)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  {formData.discountType === "PERCENTAGE" ? "Discount Percentage (%) *" : "Flat Discount (₹) *"}
+                </label>
                 <div className="relative">
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                   <input
                     type="number"
                     required
                     min="1"
+                    max={formData.discountType === "PERCENTAGE" ? "100" : undefined}
                     value={formData.discountAmount === 0 ? '' : formData.discountAmount}
                     onChange={(e) => setFormData({ ...formData, discountAmount: e.target.value })}
                     className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all"
-                    placeholder="e.g. 500"
+                    placeholder={formData.discountType === "PERCENTAGE" ? "e.g. 20" : "e.g. 500"}
                   />
                 </div>
               </div>
+
+              {formData.discountType === "PERCENTAGE" && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Max Discount Amount (₹) (Optional)</label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                    <input
+                      type="number"
+                      min="1"
+                      value={formData.maxDiscountAmount}
+                      onChange={(e) => setFormData({ ...formData, maxDiscountAmount: e.target.value })}
+                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all"
+                      placeholder="e.g. 100"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Valid For Booking Type *</label>
