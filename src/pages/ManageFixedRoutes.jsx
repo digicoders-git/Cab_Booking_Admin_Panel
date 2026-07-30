@@ -19,6 +19,7 @@ const ManageFixedRoutes = () => {
     tripType: 'One-Way',
     maxTimeHours: '',
     extraTimeChargePerHour: '',
+    distanceKm: '',
     isActive: true
   });
   const [loading, setLoading] = useState(false);
@@ -36,6 +37,30 @@ const ManageFixedRoutes = () => {
       initAutocomplete();
     }, 1000);
   }, []);
+
+  useEffect(() => {
+    if (formData.pickupLat && formData.dropLat && !editingId) {
+      calculateDistance(formData.pickupLat, formData.pickupLng, formData.dropLat, formData.dropLng);
+    }
+  }, [formData.pickupLat, formData.dropLat]);
+
+  const calculateDistance = (lat1, lng1, lat2, lng2) => {
+    if (!window.google || !window.google.maps) return;
+    const origin = new window.google.maps.LatLng(lat1, lng1);
+    const destination = new window.google.maps.LatLng(lat2, lng2);
+    
+    const service = new window.google.maps.DistanceMatrixService();
+    service.getDistanceMatrix({
+      origins: [origin],
+      destinations: [destination],
+      travelMode: 'DRIVING'
+    }, (response, status) => {
+      if (status === 'OK' && response.rows[0].elements[0].status === 'OK') {
+        const dist = response.rows[0].elements[0].distance.value / 1000;
+        setFormData(prev => ({ ...prev, distanceKm: dist.toFixed(1) }));
+      }
+    });
+  };
 
   const initAutocomplete = () => {
     if (!window.google || !window.google.maps) return;
@@ -120,6 +145,7 @@ const ManageFixedRoutes = () => {
       dropLocation: '', dropLat: '', dropLng: '', 
       carCategory: '', price: '', adminCommission: '',
       tripType: 'One-Way', maxTimeHours: '', extraTimeChargePerHour: '',
+      distanceKm: '',
       isActive: true 
     });
     setEditingId(null);
@@ -142,6 +168,7 @@ const ManageFixedRoutes = () => {
       tripType: route.tripType || 'One-Way',
       maxTimeHours: route.maxTimeHours || '',
       extraTimeChargePerHour: route.extraTimeChargePerHour || '',
+      distanceKm: route.distanceKm || '',
       isActive: route.isActive
     });
     if (pickupRef.current) pickupRef.current.value = route.pickupLocation;
@@ -205,6 +232,11 @@ const ManageFixedRoutes = () => {
           <div>
             <label className="block text-gray-700 text-sm font-bold mb-2">Admin Commission (₹)</label>
             <input type="number" name="adminCommission" value={formData.adminCommission} onChange={handleChange} required className="w-full bg-gray-50 border border-gray-300 text-gray-800 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="e.g. 100" />
+          </div>
+
+          <div>
+            <label className="block text-gray-700 text-sm font-bold mb-2">Distance (Km)</label>
+            <input type="number" step="0.1" name="distanceKm" value={formData.distanceKm} onChange={handleChange} className="w-full bg-gray-50 border border-gray-300 text-gray-800 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="e.g. 15.5" />
           </div>
 
           {/* NEW: Trip Type */}
