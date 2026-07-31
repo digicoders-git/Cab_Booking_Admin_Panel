@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import http from '../apis/http';
 import { toast } from 'sonner';
-import { FaCar, FaClock, FaCheckCircle, FaTimesCircle, FaMapMarkerAlt, FaMoneyBillWave } from 'react-icons/fa';
+import { FaCar, FaClock, FaCheckCircle, FaTimesCircle, FaMapMarkerAlt, FaMoneyBillWave, FaTrash } from 'react-icons/fa';
+import Swal from 'sweetalert2';
 
 const FixedBookingsList = () => {
   const [bookings, setBookings] = useState([]);
@@ -12,7 +13,7 @@ const FixedBookingsList = () => {
   
   // Pagination States
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   useEffect(() => {
     fetchBookings();
@@ -26,6 +27,28 @@ const FixedBookingsList = () => {
       toast.error('Failed to load package bookings');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: "You are about to delete this package booking. This cannot be undone!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, Delete it!'
+    });
+
+    if (result.isConfirmed) {
+      try {
+        await http.delete(`/api/fixed-routes/bookings/${id}/admin`);
+        toast.success("Booking deleted successfully");
+        setBookings(bookings.filter(b => b._id !== id));
+      } catch (error) {
+        toast.error("Failed to delete booking");
+      }
     }
   };
 
@@ -149,6 +172,29 @@ const FixedBookingsList = () => {
             <option value="year">1 Year</option>
             <option value="5year">5 Years</option>
           </select>
+
+          {/* Items Per Page Filter */}
+          <select 
+            value={itemsPerPage}
+            onChange={(e) => {
+              setItemsPerPage(Number(e.target.value));
+              setCurrentPage(1);
+            }}
+            className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer"
+          >
+            <option value="10">10 / page</option>
+            <option value="20">20 / page</option>
+            <option value="30">30 / page</option>
+            <option value="40">40 / page</option>
+            <option value="50">50 / page</option>
+            <option value="60">60 / page</option>
+            <option value="70">70 / page</option>
+            <option value="80">80 / page</option>
+            <option value="90">90 / page</option>
+            <option value="100">100 / page</option>
+            <option value="1000">1000 / page</option>
+            <option value="10000">10000 / page</option>
+          </select>
         </div>
       </div>
 
@@ -164,6 +210,7 @@ const FixedBookingsList = () => {
                 <th className="px-6 py-4 whitespace-nowrap">Status</th>
                 <th className="px-6 py-4 whitespace-nowrap">Payment</th>
                 <th className="px-6 py-4 whitespace-nowrap">Price / Comm.</th>
+                <th className="px-6 py-4 whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -214,6 +261,16 @@ const FixedBookingsList = () => {
                     <p className="text-gray-800 font-bold">₹{booking.price}</p>
                     <p className="text-indigo-600 text-xs font-semibold mt-0.5">Comm: ₹{booking.adminCommission}</p>
                   </td>
+
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <button 
+                      onClick={() => handleDelete(booking._id)}
+                      className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors shadow-sm border border-red-200"
+                      title="Delete Booking"
+                    >
+                      <FaTrash size={14} />
+                    </button>
+                  </td>
                 </tr>
               )) : (
                 <tr>
@@ -227,41 +284,48 @@ const FixedBookingsList = () => {
         </div>
         
         {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-            <span className="text-sm text-gray-500">
-              Showing <span className="font-semibold text-gray-800">{filteredBookings.length > 0 ? indexOfFirstItem + 1 : 0}</span> to <span className="font-semibold text-gray-800">{Math.min(indexOfLastItem, filteredBookings.length)}</span> of <span className="font-semibold text-gray-800">{filteredBookings.length}</span> entries
-            </span>
-            
-            <div className="flex space-x-1">
+        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex flex-col md:flex-row items-center justify-between gap-4">
+          <span className="text-sm text-gray-500">
+            Showing <span className="font-semibold text-gray-800">{filteredBookings.length > 0 ? indexOfFirstItem + 1 : 0}</span> to <span className="font-semibold text-gray-800">{Math.min(indexOfLastItem, filteredBookings.length)}</span> of <span className="font-semibold text-gray-800">{filteredBookings.length}</span> entries
+          </span>
+          
+          {totalPages > 1 && (
+            <div className="flex items-center space-x-1 overflow-x-auto max-w-full pb-1">
               <button 
                 onClick={() => paginate(currentPage - 1)}
                 disabled={currentPage === 1}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'}`}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors shrink-0 ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'}`}
               >
                 Prev
               </button>
               
-              {[...Array(totalPages)].map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => paginate(i + 1)}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${currentPage === i + 1 ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'}`}
-                >
-                  {i + 1}
-                </button>
+              {/* Only show up to a few page buttons around current page to avoid clutter when having 1000s of items */}
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+                .map((p, index, array) => (
+                  <React.Fragment key={p}>
+                    {index > 0 && array[index - 1] !== p - 1 && (
+                      <span className="px-2 text-gray-400 shrink-0">...</span>
+                    )}
+                    <button
+                      onClick={() => paginate(p)}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors shrink-0 ${currentPage === p ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'}`}
+                    >
+                      {p}
+                    </button>
+                  </React.Fragment>
               ))}
               
               <button 
                 onClick={() => paginate(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'}`}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors shrink-0 ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'}`}
               >
                 Next
               </button>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

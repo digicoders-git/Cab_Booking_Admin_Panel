@@ -19,6 +19,8 @@ const ManageFixedRoutes = () => {
     tripType: 'One-Way',
     maxTimeHours: '',
     extraTimeChargePerHour: '',
+    maxDistanceKm: '',
+    extraDistanceChargePerKm: '',
     distanceKm: '',
     isActive: true
   });
@@ -145,6 +147,7 @@ const ManageFixedRoutes = () => {
       dropLocation: '', dropLat: '', dropLng: '', 
       carCategory: '', price: '', adminCommission: '',
       tripType: 'One-Way', maxTimeHours: '', extraTimeChargePerHour: '',
+      maxDistanceKm: '', extraDistanceChargePerKm: '',
       distanceKm: '',
       isActive: true 
     });
@@ -168,6 +171,8 @@ const ManageFixedRoutes = () => {
       tripType: route.tripType || 'One-Way',
       maxTimeHours: route.maxTimeHours || '',
       extraTimeChargePerHour: route.extraTimeChargePerHour || '',
+      maxDistanceKm: route.maxDistanceKm || '',
+      extraDistanceChargePerKm: route.extraDistanceChargePerKm || '',
       distanceKm: route.distanceKm || '',
       isActive: route.isActive
     });
@@ -260,6 +265,18 @@ const ManageFixedRoutes = () => {
             <input type="number" name="extraTimeChargePerHour" value={formData.extraTimeChargePerHour} onChange={handleChange} min="0" className="w-full bg-gray-50 border border-gray-300 text-gray-800 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="e.g. 200" />
           </div>
 
+          {/* NEW: Max Distance Limit */}
+          <div>
+            <label className="block text-gray-700 text-sm font-bold mb-2">Max Distance Limit (KM) <span className="font-normal text-gray-400">(0 = No Limit)</span></label>
+            <input type="number" step="any" name="maxDistanceKm" value={formData.maxDistanceKm} onChange={handleChange} min="0" className="w-full bg-gray-50 border border-gray-300 text-gray-800 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="e.g. 800" />
+          </div>
+
+          {/* NEW: Extra Distance Charge */}
+          <div>
+            <label className="block text-gray-700 text-sm font-bold mb-2">Extra Distance Charge (₹/KM)</label>
+            <input type="number" name="extraDistanceChargePerKm" value={formData.extraDistanceChargePerKm} onChange={handleChange} min="0" className="w-full bg-gray-50 border border-gray-300 text-gray-800 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="e.g. 15" />
+          </div>
+
           <div className="flex items-end space-x-2">
             <button type="submit" disabled={loading} className={`flex-1 ${editingId ? 'bg-green-600 hover:bg-green-700' : 'bg-indigo-600 hover:bg-indigo-700'} text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-200`}>
               {loading ? 'Saving...' : (editingId ? 'Update Package' : 'Create Package')}
@@ -345,6 +362,17 @@ const ManageFixedRoutes = () => {
                     </span>
                   ) : (
                     <span className="text-gray-400">No Time Limit</span>
+                  )}
+                </div>
+                
+                {/* Distance Info */}
+                <div className="flex items-center justify-end text-xs mb-1">
+                  {route.maxDistanceKm > 0 ? (
+                    <span className="text-teal-600 font-semibold">
+                      🛣️ {route.maxDistanceKm}km | +₹{route.extraDistanceChargePerKm}/km
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">No Distance Limit</span>
                   )}
                 </div>
 
