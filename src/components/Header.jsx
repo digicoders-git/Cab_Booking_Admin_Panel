@@ -15,7 +15,9 @@ import {
   FaStar,
   FaGem,
   FaSquare,
-  FaUserCircle
+  FaUserCircle,
+  FaExpand,
+  FaCompress
 } from "react-icons/fa";
 
 const SettingsModal = ({
@@ -275,10 +277,31 @@ const Header = memo(({
   currentPageTitle
 }) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const { themeColors, toggleTheme, palette, changePalette, availablePalettes } = useTheme();
   const { currentFont } = useFont();
   const { admin } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  const toggleFullScreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch((err) => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
 
   return (
     <>
@@ -321,6 +344,18 @@ const Header = memo(({
         </div>
 
         <div className="flex items-center space-x-3">
+           <button
+             onClick={toggleFullScreen}
+             className="p-2 rounded-xl transition-all active:scale-95 border group hover:shadow-lg flex items-center justify-center"
+             style={{
+               backgroundColor: themeColors.primary + '12',
+               borderColor: themeColors.primary + '35',
+               color: themeColors.primary,
+             }}
+             title={isFullscreen ? "Exit Full Screen" : "Full Screen"}
+           >
+             {isFullscreen ? <FaCompress size={16} /> : <FaExpand size={16} />}
+           </button>
            <button
              onClick={() => navigate('/admin/profile')}
              className="flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all active:scale-95 border group hover:shadow-lg"
