@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import { getAllCarCategories } from "../apis/carCategory";
-import { createBulkBooking, getMyCreatedRequests, cancelBulkBooking, deleteBulkBooking, verifyBulkPayment } from "../apis/bulkBooking";
+import { createBulkBooking, getMyCreatedRequests, cancelBulkBooking, deleteBulkBooking, verifyBulkPayment, checkAreaSurcharge } from "../apis/bulkBooking";
 import {
   FaCar, FaCalendarAlt, FaClock, FaMapMarkerAlt,
   FaPlus, FaMinus, FaChevronRight, FaCheckCircle,
@@ -25,6 +25,7 @@ export default function CreateBulkBooking() {
   const [loading, setLoading] = useState(true);
   const [selectedCars, setSelectedCars] = useState([]);
   const [estimatedTax, setEstimatedTax] = useState(0);
+  const [areaMultiplier, setAreaMultiplier] = useState(1);
   const [formData, setFormData] = useState({
     pickup: "",
     drop: "",
@@ -97,6 +98,22 @@ export default function CreateBulkBooking() {
           setEstimatedTax(0);
       }
   }, [formData.isOutstation, formData.pickupCoords]);
+
+  // 📍 Check Area Surcharge
+  useEffect(() => {
+    if (formData.pickupCoords?.lat && formData.pickupCoords?.lng) {
+      checkAreaSurcharge({ 
+        latitude: formData.pickupCoords.lat, 
+        longitude: formData.pickupCoords.lng 
+      })
+      .then(res => {
+        setAreaMultiplier(res.multiplier || 1);
+      })
+      .catch(() => setAreaMultiplier(1));
+    } else {
+      setAreaMultiplier(1);
+    }
+  }, [formData.pickupCoords]);
 
   const loadGoogleMapsScript = () => {
     // Check if script already loaded
@@ -327,10 +344,13 @@ export default function CreateBulkBooking() {
   const calculateTotal = () => {
     // Formula: Rate (KM) * Quantity * Days * Distance
     const distanceMultiplier = formData.tripType === 'RoundTrip' ? 2 : 1;
-    const baseTotal = selectedCars.reduce(
+    let baseTotal = selectedCars.reduce(
       (acc, car) => acc + car.price * car.quantity * formData.days * ((formData.distance || 0) * distanceMultiplier),
       0
     );
+    
+    // Apply area surcharge multiplier
+    baseTotal = baseTotal * areaMultiplier;
     const modified = baseTotal + baseTotal * (formData.priceModifier / 100);
     return Math.round(modified);
   };
@@ -852,7 +872,7 @@ export default function CreateBulkBooking() {
                             <img src={`${BASE_URL}/uploads/${cat.image}`} alt={cat.name} className="w-16 h-12 object-contain bg-white rounded-xl p-1 shadow-sm" />
                             <div>
                               <p className="text-sm font-black text-gray-800">{cat.name}</p>
-                              <p className="text-[10px] text-blue-600 font-bold">₹{cat.bulkBookingBasePrice || cat.privateRatePerKm || 0}/km</p>
+                              <p className="text-[10px] text-blue-600 font-bold">₹{(cat.bulkBookingBasePrice || cat.privateRatePerKm || 0) * areaMultiplier}/km</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">

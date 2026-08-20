@@ -23,6 +23,7 @@ const ManageAreaPricing = () => {
     baseFareMultiplier: 1,
     privateRateMultiplier: 1,
     sharedRateMultiplier: 1,
+    bulkRateMultiplier: 1,
     validFrom: "",
     validUntil: "",
     daysOfWeek: [],
@@ -150,6 +151,7 @@ const ManageAreaPricing = () => {
       baseFareMultiplier: 1,
       privateRateMultiplier: 1,
       sharedRateMultiplier: 1,
+      bulkRateMultiplier: 1,
       validFrom: "",
       validUntil: "",
       daysOfWeek: [],
@@ -170,6 +172,7 @@ const ManageAreaPricing = () => {
       baseFareMultiplier: item.baseFareMultiplier || 1,
       privateRateMultiplier: item.privateRateMultiplier || 1,
       sharedRateMultiplier: item.sharedRateMultiplier || 1,
+      bulkRateMultiplier: item.bulkRateMultiplier || 1,
       validFrom: item.validFrom ? new Date(new Date(item.validFrom).getTime() - new Date(item.validFrom).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "",
       validUntil: item.validUntil ? new Date(new Date(item.validUntil).getTime() - new Date(item.validUntil).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "",
       daysOfWeek: item.daysOfWeek || [],
@@ -622,11 +625,12 @@ const ManageAreaPricing = () => {
               {/* Multipliers */}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-3">Fare Multipliers</label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {[
                     { label: 'Base', key: 'baseFareMultiplier' },
                     { label: 'Private', key: 'privateRateMultiplier' },
                     { label: 'Shared', key: 'sharedRateMultiplier' },
+                    { label: 'Bulk', key: 'bulkRateMultiplier' },
                   ].map(({ label, key }) => (
                     <div key={key}>
                       <label className="block text-xs text-gray-600 mb-1.5 text-center">{label}</label>

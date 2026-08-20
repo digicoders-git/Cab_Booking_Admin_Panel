@@ -131,6 +131,8 @@ export default function ManageBookings() {
   // Date Range Filter
   const [dateFilterRange, setDateFilterRange] = useState('all'); // today, week, month, year, all
 
+  const [selectedBookings, setSelectedBookings] = useState([]);
+
   const textColorSecondary = useMemo(() => {
     if (theme === "dark") return "rgba(255, 255, 255, 0.6)";
     return themeColors.textSecondary || "rgba(107, 114, 128, 1)";
@@ -184,6 +186,58 @@ export default function ManageBookings() {
               Swal.fire('Error!', 'Failed to delete booking', 'error');
           }
       }
+  };
+
+  const handleSelectAll = (e, paginatedData) => {
+    if (e.target.checked) {
+      const allIds = paginatedData.map(b => b._id);
+      setSelectedBookings(allIds);
+    } else {
+      setSelectedBookings([]);
+    }
+  };
+
+  const handleSelectOne = (e, id) => {
+    e.stopPropagation();
+    if (e.target.checked) {
+      setSelectedBookings(prev => [...prev, id]);
+    } else {
+      setSelectedBookings(prev => prev.filter(bId => bId !== id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedBookings.length === 0) return;
+    const result = await Swal.fire({
+        title: `Delete ${selectedBookings.length} bookings?`,
+        text: "You won't be able to revert this!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, delete them!'
+    });
+
+    if (result.isConfirmed) {
+        try {
+            setLoading(true);
+            let successCount = 0;
+            let failCount = 0;
+            
+            await Promise.all(selectedBookings.map(async (id) => {
+                const res = await deleteBooking(id);
+                if (res.success) successCount++;
+                else failCount++;
+            }));
+
+            Swal.fire('Deleted!', `Successfully deleted ${successCount} bookings. ${failCount > 0 ? `Failed: ${failCount}` : ''}`, 'success');
+            setSelectedBookings([]);
+            fetchData();
+        } catch (error) {
+            Swal.fire('Error!', 'Failed to perform bulk delete', 'error');
+            setLoading(false);
+        }
+    }
   };
 
   const dateFilteredBookings = useMemo(() => {
@@ -619,6 +673,14 @@ export default function ManageBookings() {
                  <option value="10_year">Last 10 Years</option>
                  <option value="all">All Time</option>
                </select>
+               {selectedBookings.length > 0 && can("BOOKING_DELETE") && (
+                 <button
+                   onClick={handleBulkDelete}
+                   className="ml-2 flex items-center gap-1 bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors shadow-sm"
+                 >
+                   <Trash2 size={14} /> Delete Selected ({selectedBookings.length})
+                 </button>
+               )}
             </div>
           </div>
 
@@ -628,6 +690,9 @@ export default function ManageBookings() {
               <table className="w-full min-w-max">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className="py-4 px-4 text-left w-12">
+                      <div className="h-4 w-4 bg-gray-200 rounded animate-pulse" />
+                    </th>
                     {['Ref ID', 'Date & Time', 'Passenger','Booked By','Route','Vehicle','Driver','Fare','Status','Actions'].map((h) => (
                       <th key={h} className="py-4 px-6 text-left">
                         <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
@@ -638,9 +703,12 @@ export default function ManageBookings() {
                 <tbody className="divide-y divide-gray-100">
                   {[...Array(6)].map((_, i) => (
                     <tr key={i} className="animate-pulse">
+                      <td className="py-4 px-4">
+                        <div className="w-4 h-4 bg-gray-200 rounded" />
+                      </td>
                       <td className="py-4 px-6">
-                        <div className="h-3 bg-gray-200 rounded w-20 mb-1" />
-                        <div className="h-2 bg-gray-100 rounded w-16" />
+                        <div className="h-4 bg-gray-200 rounded w-20 mb-1" />
+                        <div className="h-3 bg-gray-100 rounded w-16" />
                       </td>
                       <td className="py-4 px-6">
                         <div className="h-3 bg-gray-200 rounded w-24 mb-1" />
@@ -694,6 +762,14 @@ export default function ManageBookings() {
               <table className="w-full min-w-max">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="py-4 px-4 text-left w-12">
+                    <input
+                      type="checkbox"
+                      className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+                      checked={paginatedData.length > 0 && selectedBookings.length === paginatedData.length}
+                      onChange={(e) => handleSelectAll(e, paginatedData)}
+                    />
+                  </th>
                   <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Ref ID</th>
                   <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Date & Time</th>
                   <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Passenger</th>
@@ -713,6 +789,14 @@ export default function ManageBookings() {
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
                       onClick={() => toggleRowExpansion(b._id)}
                     >
+                      <td className="py-4 px-4" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+                          checked={selectedBookings.includes(b._id)}
+                          onChange={(e) => handleSelectOne(e, b._id)}
+                        />
+                      </td>
                       <td className="py-4 px-6">
                         <span className="text-xs font-mono text-blue-600 font-bold">#{b._id?.slice(-8).toUpperCase()}</span>
                       </td>
@@ -829,7 +913,7 @@ export default function ManageBookings() {
                     </tr>
                     {expandedRows[b._id] && (
                       <tr className="bg-gray-50">
-                        <td colSpan="10" className="p-6">
+                        <td colSpan="11" className="p-6">
                           <div className="grid grid-cols-4 gap-6">
                              <div className="col-span-1">
                               <h4 className="text-xs font-black text-gray-500 mb-3 uppercase tracking-widest">Waypoints Itinerary</h4>

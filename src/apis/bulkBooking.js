@@ -89,3 +89,12 @@ export const endBulkBooking = async (id) => {
         return err.response?.data || { success: false, message: "Network Error" };
     }
 };
+
+export const checkAreaSurcharge = async (data) => {
+    try {
+        const res = await http.post("/api/bulk-bookings/check-surcharge", data);
+        return res.data;
+    } catch (err) {
+        return err.response?.data || { success: false, message: "Network Error" };
+    }
+};

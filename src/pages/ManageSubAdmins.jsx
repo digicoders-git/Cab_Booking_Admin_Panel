@@ -627,81 +627,87 @@ export default function ManageSubAdmins() {
                 </div>
             </div>
 
-            {/* Create Modal */}
+            {/* Create Modal - Premium UI Upgrade */}
             {showCreateModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in zoom-in duration-300">
-                        <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0">
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-900">Add New Back-Office Staff</h2>
-                                <p className="text-xs text-gray-500">Configure profile and access control.</p>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[60] flex items-center justify-center p-4 sm:p-6">
+                    <div className="bg-white rounded-[2rem] w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] animate-in zoom-in-95 duration-300">
+                        {/* Premium Header */}
+                        <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-white relative overflow-hidden shrink-0">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 opacity-60" />
+                            <div className="relative z-10">
+                                <h2 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+                                    <UserPlus className="text-blue-600" size={28} />
+                                    Add New Back-Office Staff
+                                </h2>
+                                <p className="text-xs font-bold text-gray-500 mt-1 uppercase tracking-widest">
+                                    Configure profile and access control
+                                </p>
                             </div>
-                            <button onClick={() => setShowCreateModal(false)} className="p-2 hover:bg-gray-100 rounded-xl">
-                                <X size={20} className="text-gray-400" />
+                            <button onClick={() => setShowCreateModal(false)} className="relative z-10 p-2.5 bg-gray-50 hover:bg-red-50 hover:text-red-600 text-gray-400 rounded-xl transition-all">
+                                <X size={20} strokeWidth={2.5} />
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-6">
-                            <form id="createForm" onSubmit={handleCreateSubAdmin} className="space-y-8">
-                                <div className="flex flex-col md:flex-row gap-8 items-start">
-                                    {/* Image Upload Area */}
-                                    <div className="w-full md:w-32 flex flex-col items-center gap-3">
-                                        <label className="relative group cursor-pointer">
-                                            <div className="w-32 h-32 rounded-3xl bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-2 overflow-hidden transition-all group-hover:border-blue-300 group-hover:bg-blue-50">
-                                                {createForm.image ? (
-                                                    <img src={URL.createObjectURL(createForm.image)} className="w-full h-full object-cover" />
-                                                ) : (
-                                                    <>
-                                                        <Camera className="text-gray-400 group-hover:text-blue-500" size={32} />
-                                                        <span className="text-[10px] font-bold text-gray-400 group-hover:text-blue-500">UPLOAD</span>
-                                                    </>
-                                                )}
-                                            </div>
+                        <div className="flex-1 overflow-y-auto bg-gray-50/30">
+                            <form id="createForm" onSubmit={handleCreateSubAdmin} className="flex flex-col">
+                                {/* Top Section: Profile Info */}
+                                <div className="p-8 border-b border-gray-100 flex flex-col md:flex-row gap-8 bg-white">
+                                    {/* Image Upload */}
+                                    <div className="w-full md:w-40 flex flex-col items-center gap-3 shrink-0">
+                                        <label className="relative group cursor-pointer w-32 h-32 md:w-full md:h-40 rounded-2xl bg-gray-50 border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-2 overflow-hidden transition-all group-hover:border-blue-300 group-hover:bg-blue-50/50 shadow-sm hover:shadow-md">
+                                            {createForm.image ? (
+                                                <img src={URL.createObjectURL(createForm.image)} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                            ) : (
+                                                <>
+                                                    <Camera className="text-gray-300 group-hover:text-blue-500 transition-colors" size={32} />
+                                                    <span className="text-[10px] font-black text-gray-400 group-hover:text-blue-500 uppercase tracking-widest">Upload Photo</span>
+                                                </>
+                                            )}
                                             <input
                                                 type="file" hidden accept="image/*"
                                                 onChange={(e) => setCreateForm({ ...createForm, image: e.target.files[0] })}
                                             />
                                             {createForm.image && (
-                                                <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:bg-red-600 border-2 border-white" onClick={(e) => { e.preventDefault(); setCreateForm({ ...createForm, image: null }); }}>
-                                                    <X size={14} />
+                                                <div className="absolute top-2 right-2 w-8 h-8 rounded-xl bg-white/90 backdrop-blur-sm text-red-500 flex items-center justify-center shadow-lg hover:bg-red-50 hover:text-red-600 border border-red-100 transition-all" onClick={(e) => { e.preventDefault(); setCreateForm({ ...createForm, image: null }); }}>
+                                                    <X size={16} strokeWidth={3} />
                                                 </div>
                                             )}
                                         </label>
-                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Profile Photo</p>
                                     </div>
 
-                                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-gray-500 flex items-center gap-1">
-                                                <Shield size={14} /> Full Name
+                                    {/* Inputs */}
+                                    <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/10 transition-all sm:col-span-2">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                                                <User size={12} className="text-blue-500" /> Full Name
                                             </label>
                                             <input
                                                 type="text" required
-                                                className="w-full h-12 px-4 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-corporate"
+                                                className="w-full bg-transparent border-none outline-none focus:outline-none p-0 focus:ring-0 text-base font-bold text-gray-900 placeholder-gray-300"
                                                 placeholder="Enter full name"
                                                 value={createForm.name}
                                                 onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
                                             />
                                         </div>
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-gray-500 flex items-center gap-1">
-                                                <Mail size={14} /> Email Address
+                                        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/10 transition-all">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                                                <Mail size={12} className="text-blue-500" /> Email Address
                                             </label>
                                             <input
                                                 type="email" required
-                                                className="w-full h-12 px-4 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-corporate"
+                                                className="w-full bg-transparent border-none outline-none focus:outline-none p-0 focus:ring-0 text-sm font-bold text-gray-900 placeholder-gray-300"
                                                 placeholder="e.g. staff@admin.com"
                                                 value={createForm.email}
                                                 onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
                                             />
                                         </div>
-                                        <div className="space-y-1.5 md:col-span-2">
-                                            <label className="text-xs font-bold text-gray-500 flex items-center gap-1">
-                                                <Key size={14} /> Secret Password
+                                        <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/10 transition-all">
+                                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                                                <Key size={12} className="text-blue-500" /> Password
                                             </label>
                                             <input
                                                 type="password" required
-                                                className="w-full h-12 px-4 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-blue-500/20 transition-all font-corporate"
+                                                className="w-full bg-transparent border-none outline-none focus:outline-none p-0 focus:ring-0 text-sm font-bold text-gray-900 placeholder-gray-300"
                                                 placeholder="Enter strong password"
                                                 value={createForm.password}
                                                 onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
@@ -710,40 +716,46 @@ export default function ManageSubAdmins() {
                                     </div>
                                 </div>
 
-                                <div className="space-y-6">
-                                    <div className="flex items-center justify-between">
-                                        <h3 className="text-sm font-bold text-gray-900 border-l-4 border-blue-600 pl-3">Assign Access Modules</h3>
-                                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                                {/* Permissions Grid */}
+                                <div className="p-8">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest border-l-4 border-blue-600 pl-3">Assign Access Modules</h3>
+                                        <div className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-black rounded-full">
                                             {createForm.permissions.length} Selected
-                                        </span>
+                                        </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                         {PERMISSIONS_GROUPS.map((group, gIdx) => (
-                                            <div key={gIdx} className="bg-gray-50/50 rounded-2xl p-4 border border-gray-100">
-                                                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                                                    {group.title}
-                                                </h4>
-                                                <div className="grid grid-cols-1 gap-2">
-                                                    {group.permissions.map(p => (
-                                                        <div
-                                                            key={p.id}
-                                                            onClick={() => togglePermissionInCreate(p.id)}
-                                                            className={`p-2.5 rounded-xl border cursor-pointer transition-all flex items-center gap-2 ${createForm.permissions.includes(p.id)
-                                                                    ? 'bg-blue-600 border-blue-600 text-white shadow-md'
-                                                                    : 'bg-white border-gray-200 hover:border-blue-200'
-                                                                }`}
-                                                        >
-                                                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${createForm.permissions.includes(p.id) ? 'bg-white border-white text-blue-600' : 'bg-white border-gray-300'
-                                                                }`}>
-                                                                {createForm.permissions.includes(p.id) && <CheckCircle size={10} />}
+                                            <div key={gIdx} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                                                <div className="flex items-center justify-between mb-4 border-b border-gray-50 pb-3">
+                                                    <h4 className="text-[11px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                                        {group.title}
+                                                    </h4>
+                                                    <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md">
+                                                        {group.permissions.length} items
+                                                    </span>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    {group.permissions.map(p => {
+                                                        const isAssigned = createForm.permissions.includes(p.id);
+                                                        return (
+                                                            <div
+                                                                key={p.id}
+                                                                onClick={() => togglePermissionInCreate(p.id)}
+                                                                className={`group relative p-3 rounded-xl cursor-pointer transition-all duration-200 flex items-center justify-between overflow-hidden ${isAssigned ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50/50 border border-transparent hover:bg-gray-100'}`}
+                                                            >
+                                                                {isAssigned && <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500" />}
+                                                                <span className={`text-xs font-bold transition-colors ${isAssigned ? 'text-blue-900 ml-1' : 'text-gray-600'}`}>
+                                                                    {p.label}
+                                                                </span>
+                                                                <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${isAssigned ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20' : 'bg-gray-200 text-gray-400 group-hover:bg-gray-300'}`}>
+                                                                    {isAssigned ? <CheckCircle2 size={12} strokeWidth={3} /> : <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                                                </div>
                                                             </div>
-                                                            <span className={`text-xs font-bold ${createForm.permissions.includes(p.id) ? 'text-white' : 'text-gray-600'}`}>
-                                                                {p.label}
-                                                            </span>
-                                                        </div>
-                                                    ))}
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         ))}
@@ -752,143 +764,178 @@ export default function ManageSubAdmins() {
                             </form>
                         </div>
 
-                        <div className="p-6 border-t border-gray-100 bg-gray-50/50 flex items-center justify-end gap-3">
-                            <button
-                                onClick={() => setShowCreateModal(false)}
-                                className="px-6 py-2.5 text-sm font-bold text-gray-500 hover:text-gray-700"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit" form="createForm"
-                                disabled={loading}
-                                className="px-8 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-xl hover:bg-blue-700 shadow-lg disabled:opacity-50"
-                            >
-                                {loading ? 'Creating...' : 'Create Account'}
-                            </button>
+                        {/* Footer Actions */}
+                        <div className="p-6 border-t border-gray-100 bg-white flex items-center justify-between shrink-0">
+                            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest hidden sm:block">
+                                Verify details before creating
+                            </p>
+                            <div className="flex items-center gap-3 w-full sm:w-auto">
+                                <button
+                                    onClick={() => setShowCreateModal(false)}
+                                    className="flex-1 sm:flex-none px-6 py-3 text-xs font-black text-gray-500 hover:bg-gray-100 rounded-xl transition-colors uppercase tracking-widest"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit" form="createForm"
+                                    disabled={loading}
+                                    className="flex-1 sm:flex-none px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl shadow-xl shadow-blue-600/20 disabled:opacity-50 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+                                >
+                                    {loading ? (
+                                        <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Creating...</>
+                                    ) : (
+                                        <><UserPlus size={14} /> Create Account</>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Permission Modal */}
+            {/* Permission Modal - Premium UI Upgrade */}
             {showPermissionModal && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl animate-in fade-in duration-300">
-                        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                            <div>
-                                <h2 className="text-xl font-bold text-gray-900">Modifying Access: {showPermissionModal.name}</h2>
-                                <p className="text-xs text-gray-500">Enable or restrict system modules for this user.</p>
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[60] flex items-center justify-center p-4 sm:p-6">
+                    <div className="bg-white rounded-[2rem] w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] animate-in zoom-in-95 duration-300">
+                        {/* Premium Header */}
+                        <div className="px-8 py-6 border-b border-gray-100 flex items-center justify-between bg-white relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-blue-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 opacity-60" />
+                            <div className="relative z-10">
+                                <h2 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+                                    <ShieldCheck className="text-blue-600" size={28} />
+                                    Access Management
+                                </h2>
+                                <p className="text-xs font-bold text-gray-500 mt-1 uppercase tracking-widest">
+                                    Modifying: <span className="text-blue-600">{showPermissionModal.name}</span>
+                                </p>
                             </div>
-                            <button onClick={() => setShowPermissionModal(null)} className="p-2 hover:bg-gray-100 rounded-xl">
-                                <X size={20} className="text-gray-400" />
+                            <button onClick={() => setShowPermissionModal(null)} className="relative z-10 p-2.5 bg-gray-50 hover:bg-red-50 hover:text-red-600 text-gray-400 rounded-xl transition-all">
+                                <X size={20} strokeWidth={2.5} />
                             </button>
                         </div>
 
-                        <div className="p-6 bg-blue-50/30 border-b border-gray-100 flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${showPermissionModal.isActive !== false ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                                    {showPermissionModal.isActive !== false ? <ShieldCheck size={24} /> : <UserX size={24} />}
-                                </div>
-                                <div>
-                                    <h3 className="text-sm font-bold text-gray-900">Account Strategy</h3>
-                                    <p className="text-[11px] text-gray-500">Toggle account availability in system.</p>
-                                </div>
-                            </div>
-                            <div
-                                onClick={() => setShowPermissionModal({ ...showPermissionModal, isActive: !showPermissionModal.isActive })}
-                                className={`w-14 h-7 rounded-full p-1 cursor-pointer transition-all duration-300 ${showPermissionModal.isActive !== false ? 'bg-green-600' : 'bg-gray-300'}`}
-                            >
-                                <div className={`w-5 h-5 bg-white rounded-full shadow-sm transition-all duration-300 transform ${showPermissionModal.isActive !== false ? 'translate-x-7' : 'translate-x-0'}`} />
-                            </div>
-                        </div>
-
-                        <div className="p-6 bg-white border-b border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                                    <Shield size={10} /> Staff Name
-                                </label>
-                                <input
-                                    className="w-full h-10 px-4 rounded-xl border border-gray-100 bg-gray-50 focus:bg-white transition-all text-sm font-medium"
-                                    value={showPermissionModal.name}
-                                    onChange={(e) => setShowPermissionModal({ ...showPermissionModal, name: e.target.value })}
-                                />
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                                    <Mail size={10} /> Email Access
-                                </label>
-                                <input
-                                    className="w-full h-10 px-4 rounded-xl border border-gray-100 bg-gray-50 focus:bg-white transition-all text-sm font-medium"
-                                    value={showPermissionModal.email}
-                                    onChange={(e) => setShowPermissionModal({ ...showPermissionModal, email: e.target.value })}
-                                />
-                            </div>
-                            <div className="space-y-1.5">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                                    <Key size={10} /> Password
-                                </label>
-                                <input
-                                    type="text"
-                                    className="w-full h-10 px-4 rounded-xl border border-gray-100 bg-gray-50 focus:bg-white transition-all text-sm font-mono"
-                                    value={showPermissionModal.password}
-                                    onChange={(e) => setShowPermissionModal({ ...showPermissionModal, password: e.target.value })}
-                                />
-                            </div>
-                        </div>
-
-                        <div className="p-6 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-50/30">
-                            {PERMISSIONS_GROUPS.map((group, gIdx) => (
-                                <div key={gIdx} className="space-y-3">
-                                    <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-2">
-                                        <Shield size={10} className="text-blue-400" />
-                                        {group.title}
-                                    </h4>
-                                    <div className="grid grid-cols-1 gap-2">
-                                        {group.permissions.map(p => {
-                                            const isAssigned = showPermissionModal.permissions.includes(p.id);
-                                            return (
-                                                <div
-                                                    key={p.id}
-                                                    onClick={() => {
-                                                        const updated = isAssigned
-                                                            ? showPermissionModal.permissions.filter(perm => perm !== p.id)
-                                                            : [...showPermissionModal.permissions, p.id];
-                                                        setShowPermissionModal({ ...showPermissionModal, permissions: updated });
-                                                    }}
-                                                    className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${isAssigned ? 'bg-white border-blue-600 shadow-sm' : 'bg-white/50 border-gray-100 opacity-60'
-                                                        }`}
-                                                >
-                                                    <span className={`text-xs font-bold ${isAssigned ? 'text-blue-700' : 'text-gray-500'}`}>
-                                                        {p.label}
-                                                    </span>
-                                                    <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isAssigned ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-300'
-                                                        }`}>
-                                                        {isAssigned ? <CheckCircle size={14} /> : <div className="w-1.5 h-1.5 rounded-full bg-current" />}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
+                        {/* Top Controls: Status & Info */}
+                        <div className="px-8 py-6 bg-gray-50/50 border-b border-gray-100 flex flex-col lg:flex-row gap-6">
+                            {/* Strategy Toggle Card */}
+                            <div className="flex-1 bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-center justify-between group hover:border-blue-200 transition-colors">
+                                <div className="flex items-center gap-4">
+                                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm transition-colors ${showPermissionModal.isActive !== false ? 'bg-gradient-to-br from-emerald-400 to-emerald-600 text-white' : 'bg-gradient-to-br from-rose-400 to-rose-600 text-white'}`}>
+                                        {showPermissionModal.isActive !== false ? <CheckCircle2 size={24} /> : <Power size={24} />}
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-bold text-gray-900">System Access</h3>
+                                        <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Toggle Account Status</p>
                                     </div>
                                 </div>
-                            ))}
+                                <div
+                                    onClick={() => setShowPermissionModal({ ...showPermissionModal, isActive: !showPermissionModal.isActive })}
+                                    className={`w-16 h-8 rounded-full p-1 cursor-pointer transition-all duration-300 shadow-inner ${showPermissionModal.isActive !== false ? 'bg-emerald-500' : 'bg-gray-200'}`}
+                                >
+                                    <div className={`w-6 h-6 bg-white rounded-full shadow-md transition-all duration-300 transform flex items-center justify-center ${showPermissionModal.isActive !== false ? 'translate-x-8' : 'translate-x-0'}`}>
+                                        <div className={`w-2 h-2 rounded-full ${showPermissionModal.isActive !== false ? 'bg-emerald-500' : 'bg-gray-300'}`} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Info Inputs */}
+                            <div className="flex-[2] grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                {[{ label: 'Staff Name', icon: User, key: 'name', type: 'text' },
+                                { label: 'Email Access', icon: Mail, key: 'email', type: 'text' },
+                                { label: 'Password', icon: Key, key: 'password', type: 'text' }].map((field) => (
+                                    <div key={field.key} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/10 transition-all">
+                                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                                            <field.icon size={12} className="text-blue-500" /> {field.label}
+                                        </label>
+                                        <input
+                                            type={field.type}
+                                            className="w-full bg-transparent border-none outline-none focus:outline-none p-0 focus:ring-0 text-sm font-bold text-gray-900 placeholder-gray-300"
+                                            value={showPermissionModal[field.key]}
+                                            onChange={(e) => setShowPermissionModal({ ...showPermissionModal, [field.key]: e.target.value })}
+                                            placeholder={`Enter ${field.label.toLowerCase()}`}
+                                        />
+                                    </div>
+                                ))}
+                            </div>
                         </div>
 
-                        <div className="p-6 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50">
-                            <button onClick={() => setShowPermissionModal(null)} className="px-6 py-2 text-sm font-bold text-gray-500">Close</button>
-                            <button
-                                onClick={() => handleUpdatePermissions(showPermissionModal._id, {
-                                    name: showPermissionModal.name,
-                                    email: showPermissionModal.email,
-                                    password: showPermissionModal.password,
-                                    permissions: showPermissionModal.permissions,
-                                    isActive: showPermissionModal.isActive
-                                })}
-                                disabled={loading}
-                                className="px-8 py-2.5 bg-green-600 text-white text-sm font-bold rounded-xl shadow-lg hover:bg-green-700 disabled:opacity-50"
-                            >
-                                {loading ? 'Saving Changes...' : 'Save Updates'}
-                            </button>
+                        {/* Permissions Grid */}
+                        <div className="flex-1 overflow-y-auto p-8 bg-gray-50/30">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest border-l-4 border-blue-600 pl-3">Module Permissions</h3>
+                                <div className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-black rounded-full">
+                                    {showPermissionModal.permissions.length} Assigned
+                                </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {PERMISSIONS_GROUPS.map((group, gIdx) => (
+                                    <div key={gIdx} className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                                        <div className="flex items-center justify-between mb-4 border-b border-gray-50 pb-3">
+                                            <h4 className="text-[11px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                                                {group.title}
+                                            </h4>
+                                            <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-md">
+                                                {group.permissions.length} items
+                                            </span>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {group.permissions.map(p => {
+                                                const isAssigned = showPermissionModal.permissions.includes(p.id);
+                                                return (
+                                                    <div
+                                                        key={p.id}
+                                                        onClick={() => {
+                                                            const updated = isAssigned
+                                                                ? showPermissionModal.permissions.filter(perm => perm !== p.id)
+                                                                : [...showPermissionModal.permissions, p.id];
+                                                            setShowPermissionModal({ ...showPermissionModal, permissions: updated });
+                                                        }}
+                                                        className={`group relative p-3 rounded-xl cursor-pointer transition-all duration-200 flex items-center justify-between overflow-hidden ${isAssigned ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50/50 border border-transparent hover:bg-gray-100'}`}
+                                                    >
+                                                        {isAssigned && <div className="absolute left-0 top-0 bottom-0 w-1 bg-blue-500" />}
+                                                        <span className={`text-xs font-bold transition-colors ${isAssigned ? 'text-blue-900 ml-1' : 'text-gray-600'}`}>
+                                                            {p.label}
+                                                        </span>
+                                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${isAssigned ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20' : 'bg-gray-200 text-gray-400 group-hover:bg-gray-300'}`}>
+                                                            {isAssigned ? <CheckCircle2 size={12} strokeWidth={3} /> : <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Footer Actions */}
+                        <div className="p-6 border-t border-gray-100 bg-white flex items-center justify-between">
+                            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest hidden sm:block">
+                                Unsaved changes will be lost
+                            </p>
+                            <div className="flex items-center gap-3 w-full sm:w-auto">
+                                <button onClick={() => setShowPermissionModal(null)} className="flex-1 sm:flex-none px-6 py-3 text-xs font-black text-gray-500 hover:bg-gray-100 rounded-xl transition-colors uppercase tracking-widest">
+                                    Discard
+                                </button>
+                                <button
+                                    onClick={() => handleUpdatePermissions(showPermissionModal._id, {
+                                        name: showPermissionModal.name,
+                                        email: showPermissionModal.email,
+                                        password: showPermissionModal.password,
+                                        permissions: showPermissionModal.permissions,
+                                        isActive: showPermissionModal.isActive
+                                    })}
+                                    disabled={loading}
+                                    className="flex-1 sm:flex-none px-8 py-3 bg-gray-900 hover:bg-black text-white text-xs font-black rounded-xl shadow-xl shadow-gray-900/20 disabled:opacity-50 transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+                                >
+                                    {loading ? (
+                                        <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...</>
+                                    ) : (
+                                        <><Shield size={14} /> Commit Changes</>
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

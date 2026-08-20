@@ -115,6 +115,8 @@ export default function ManageCarCategories() {
     bulkBookingBasePrice: "0",
     freeWaitingMin: "3",
     waitingChargePerMin: "0",
+    ratePerMinute: "0",
+    trafficBufferMin: "10",
     image: null
   });
 
@@ -266,6 +268,8 @@ export default function ManageCarCategories() {
       bulkBookingBasePrice: c.bulkBookingBasePrice || "0",
       freeWaitingMin: c.freeWaitingMin || "3",
       waitingChargePerMin: c.waitingChargePerMin || "0",
+      ratePerMinute: c.ratePerMinute || "0",
+      trafficBufferMin: c.trafficBufferMin || "10",
       image: null
     });
     setIsModalOpen(true);
@@ -727,6 +731,36 @@ export default function ManageCarCategories() {
                         onChange={(e) => setFormData({ ...formData, waitingChargePerMin: e.target.value })}
                         className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 pl-12 pr-4 text-sm font-bold focus:ring-2 ring-rose-500"
                         placeholder="e.g. 2"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* NEW: Traffic & Buffer Pricing */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 block mb-2">Traffic Free Buffer (Min)</label>
+                    <div className="relative">
+                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-500" size={16} />
+                      <input
+                        type="number"
+                        value={formData.trafficBufferMin}
+                        onChange={(e) => setFormData({ ...formData, trafficBufferMin: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 pl-12 pr-4 text-sm font-bold focus:ring-2 ring-indigo-500"
+                        placeholder="e.g. 10"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 block mb-2">Traffic Charge (Per Min)</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-500" size={16} />
+                      <input
+                        type="number"
+                        value={formData.ratePerMinute}
+                        onChange={(e) => setFormData({ ...formData, ratePerMinute: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 pl-12 pr-4 text-sm font-bold focus:ring-2 ring-purple-500"
+                        placeholder="e.g. 1"
                       />
                     </div>
                   </div>
