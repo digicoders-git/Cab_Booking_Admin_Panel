@@ -203,10 +203,11 @@ const FixedRouteMarketplace = () => {
                 
                 <div className="border-t border-gray-200 pt-3 flex justify-between items-end">
                    <div>
-                      <p className="text-[11px] text-gray-500 font-medium mb-0.5">Total Fare</p>
+                      <p className="text-[11px] text-gray-500 font-medium mb-0.5">Total Fare (Incl. GST)</p>
                       <p className="text-green-600 font-bold text-xl flex items-center">
-                        ₹{booking.price}
+                        ₹{(booking.totalWithTax || booking.price)?.toLocaleString('en-IN')}
                       </p>
+                      <p className="text-[10px] text-gray-400 font-medium">Base: ₹{booking.price}</p>
                    </div>
                    <div className="text-right">
                       <p className="text-[11px] text-gray-500 font-medium mb-0.5">Admin Comm.</p>

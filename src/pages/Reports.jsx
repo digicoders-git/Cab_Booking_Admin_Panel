@@ -10,7 +10,7 @@ import {
   RadialBarChart, RadialBar,
   FunnelChart, Funnel
 } from 'recharts';
-import { getFullReport as fetchReportAPI, exportTransactionsCSV } from '../apis/admin';
+import { getFullReport as fetchReportAPI, exportTransactionsCSV, exportTaxReportCSV } from '../apis/admin';
 import {
   Download, RefreshCw, Filter, Calendar, DollarSign, TrendingUp,
   TrendingDown, Users, Car, CreditCard, Banknote, Wallet,
@@ -107,6 +107,30 @@ const AdminReportPage = () => {
     } catch (error) {
       console.error('Error exporting transactions:', error);
       alert('Failed to export transactions');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleTaxExport = async () => {
+    try {
+      setIsExporting(true);
+      const blob = await exportTaxReportCSV(exportTimeframe);
+      
+      // Create a URL for the blob and trigger download
+      const url = window.URL.createObjectURL(new Blob([blob]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `tax_report_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting tax report:', error);
+      alert('Failed to export tax report');
     } finally {
       setIsExporting(false);
     }
@@ -944,19 +968,22 @@ const AdminReportPage = () => {
             </div>
             <Download size={16} className="text-gray-400" />
           </button>
-        </div>
 
-        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-          <h4 className="text-sm font-semibold text-blue-700 mb-2">Schedule Reports</h4>
-          <p className="text-xs text-blue-600 mb-3">Get regular reports delivered to your email</p>
           <button 
-            onClick={handleExport}
+            onClick={handleTaxExport} 
             disabled={isExporting}
-            className={`w-full px-4 py-2 bg-blue-600 text-white rounded-lg text-sm ${isExporting ? 'opacity-70 cursor-not-allowed' : 'hover:bg-blue-700'}`}
+            className={`w-full p-3 border border-gray-200 rounded-lg flex items-center justify-between mt-2 ${isExporting ? 'bg-gray-100 opacity-70' : 'hover:bg-gray-50'}`}
           >
-            {isExporting ? 'Downloading...' : 'Set Up Schedule'}
+            <div className="flex items-center gap-3">
+              <FileText size={18} className="text-green-500" />
+              <span className="text-sm font-medium text-gray-700">
+                {isExporting ? 'Exporting Tax Report...' : 'Tax / GST Report'}
+              </span>
+            </div>
+            <Download size={16} className="text-gray-400" />
           </button>
         </div>
+
       </div>
 
       {/* Recent Activity */}

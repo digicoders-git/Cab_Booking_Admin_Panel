@@ -90,3 +90,21 @@ export const toggleShareRide = async (isShareRideEnabled) => {
     const response = await http.put(`/api/settings/toggle-share-ride`, { isShareRideEnabled });
     return response.data;
 };
+
+export const exportTaxReportCSV = async (timeframe) => {
+    const response = await http.get(`/api/admin/export-tax-report`, {
+        params: { timeframe },
+        responseType: 'blob'
+    });
+    return response.data;
+};
+
+export const getNewBookingsAPI = async () => {
+    const response = await http.get('/api/admin/new-bookings');
+    return response.data;
+};
+
+export const markAllBookingsReadAPI = async () => {
+    const response = await http.put('/api/admin/mark-bookings-read');
+    return response.data;
+};

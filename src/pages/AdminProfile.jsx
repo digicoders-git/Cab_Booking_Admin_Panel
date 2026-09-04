@@ -114,7 +114,7 @@ export default function AdminProfile() {
         toast.error("Failed to update setting");
         setAppSettings({ ...appSettings, isShareRideEnabled: !newValue }); // revert
       }
-    } catch(err) {
+    } catch (err) {
       toast.error("API error");
       setAppSettings({ ...appSettings, isShareRideEnabled: !newValue }); // revert
     }
@@ -238,7 +238,7 @@ export default function AdminProfile() {
 
     // Validation: ensure no value is less than 1 (except defaultCommission which can be 0)
     const keysToCheck = [
-      "userBulkAdvancePct", "agentBulkAdvancePct", "vendorBulkAdvancePct", 
+      "userBulkAdvancePct", "agentBulkAdvancePct", "vendorBulkAdvancePct",
       "adminBulkAdvancePct", "fleetBulkSecurityPct", "maxNegativeWalletLimit"
     ];
     for (let key of keysToCheck) {
@@ -247,7 +247,7 @@ export default function AdminProfile() {
       }
     }
     if (bulkSettings.defaultCommission === '' || bulkSettings.defaultCommission < 0) {
-       return toast.error("Default Commission cannot be negative.");
+      return toast.error("Default Commission cannot be negative.");
     }
 
     try {
@@ -771,7 +771,7 @@ export default function AdminProfile() {
                         </div>
                       </div>
                     ))}
-                    
+
                     {/* Max Negative Limit */}
                     <div className="p-4 rounded-xl border" style={{ borderColor, backgroundColor: inputBg }}>
                       <label className="block text-sm font-medium mb-2" style={{ color: textDim }}>Maximum Wallet Negative Limit (₹)</label>

@@ -2,10 +2,11 @@ import { lazy } from "react";
 import {
   FaTachometerAlt, FaTruck, FaUserTie, FaCar, FaUsers,
   FaBell, FaUserShield, FaWallet, FaRoute, FaCarSide,
-  FaAddressCard, FaSitemap, FaMap, FaStore, FaMapMarkerAlt, FaGlobe, FaTag, FaPlus, FaBriefcase, FaMoneyBillWave, FaHistory
+  FaAddressCard, FaSitemap, FaMap, FaStore, FaMapMarkerAlt, FaGlobe, FaTag, FaPlus, FaBriefcase, FaMoneyBillWave, FaHistory, FaInbox
 } from "react-icons/fa";
 
 const Dashboard = lazy(() => import("../pages/Dashboard"));
+const NewBookings = lazy(() => import("../pages/NewBookings"));
 const CreateFleet = lazy(() => import("../pages/CreateFleet"));
 const CreateAgent = lazy(() => import("../pages/CreateAgent"));
 const PendingAgents = lazy(() => import("../pages/PendingAgents"));
@@ -37,6 +38,7 @@ const FixedBookingsList = lazy(() => import("../pages/FixedBookingsList"));
 
 const routes = [
   { path: "/dashboard", component: Dashboard, name: "Dashboard", icon: FaTachometerAlt, permission: "DASHBOARD_READ" },
+  { path: "/new-bookings", component: NewBookings, name: "New Bookings", icon: FaInbox, permission: "DASHBOARD_READ" },
   { path: "/fleet/create", component: CreateFleet, name: "Create Fleet", icon: FaTruck, permission: "FLEET_CREATE" },
   { path: "/agent/create", component: CreateAgent, name: "Create Agent", icon: FaUserTie, permission: "AGENT_CREATE" },
   { path: "/agent/pending", component: PendingAgents, name: "Pending Agents", icon: FaUserTie, permission: "AGENT_CREATE" },

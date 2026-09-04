@@ -365,7 +365,8 @@ export default function CreateBulkBooking() {
     e.preventDefault();
     if (selectedCars.length === 0) return toast.error("Please select at least one car");
     if (!formData.pickup || !formData.drop || !formData.date) return toast.error("Please fill all details");
-    if (!formData.isOutstation) return toast.error("Please confirm if this is an Outstation Ride by checking the box.");
+
+
 
     try {
       const total = calculateTotal();
@@ -393,9 +394,11 @@ export default function CreateBulkBooking() {
         isOutstation: formData.isOutstation,
       };
 
+      const totalWithGst = Math.round(total * 1.05);
       const result = await Swal.fire({
         title: 'Launch Request?',
-        text: `Creating bulk request for ₹${total.toLocaleString()}`,
+        html: `<p style="font-size:14px">Creating bulk request for <strong style="color:#2563eb">₹${totalWithGst.toLocaleString()}</strong><br/><span style="font-size:11px;color:#6b7280">(Base: ₹${total.toLocaleString()} + GST: ₹${(totalWithGst - total).toLocaleString()})</span></p>`,
+
         icon: 'question',
         showCancelButton: true,
         confirmButtonColor: '#3085d6',
@@ -465,7 +468,7 @@ export default function CreateBulkBooking() {
     }
   };
 
-  const generateReceipt = (booking) => {
+  const generateReceipt = async (booking) => {
     const doc = new jsPDF();
     const logoUrl = "/logo.png";
     
@@ -578,7 +581,7 @@ export default function CreateBulkBooking() {
     doc.text("Total", 190, tableTop + 7);
     
     // Vertical lines for table
-    const tableBottom = 230;
+    const tableBottom = 195;
     doc.line(18, tableTop, 18, tableBottom);
     doc.line(125, tableTop, 125, tableBottom);
     doc.line(145, tableTop, 145, tableBottom);
@@ -614,14 +617,16 @@ export default function CreateBulkBooking() {
     
     // 7. Totals Section
     doc.setFont("helvetica", "bold");
-    const advancePaid = Math.round(booking.offeredPrice * 0.25);
-    const remainingBalance = booking.offeredPrice - advancePaid;
+    const totalPrice = booking.totalPriceWithTax || booking.offeredPrice;
+    const advancePaid = booking.advancePayment?.amount || Math.round(totalPrice * 0.25);
+    const advancePct = totalPrice > 0 ? Math.round((advancePaid / totalPrice) * 100) : 25;
+    const remainingBalance = totalPrice - advancePaid;
 
-    doc.text("TOTAL PRICE", 130, tableBottom + 7);
-    doc.text(`${booking.offeredPrice.toLocaleString()}`, 185, tableBottom + 7);
+    doc.text("TOTAL PRICE (Incl. GST)", 130, tableBottom + 7);
+    doc.text(`${totalPrice.toLocaleString()}`, 185, tableBottom + 7);
     doc.line(80, tableBottom + 10, 205, tableBottom + 10);
     
-    doc.text("ADVANCE PAID (25%)", 130, tableBottom + 17);
+    doc.text(`ADVANCE PAID (${advancePct}%)`, 130, tableBottom + 17);
     doc.text(`${advancePaid.toLocaleString()}`, 185, tableBottom + 17);
     doc.line(80, tableBottom + 20, 205, tableBottom + 20);
     
@@ -633,16 +638,33 @@ export default function CreateBulkBooking() {
     
     // 8. Bottom Footer
     doc.setFontSize(8);
-    doc.text(`Total Amount (in words) : RUPEES ${booking.offeredPrice.toLocaleString()} ONLY`, 10, tableBottom + 35);
+    doc.text(`Total Amount (in words) : RUPEES ${totalPrice.toLocaleString()} ONLY`, 10, tableBottom + 35);
     doc.text(`Note: Balance of INR ${remainingBalance.toLocaleString()} to be paid directly to the fleet owner.`, 10, tableBottom + 40);
     
     doc.setFont("helvetica", "bold");
-    doc.text("For KWIK CABS", 150, tableBottom + 50);
+
+    // Try to add signature image
+    try {
+      const sigResponse = await fetch('/signature.png');
+      if (sigResponse.ok) {
+        const sigBlob = await sigResponse.blob();
+        const sigBase64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(sigBlob);
+        });
+        doc.addImage(sigBase64, 'PNG', 140, tableBottom + 52, 55, 20);
+      }
+    } catch(e) {
+      console.warn('Signature image not loaded:', e);
+    }
+
     doc.line(140, tableBottom + 75, 200, tableBottom + 75);
     doc.text("Authorized Signatory", 155, tableBottom + 82);
     
     doc.save(`KwikCabs_Receipt_${booking._id.toString().slice(-6)}.pdf`);
     toast.success("Receipt downloaded successfully!");
+
   };
 
   // Pagination calculations
@@ -1061,9 +1083,27 @@ export default function CreateBulkBooking() {
                       </div>
                     )}
 
-                    <div className="bg-blue-50 rounded-2xl p-6 mb-8">
-                      <p className="text-[10px] font-black text-blue-400 uppercase mb-1">Total Offered Price</p>
-                      <h2 className="text-4xl font-black text-blue-700">₹{getUiTotal().toLocaleString()}</h2>
+                    <div className="bg-blue-50 rounded-2xl p-6 mb-8 space-y-3">
+                      {/* Base Price */}
+                      <div className="flex justify-between items-center">
+                        <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">Base Offer</p>
+                        <p className="text-sm font-bold text-blue-900">₹{getUiTotal().toLocaleString()}</p>
+                      </div>
+
+                      {/* GST */}
+                      <div className="flex justify-between items-center border-b border-blue-200/50 pb-3">
+                        <div>
+                          <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest">GST (5%)</p>
+                          <p className="text-[8px] text-blue-400 font-bold tracking-wider mt-0.5">*Includes 2.5% CGST & 2.5% SGST</p>
+                        </div>
+                        <p className="text-sm font-bold text-blue-900">+ ₹{Math.round(getUiTotal() * 0.05).toLocaleString()}</p>
+                      </div>
+
+                      {/* Total */}
+                      <div className="pt-1">
+                        <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1">Total Payable</p>
+                        <h2 className="text-4xl font-black text-blue-700">₹{Math.round(getUiTotal() * 1.05).toLocaleString()}</h2>
+                      </div>
                     </div>
 
                     <button
@@ -1232,9 +1272,10 @@ export default function CreateBulkBooking() {
                     </td>
                     <td className="px-4 py-4">
                       <div className="flex flex-col gap-0.5">
-                        <span className="text-sm font-extrabold text-gray-900">₹{req.offeredPrice.toLocaleString()}</span>
-                        <span className="text-[10px] text-gray-500 font-semibold">Total Price</span>
+                        <span className="text-sm font-extrabold text-gray-900">₹{(req.totalPriceWithTax || req.offeredPrice).toLocaleString()}</span>
+                        <span className="text-[10px] text-gray-500 font-semibold">Incl. GST</span>
                       </div>
+
                     </td>
                     <td className="px-4 py-4">
                       {req.startOtp ? (

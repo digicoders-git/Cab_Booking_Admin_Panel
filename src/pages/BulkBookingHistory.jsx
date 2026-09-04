@@ -3,7 +3,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useFont } from '../context/FontContext';
 import { useAuth } from '../context/AuthContext';
 import { getAllBulkBookingsHistory, deleteBulkBooking, endBulkBooking } from '../apis/bulkBooking';
-import { FaHistory, FaSearch, FaSyncAlt, FaCar, FaTrash, FaEye, FaFilePdf, FaCheckCircle } from 'react-icons/fa';
+import { FaHistory, FaSearch, FaSyncAlt, FaCar, FaTrash, FaEye, FaFilePdf, FaCheckCircle, FaCalendarAlt, FaClock } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 
 export default function BulkBookingHistory() {
@@ -233,8 +233,11 @@ export default function BulkBookingHistory() {
                       {/* ID & Date */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-semibold" style={{ color: themeColors.text }}>#{b._id.slice(-6).toUpperCase()}</div>
-                        <div className="text-xs text-gray-500 mt-1">{new Date(b.createdAt).toLocaleDateString()}</div>
-                        <div className="text-xs text-blue-500 mt-1">{b.tripType}</div>
+                        <div className="text-[10px] text-gray-500 mt-1 uppercase">Created: {new Date(b.createdAt).toLocaleDateString()}</div>
+                        <div className="text-xs text-blue-600 font-bold mt-1.5 flex items-center gap-1">
+                          <FaCalendarAlt /> {new Date(b.pickupDateTime).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">{b.tripType}</div>
                       </td>
 
                       {/* Creator */}
@@ -284,8 +287,8 @@ export default function BulkBookingHistory() {
 
                       {/* Finances */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <p className="text-sm font-bold text-gray-800">₹{b.offeredPrice?.toLocaleString('en-IN')}</p>
-                        <p className="text-[10px] text-gray-500 mt-1">Est: ₹{b.systemEstimatedPrice?.toLocaleString('en-IN')}</p>
+                        <p className="text-sm font-bold text-gray-800">₹{(b.totalPriceWithTax || b.offeredPrice)?.toLocaleString('en-IN')}</p>
+                        <p className="text-[10px] text-gray-500 mt-1">Base: ₹{b.offeredPrice?.toLocaleString('en-IN')}</p>
                       </td>
 
                       {/* Status */}

@@ -258,7 +258,8 @@ const FixedBookingsList = () => {
                   </td>
 
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <p className="text-gray-800 font-bold">₹{booking.price}</p>
+                    <p className="text-gray-800 font-bold">₹{(booking.totalWithTax || booking.price)?.toLocaleString('en-IN')}</p>
+                    <p className="text-gray-400 text-[10px] font-semibold mt-0.5">Base: ₹{booking.price}</p>
                     <p className="text-indigo-600 text-xs font-semibold mt-0.5">Comm: ₹{booking.adminCommission}</p>
                   </td>
 
