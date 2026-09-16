@@ -54,3 +54,8 @@ export const searchDriversByHomeRadius = async (lat, lng, radius) => {
   const res = await http.get(`/api/admin/home-radius-search?lat=${lat}&lng=${lng}&radius=${radius}`);
   return res.data;
 };
+
+export const changeDriverOwnership = async (id, payload) => {
+  const res = await http.put(`/api/drivers/change-ownership/${id}`, payload);
+  return res.data;
+};

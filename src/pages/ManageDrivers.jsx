@@ -4,8 +4,9 @@ import { useAuth } from "../context/AuthContext";
 import { useFont } from "../context/FontContext";
 import {
   getAllDrivers, approveDriver, rejectDriver, updateDriver, toggleDriverStatus, deleteDriver, registerDriver,
-  searchDriversByRadius, searchDriversByHomeRadius
+  searchDriversByRadius, searchDriversByHomeRadius, changeDriverOwnership
 } from "../apis/driver";
+import { getAllVendors } from "../apis/vendor";
 import { toggleDriverOnline } from "../apis/admin";
 import { getAllCarCategories } from "../apis/carCategory";
 import {
@@ -24,14 +25,14 @@ import {
   FaMoneyBillWave, FaRoute, FaUsers, FaCouch, FaCircle, FaCalendarAlt, FaChevronLeft, FaChevronRight, FaStar, FaTrash,
   FaBan, FaMapMarkerAlt, FaLandmark, FaPalette, FaHistory, FaGlobe, FaClock, FaFileInvoice, FaHome,
   FaChartPie, FaChartBar, FaChartLine, FaChartArea, FaDownload, FaFilter, FaPrint, FaFilePdf, FaFileExcel,
-  FaGasPump, FaCogs, FaChair, FaPallet, FaWrench, FaShieldAlt, FaCreditCard
+  FaGasPump, FaCogs, FaChair, FaPallet, FaWrench, FaShieldAlt, FaCreditCard, FaExchangeAlt
 } from "react-icons/fa";
 import {
   Download, Filter, TrendingUp, DollarSign, Activity,
   PieChart as PieChartIcon, BarChart3, LineChart as LineChartIcon,
   Target, Gauge, Zap, Shield, MoreVertical, DownloadCloud, Printer,
   User, Users, Wallet, Briefcase, MapPin, Clock, Mail, Phone, Calendar,
-  Map, Home, CreditCard, Award, Star as StarIcon
+  Map, Home, CreditCard, Award, Star as StarIcon, ArrowRightLeft, Building2, Store
 } from 'lucide-react';
 import Swal from "sweetalert2";
 import ReviewsModal from "../components/ReviewsModal";
@@ -235,6 +236,14 @@ export default function ManageDrivers() {
   const [showMap, setShowMap] = useState(true);
   const [isAddressSelected, setIsAddressSelected] = useState(false);
   const [reviewModal, setReviewModal] = useState({ isOpen: false, targetId: null });
+  const [vendors, setVendors] = useState([]);
+  const [ownershipModal, setOwnershipModal] = useState({
+    isOpen: false,
+    driver: null,
+    targetType: "Direct", // "Direct" or "Vendor"
+    vendorId: "",
+    submitting: false
+  });
 
   const textColorSecondary = useMemo(() => {
     return themeColors.textSecondary || "rgba(107, 114, 128, 1)";
@@ -290,7 +299,7 @@ export default function ManageDrivers() {
   const fetchInitialData = async () => {
     try {
       setFetching(true);
-      await Promise.all([fetchCategories(), fetchDrivers()]);
+      await Promise.all([fetchCategories(), fetchDrivers(), fetchVendors()]);
     } finally {
       setFetching(false);
     }
@@ -304,12 +313,104 @@ export default function ManageDrivers() {
     } catch (err) { console.error("Category sync failed"); }
   };
 
+  const fetchVendors = async () => {
+    try {
+      const res = await getAllVendors();
+      const list = res.vendors || res.data || [];
+      setVendors(list);
+    } catch (err) {
+      console.error("Vendors fetch failed", err);
+    }
+  };
+
   const fetchDrivers = async () => {
     try {
       const res = await getAllDrivers();
       let list = res.drivers || [];
       setDrivers([...list].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
     } catch { setDrivers([]); }
+  };
+
+  // Open Ownership Transfer Modal
+  const handleOpenOwnershipModal = (e, driver) => {
+    e.stopPropagation();
+    const isCurrentlyVendor = driver.createdByModel === "Vendor";
+    setOwnershipModal({
+      isOpen: true,
+      driver,
+      targetType: isCurrentlyVendor ? "Direct" : "Vendor",
+      vendorId: isCurrentlyVendor ? (driver.createdBy?._id || "") : (vendors[0]?._id || ""),
+      submitting: false
+    });
+  };
+
+  // Submit Ownership Transfer
+  const handleOwnershipSubmit = async (e) => {
+    e.preventDefault();
+    if (!ownershipModal.driver) return;
+
+    if (ownershipModal.targetType === "Vendor" && !ownershipModal.vendorId) {
+      Swal.fire({
+        icon: "warning",
+        title: "Vendor Select Karein",
+        text: "Kripya list me se ek Vendor select karein."
+      });
+      return;
+    }
+
+    const targetVendorObj = vendors.find(v => v._id === ownershipModal.vendorId);
+    const confirmText = ownershipModal.targetType === "Vendor"
+      ? `Kya aap is car/driver ko Vendor '${targetVendorObj?.companyName || targetVendorObj?.name}' ke under assign karna chahte hain?`
+      : "Kya aap is car/driver ko DIRECT (Admin/Company Platform) category me shift karna chahte hain?";
+
+    const confirmRes = await Swal.fire({
+      title: "Confirm Ownership Transfer?",
+      text: confirmText,
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: themeColors.primary || "#3B82F6",
+      cancelButtonColor: "#6B7280",
+      confirmButtonText: "Haan, Transfer Karein",
+      cancelButtonText: "Cancel"
+    });
+
+    if (!confirmRes.isConfirmed) return;
+
+    try {
+      setOwnershipModal(prev => ({ ...prev, submitting: true }));
+      const payload = {
+        targetType: ownershipModal.targetType,
+        vendorId: ownershipModal.targetType === "Vendor" ? ownershipModal.vendorId : undefined
+      };
+
+      const res = await changeDriverOwnership(ownershipModal.driver._id, payload);
+      if (res.success) {
+        Swal.fire({
+          icon: "success",
+          title: "Ownership Updated!",
+          text: res.message || "Car/Driver ownership updated successfully.",
+          timer: 2500,
+          showConfirmButton: false
+        });
+        setOwnershipModal({ isOpen: false, driver: null, targetType: "Direct", vendorId: "", submitting: false });
+        fetchDrivers();
+      } else {
+        Swal.fire({
+          icon: "error",
+          title: "Update Failed",
+          text: res.message || "Failed to update ownership"
+        });
+        setOwnershipModal(prev => ({ ...prev, submitting: false }));
+      }
+    } catch (err) {
+      console.error("Change ownership error:", err);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.response?.data?.message || err.message || "Server error while changing ownership"
+      });
+      setOwnershipModal(prev => ({ ...prev, submitting: false }));
+    }
   };
 
   // Advanced Statistics
@@ -1351,15 +1452,30 @@ export default function ManageDrivers() {
                           {d.updatedAt ? new Date(d.updatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
                         </p>
                       </td>
-                      <td className="py-3 px-4 min-w-[120px]">
-                        <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-tighter mt-1 ${
-                          d.createdByModel === 'Admin' ? 'bg-purple-100 text-purple-700' :
-                          d.createdByModel === 'Fleet' ? 'bg-blue-100 text-blue-700' :
-                          d.createdByModel === 'Vendor' ? 'bg-orange-100 text-orange-700' :
-                          'bg-gray-100 text-gray-600'
-                        }`}>
-                          {d.createdByModel || 'Self'}
-                        </span>
+                      <td className="py-3 px-4 min-w-[140px]">
+                        <div className="flex flex-col items-start gap-1">
+                          <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-tighter ${
+                            d.createdByModel === 'Admin' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
+                            d.createdByModel === 'Fleet' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                            d.createdByModel === 'Vendor' ? 'bg-orange-100 text-orange-700 border border-orange-200' :
+                            'bg-gray-100 text-gray-700 border border-gray-200'
+                          }`}>
+                            {d.createdByModel === 'Vendor' ? `Vendor: ${d.createdBy?.companyName || d.createdBy?.name || 'Vendor'}` :
+                             d.createdByModel === 'Admin' ? 'Direct (Admin)' :
+                             d.createdByModel === 'Fleet' ? `Fleet: ${d.createdBy?.name || 'Fleet'}` :
+                             'Direct (Self/App)'}
+                          </span>
+                          {can('DRIVER_EDIT') && (
+                            <button
+                              onClick={(e) => handleOpenOwnershipModal(e, d)}
+                              className="text-[10px] text-blue-600 hover:text-blue-800 font-semibold underline flex items-center gap-1 transition-colors"
+                              title="Move to Vendor or Make Direct"
+                            >
+                              <ArrowRightLeft size={10} />
+                              <span>Change Owner</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4 text-center min-w-[100px]">
                         <div className="flex flex-col items-center gap-1">
@@ -1442,6 +1558,15 @@ export default function ManageDrivers() {
                               title="View"
                             >
                               <FaEye size={14} />
+                            </button>
+                          )}
+                          {can('DRIVER_EDIT') && (
+                            <button
+                              onClick={(e) => handleOpenOwnershipModal(e, d)}
+                              className="p-1 hover:bg-purple-100 rounded text-purple-600"
+                              title="Transfer Ownership (Direct ↔ Vendor)"
+                            >
+                              <ArrowRightLeft size={14} />
                             </button>
                           )}
                           {can('DRIVER_EDIT') && (
@@ -2233,6 +2358,173 @@ export default function ManageDrivers() {
         targetId={reviewModal.targetId}
         type="driver"
       />
+
+      {/* Ownership Transfer Modal (Direct ↔ Vendor) */}
+      {ownershipModal.isOpen && ownershipModal.driver && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-gray-100 animate-in fade-in zoom-in duration-200">
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+                  <ArrowRightLeft size={20} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold">Transfer Car / Driver Ownership</h3>
+                  <p className="text-xs text-blue-100">Direct aur Vendor category ke beech shift karein</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setOwnershipModal({ isOpen: false, driver: null, targetType: "Direct", vendorId: "", submitting: false })}
+                className="p-1.5 hover:bg-white/20 rounded-lg transition-colors text-white"
+              >
+                <FaTimes size={16} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleOwnershipSubmit} className="p-6 space-y-5">
+              {/* Selected Driver Summary Card */}
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200/80">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
+                      {ownershipModal.driver.name?.charAt(0) || "D"}
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-gray-900">{ownershipModal.driver.name}</h4>
+                      <p className="text-xs text-gray-500">{ownershipModal.driver.phone}</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-mono font-bold bg-white px-2.5 py-1 rounded-lg border border-gray-200 text-gray-800 shadow-sm">
+                    {ownershipModal.driver.carDetails?.carNumber || ownershipModal.driver.carNumber || "No Car Number"}
+                  </span>
+                </div>
+
+                <div className="pt-2 border-t border-gray-200/60 flex items-center justify-between text-xs">
+                  <span className="text-gray-500">Current Status:</span>
+                  <span className={`font-bold px-2 py-0.5 rounded-full ${
+                    ownershipModal.driver.createdByModel === 'Vendor'
+                      ? 'bg-orange-100 text-orange-800 border border-orange-200'
+                      : 'bg-purple-100 text-purple-800 border border-purple-200'
+                  }`}>
+                    {ownershipModal.driver.createdByModel === 'Vendor'
+                      ? `Vendor: ${ownershipModal.driver.createdBy?.companyName || ownershipModal.driver.createdBy?.name || 'Vendor'}`
+                      : 'Direct (Platform / Self)'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Ownership Options */}
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+                  Nayi Ownership Chunein:
+                </label>
+
+                {/* Option 1: Make Direct */}
+                <div
+                  onClick={() => setOwnershipModal(prev => ({ ...prev, targetType: "Direct" }))}
+                  className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3.5 ${
+                    ownershipModal.targetType === "Direct"
+                      ? "border-purple-600 bg-purple-50/50 shadow-sm"
+                      : "border-gray-200 hover:border-gray-300 bg-white"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="targetType"
+                    checked={ownershipModal.targetType === "Direct"}
+                    onChange={() => setOwnershipModal(prev => ({ ...prev, targetType: "Direct" }))}
+                    className="mt-1 h-4 w-4 text-purple-600 focus:ring-purple-500 cursor-pointer"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Building2 size={16} className="text-purple-600" />
+                      <h4 className="text-sm font-bold text-gray-900">Direct (Admin / Company Platform)</h4>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Vendor se hata kar direct platform car bana dein. Trips ka full commission Admin ke paas rahega, kisi vendor ko share nahi hoga.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Option 2: Move to Vendor */}
+                <div
+                  onClick={() => setOwnershipModal(prev => ({ ...prev, targetType: "Vendor" }))}
+                  className={`p-4 rounded-xl border-2 cursor-pointer transition-all flex items-start gap-3.5 ${
+                    ownershipModal.targetType === "Vendor"
+                      ? "border-orange-500 bg-orange-50/50 shadow-sm"
+                      : "border-gray-200 hover:border-gray-300 bg-white"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="targetType"
+                    checked={ownershipModal.targetType === "Vendor"}
+                    onChange={() => setOwnershipModal(prev => ({ ...prev, targetType: "Vendor" }))}
+                    className="mt-1 h-4 w-4 text-orange-600 focus:ring-orange-500 cursor-pointer"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Store size={16} className="text-orange-600" />
+                      <h4 className="text-sm font-bold text-gray-900">Assign / Move to Vendor</h4>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Kisi specific vendor ko yeh car/driver assign karein. Us vendor ko trip par set commission milega aur vendor panel me car dikhegi.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Vendor Selector Dropdown (Shown when targetType === 'Vendor') */}
+              {ownershipModal.targetType === "Vendor" && (
+                <div className="space-y-1.5 p-3.5 bg-orange-50/80 rounded-xl border border-orange-200 animate-in fade-in duration-200">
+                  <label className="text-xs font-bold text-orange-900 flex items-center gap-1.5">
+                    <Store size={14} className="text-orange-600" />
+                    Target Vendor Select Karein: <span className="text-red-500">*</span>
+                  </label>
+                  {vendors.length === 0 ? (
+                    <p className="text-xs text-orange-700 italic">Koi vendor available nahi mila. Kripya pehle vendor banayein.</p>
+                  ) : (
+                    <select
+                      value={ownershipModal.vendorId}
+                      onChange={(e) => setOwnershipModal(prev => ({ ...prev, vendorId: e.target.value }))}
+                      className="w-full h-10 px-3 rounded-lg border border-orange-300 bg-white text-gray-900 text-sm focus:ring-2 focus:ring-orange-400 focus:border-orange-500 outline-none shadow-sm font-medium"
+                      required
+                    >
+                      <option value="">-- Vendor Select Karein --</option>
+                      {vendors.map(v => (
+                        <option key={v._id} value={v._id}>
+                          {v.companyName || v.name} ({v.assignedArea || 'All Areas'}) — Comm: {v.commissionPercentage || 25}%
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+
+              {/* Footer Actions */}
+              <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setOwnershipModal({ isOpen: false, driver: null, targetType: "Direct", vendorId: "", submitting: false })}
+                  className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={ownershipModal.submitting}
+                  className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-xl shadow-md hover:shadow-lg disabled:opacity-50 transition-all flex items-center gap-2"
+                >
+                  {ownershipModal.submitting && <FaSyncAlt className="animate-spin" size={12} />}
+                  <span>{ownershipModal.submitting ? "Updating..." : "Confirm & Transfer"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
