@@ -241,7 +241,6 @@ export default function CreateBulkBooking() {
     }
 
     if (!pickupRef.current || !dropRef.current) {
-      console.warn('Refs not ready yet');
       return;
     }
 
