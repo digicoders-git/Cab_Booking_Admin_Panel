@@ -32,7 +32,7 @@ import {
   PieChart as PieChartIcon, BarChart3, LineChart as LineChartIcon,
   Target, Gauge, Zap, Shield, MoreVertical, DownloadCloud, Printer,
   User, Users, Wallet, Briefcase, MapPin, Clock, Mail, Phone, Calendar,
-  Map, Home, CreditCard, Award, Star as StarIcon, ArrowRightLeft, Building2, Store
+  Map, Home, CreditCard, Award, Star as StarIcon, ArrowRightLeft, Building2, Store, Copy
 } from 'lucide-react';
 import Swal from "sweetalert2";
 import ReviewsModal from "../components/ReviewsModal";
@@ -60,13 +60,13 @@ const CHART_COLORS = {
 
 // --- Registry Configuration Hub ---
 const initialForm = {
-  name: "", email: "", phone: "", password: "",
-  address: "", city: "", state: "", pincode: "",
-  licenseNumber: "", licenseExpiry: "",
-  aadharNumber: "", panNumber: "",
-  carNumber: "", carModel: "", carBrand: "", carType: "",
-  carColor: "", manufacturingYear: "", seatCapacity: 4,
-  insuranceExpiry: "", permitExpiry: "", pucExpiry: "",
+    name: "", email: "", phone: "", password: "",
+    address: "", city: "", state: "", pincode: "",
+    licenseNumber: "", licenseExpiry: "",
+    aadharNumber: "", panNumber: "",
+    vehicleType: "Car", carNumber: "", carModel: "", carBrand: "", carType: "",
+    carColor: "", manufacturingYear: "", seatCapacity: 4,
+    insuranceExpiry: "", permitExpiry: "", pucExpiry: "",
   lastServiceDate: "", nextServiceDate: "", debtLimit: -500,
   accountNumber: "", ifscCode: "", accountHolderName: "", bankName: "",
   rejectionReason: "",
@@ -846,6 +846,7 @@ export default function ManageDrivers() {
       licenseExpiry: d.licenseExpiry ? d.licenseExpiry.substring(0, 10) : "",
       aadharNumber: d.aadharNumber || "",
       panNumber: d.panNumber || "",
+      vehicleType: d.carDetails?.vehicleType || d.vehicleType || "Car",
       carNumber: d.carDetails?.carNumber || d.carNumber || "",
       carModel: d.carDetails?.carModel || d.carModel || "",
       carBrand: d.carDetails?.carBrand || d.carBrand || "",
@@ -959,9 +960,10 @@ export default function ManageDrivers() {
       if (editForm.accountHolderName) formData.append("accountHolderName", editForm.accountHolderName);
       if (editForm.bankName) formData.append("bankName", editForm.bankName);
 
-      // Car details (only if carNumber is provided)
-      if (editForm.carNumber) {
-        formData.append("carNumber", editForm.carNumber);
+      // Car details
+      if (editForm.carNumber || editForm.vehicleType) {
+        if (editForm.carNumber) formData.append("carNumber", editForm.carNumber);
+        if (editForm.vehicleType) formData.append("vehicleType", editForm.vehicleType);
         if (editForm.carModel) formData.append("carModel", editForm.carModel);
         if (editForm.carBrand) formData.append("carBrand", editForm.carBrand);
         if (editForm.carType) formData.append("carType", editForm.carType);
@@ -1307,7 +1309,7 @@ export default function ManageDrivers() {
               <table className="w-full min-w-[1600px]">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    {['Driver','Contact','Vehicle','Location','Joined On','Updated','By','Online','Rating','Wallet','Earnings','Password','Status','Actions'].map((h) => (
+                    {['Driver','Contact','Vehicle','Location','Joined On','Updated','Referral Code','By','Online','Rating','Wallet','Earnings','Password','Status','Actions'].map((h) => (
                       <th key={h} className="py-3 px-4 text-left">
                         <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
                       </th>
@@ -1327,6 +1329,7 @@ export default function ManageDrivers() {
                       <td className="py-3 px-4"><div className="space-y-1.5"><div className="h-3 bg-gray-200 rounded w-20" /><div className="h-2 bg-gray-100 rounded w-16" /></div></td>
                       <td className="py-3 px-4"><div className="space-y-1.5"><div className="h-3 bg-gray-200 rounded w-16" /><div className="h-2 bg-gray-100 rounded w-12" /></div></td>
                       <td className="py-3 px-4"><div className="h-3 bg-gray-200 rounded w-14" /></td>
+                      <td className="py-3 px-4"><div className="h-3 bg-gray-200 rounded w-16" /></td>
                       <td className="py-3 px-4 text-center"><div className="h-6 bg-gray-100 rounded-full w-14 mx-auto" /></td>
                       <td className="py-3 px-4 text-center"><div className="h-3 bg-gray-200 rounded w-8 mx-auto" /></td>
                       <td className="py-3 px-4 text-center"><div className="h-3 bg-gray-200 rounded w-8 mx-auto" /></td>
@@ -1356,6 +1359,7 @@ export default function ManageDrivers() {
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[400px]">Location</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[150px]">Joined On</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[150px]">Last Updated</th>
+                  <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[120px]">Referral Code</th>
                   <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[120px]">Created By</th>
                   <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[100px]">Online</th>
                   <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase min-w-[100px]">Rating</th>
@@ -1451,6 +1455,24 @@ export default function ManageDrivers() {
                         <p className="text-[10px] text-gray-500">
                           {d.updatedAt ? new Date(d.updatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
                         </p>
+                      </td>
+                      <td className="py-3 px-4 min-w-[120px]">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-blue-600 tracking-wider font-mono">{d.referralCode || '—'}</p>
+                          {d.referralCode && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(d.referralCode);
+                                Swal.fire({ title: 'Copied!', text: 'Referral code copied to clipboard', icon: 'success', timer: 1500, showConfirmButton: false });
+                              }}
+                              className="text-gray-400 hover:text-blue-600 transition-colors p-1 rounded-md hover:bg-blue-50"
+                              title="Copy Code"
+                            >
+                              <Copy size={14} />
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-4 min-w-[140px]">
                         <div className="flex flex-col items-start gap-1">
@@ -2233,8 +2255,8 @@ export default function ManageDrivers() {
                     <h3 className="text-sm font-semibold text-gray-800">Identity Documents</h3>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Field label="License Number" name="licenseNumber" value={editForm.licenseNumber} onChange={handleEditChange} icon={FaIdCard} />
-                    <Field label="License Expiry" name="licenseExpiry" value={editForm.licenseExpiry} onChange={handleEditChange} type="date" icon={FaCalendarAlt} />
+                    {editForm.vehicleType !== 'E-Rickshaw' && <Field label="License Number" name="licenseNumber" value={editForm.licenseNumber} onChange={handleEditChange} icon={FaIdCard} />}
+                    {editForm.vehicleType !== 'E-Rickshaw' && <Field label="License Expiry" name="licenseExpiry" value={editForm.licenseExpiry} onChange={handleEditChange} type="date" icon={FaCalendarAlt} />}
                     <Field label="Aadhar Number" name="aadharNumber" value={editForm.aadharNumber} onChange={handleEditChange} icon={FaIdCard} />
                     <Field label="PAN Number" name="panNumber" value={editForm.panNumber} onChange={handleEditChange} icon={FaIdCard} />
                   </div>
@@ -2247,6 +2269,21 @@ export default function ManageDrivers() {
                       <FaCar size={14} className="text-purple-600" />
                     </div>
                     <h3 className="text-sm font-semibold text-gray-800">Vehicle Details</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <SelectField
+                      label="Vehicle Type"
+                      name="vehicleType"
+                      value={editForm.vehicleType}
+                      onChange={handleEditChange}
+                      options={[
+                        { value: 'Car', label: 'Car' },
+                        { value: 'Auto', label: 'Auto' },
+                        { value: 'Bike', label: 'Bike' },
+                        { value: 'E-Rickshaw', label: 'E-Rickshaw' }
+                      ]}
+                      icon={FaCar}
+                    />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <Field label="Car Number" name="carNumber" value={editForm.carNumber} onChange={handleEditChange} icon={FaCar} />
@@ -2287,7 +2324,7 @@ export default function ManageDrivers() {
                   {/* Expiry Dates */}
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-4 pt-4 border-t border-gray-200">
                     <Field label="Insurance Expiry" name="insuranceExpiry" value={editForm.insuranceExpiry} onChange={handleEditChange} type="date" icon={FaShieldAlt} />
-                    <Field label="Permit Expiry" name="permitExpiry" value={editForm.permitExpiry} onChange={handleEditChange} type="date" icon={FaFileInvoice} />
+                    {editForm.vehicleType !== 'Bike' && editForm.vehicleType !== 'E-Rickshaw' && <Field label="Permit Expiry" name="permitExpiry" value={editForm.permitExpiry} onChange={handleEditChange} type="date" icon={FaFileInvoice} />}
                     <Field label="PUC Expiry" name="pucExpiry" value={editForm.pucExpiry} onChange={handleEditChange} type="date" icon={FaGasPump} />
                     <Field label="Last Service" name="lastServiceDate" value={editForm.lastServiceDate} onChange={handleEditChange} type="date" icon={FaWrench} />
                     <Field label="Next Service" name="nextServiceDate" value={editForm.nextServiceDate} onChange={handleEditChange} type="date" icon={FaCalendarAlt} />
@@ -2300,9 +2337,9 @@ export default function ManageDrivers() {
                       {[
                         { label: 'RC Document', setter: setRcFile },
                         { label: 'Insurance Doc', setter: setInsuranceFile },
-                        { label: 'Permit Doc', setter: setPermitFile },
+                        { label: 'Permit Doc', setter: setPermitFile, hide: editForm.vehicleType === 'Bike' || editForm.vehicleType === 'E-Rickshaw' },
                         { label: 'PUC Doc', setter: setPucFile },
-                      ].map(({ label, setter }) => (
+                      ].filter(d => !d.hide).map(({ label, setter }) => (
                         <div key={label} className="space-y-1">
                           <label className="text-xs font-medium text-gray-600">{label}</label>
                           <input type="file" accept="image/*" onChange={(e) => setter(e.target.files[0])}

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
 import { useAuth } from "../context/AuthContext";
-import { getAdminProfile, updateAdminProfile, getBulkSettings, updateBulkSettings, getAppSettings, toggleShareRide } from "../apis/admin";
+import { getAdminProfile, updateAdminProfile, getBulkSettings, updateBulkSettings, getAppSettings, updateAppSettings } from "../apis/admin";
 import {
   User, Mail, Lock, Camera, Save, Shield, CheckCircle,
   AlertCircle, Bell, Key, Edit2, LogOut, Settings,
@@ -65,7 +65,10 @@ export default function AdminProfile() {
   });
 
   const [appSettings, setAppSettings] = useState({
-    isShareRideEnabled: true
+    isShareRideEnabled: true,
+    enableDriverIncentive: false,
+    driverJoiningBonus: 0,
+    driverReferralBonus: 0
   });
 
   const fileInputRef = useRef(null);
@@ -98,25 +101,33 @@ export default function AdminProfile() {
     try {
       const res = await getAppSettings();
       if (res.success && res.settings) {
-        setAppSettings(res.settings);
+        setAppSettings(prev => ({ ...prev, ...res.settings }));
       }
     } catch (err) { console.error(err); }
   };
 
-  const handleShareRideToggle = async (e) => {
-    const newValue = e.target.checked;
-    setAppSettings({ ...appSettings, isShareRideEnabled: newValue });
+  const handleAppSettingChange = (key, value) => {
+    setAppSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleSaveAppSettings = async (e) => {
+    e.preventDefault();
+    if (appSettings.driverJoiningBonus < 0 || appSettings.driverReferralBonus < 0) {
+        return toast.error("Bonuses cannot be negative");
+    }
+    
     try {
-      const res = await toggleShareRide(newValue);
+      setUpdating(true);
+      const res = await updateAppSettings(appSettings);
       if (res.success) {
-        toast.success(res.message || "Share Ride feature toggled");
+        toast.success(res.message || "App Settings updated successfully");
       } else {
-        toast.error("Failed to update setting");
-        setAppSettings({ ...appSettings, isShareRideEnabled: !newValue }); // revert
+        toast.error("Failed to update settings");
       }
     } catch (err) {
       toast.error("API error");
-      setAppSettings({ ...appSettings, isShareRideEnabled: !newValue }); // revert
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -711,7 +722,7 @@ export default function AdminProfile() {
                             <input
                               type="checkbox"
                               checked={appSettings.isShareRideEnabled}
-                              onChange={handleShareRideToggle}
+                              onChange={(e) => handleAppSettingChange('isShareRideEnabled', e.target.checked)}
                               className="sr-only peer"
                             />
                             <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 dark:peer-focus:ring-green-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-green-600"></div>
@@ -721,6 +732,69 @@ export default function AdminProfile() {
                           </span>
                         </div>
                       </div>
+
+                      {/* Driver Incentive Settings */}
+                      <hr className="border-t my-4" style={{ borderColor }} />
+                      
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-1" style={{ color: textMain }}>Enable Driver Onboarding Incentives</label>
+                          <p className="text-xs" style={{ color: textDim }}>Toggle joining and referral bonuses for drivers upon approval.</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={!!appSettings.enableDriverIncentive}
+                              onChange={(e) => handleAppSettingChange('enableDriverIncentive', e.target.checked)}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                          </label>
+                          <span className="text-sm font-bold" style={{ color: appSettings.enableDriverIncentive ? '#2563EB' : '#DC2626' }}>
+                            {appSettings.enableDriverIncentive ? "ON" : "OFF"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${!appSettings.enableDriverIncentive ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <div>
+                          <label className="block text-sm font-medium mb-2" style={{ color: textDim }}>Driver Joining Bonus (₹)</label>
+                          <input
+                            type="number"
+                            value={appSettings.driverJoiningBonus === '' || appSettings.driverJoiningBonus === undefined ? '' : appSettings.driverJoiningBonus}
+                            onChange={(e) => handleAppSettingChange('driverJoiningBonus', e.target.value === '' ? '' : Number(e.target.value))}
+                            className="w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                            style={{ backgroundColor: inputBg, borderColor, color: textMain }}
+                            min="0"
+                          />
+                          <p className="text-xs mt-1" style={{ color: textDim }}>Bonus added to wallet on approval.</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium mb-2" style={{ color: textDim }}>Driver Referral Bonus (₹)</label>
+                          <input
+                            type="number"
+                            value={appSettings.driverReferralBonus === '' || appSettings.driverReferralBonus === undefined ? '' : appSettings.driverReferralBonus}
+                            onChange={(e) => handleAppSettingChange('driverReferralBonus', e.target.value === '' ? '' : Number(e.target.value))}
+                            className="w-full px-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                            style={{ backgroundColor: inputBg, borderColor, color: textMain }}
+                            min="0"
+                          />
+                          <p className="text-xs mt-1" style={{ color: textDim }}>Bonus added to referrer's wallet.</p>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end pt-4 mt-4 border-t" style={{ borderColor }}>
+                        <button
+                          type="button"
+                          onClick={handleSaveAppSettings}
+                          disabled={updating}
+                          className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                        >
+                          {updating ? 'Saving...' : 'Save App Settings'}
+                        </button>
+                      </div>
+
                     </div>
 
                     <h4 className="text-sm font-bold mt-8 mb-4 uppercase tracking-wider" style={{ color: textDim }}>Bulk Booking Settings</h4>

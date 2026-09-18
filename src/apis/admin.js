@@ -86,8 +86,8 @@ export const getAppSettings = async () => {
     return response.data;
 };
 
-export const toggleShareRide = async (isShareRideEnabled) => {
-    const response = await http.put(`/api/settings/toggle-share-ride`, { isShareRideEnabled });
+export const updateAppSettings = async (data) => {
+    const response = await http.put(`/api/settings/toggle-share-ride`, data);
     return response.data;
 };
 

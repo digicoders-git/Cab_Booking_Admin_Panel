@@ -117,6 +117,9 @@ export default function ManageCarCategories() {
     waitingChargePerMin: "0",
     ratePerMinute: "0",
     trafficBufferMin: "10",
+    minKmPerDay: "250",
+    driverAllowancePerDay: "300",
+    enableWaterfallUpgrade: true,
     image: null
   });
 
@@ -218,7 +221,7 @@ export default function ManageCarCategories() {
         toast.success(editingCategory ? "Category Updated" : "Category Created");
         setIsModalOpen(false);
         setEditingCategory(null);
-        setFormData({ name: "", seatCapacity: "4", baseFare: "0", privateRatePerKm: "0", sharedRatePerSeatPerKm: "0", avgSpeedKmH: "30", seatLayout: ["Front", "Back-Left", "Back-Middle", "Back-Right"], bulkBookingBasePrice: "0", freeWaitingMin: "3", waitingChargePerMin: "0", image: null });
+        setFormData({ name: "", seatCapacity: "4", baseFare: "0", privateRatePerKm: "0", sharedRatePerSeatPerKm: "0", avgSpeedKmH: "30", seatLayout: ["Front", "Back-Left", "Back-Middle", "Back-Right"], bulkBookingBasePrice: "0", freeWaitingMin: "3", waitingChargePerMin: "0", ratePerMinute: "0", trafficBufferMin: "10", minKmPerDay: "250", driverAllowancePerDay: "300", enableWaterfallUpgrade: true, image: null });
         fetchData();
       } else {
         toast.error(res.message);
@@ -270,6 +273,9 @@ export default function ManageCarCategories() {
       waitingChargePerMin: c.waitingChargePerMin || "0",
       ratePerMinute: c.ratePerMinute || "0",
       trafficBufferMin: c.trafficBufferMin || "10",
+      minKmPerDay: c.minKmPerDay || "250",
+      driverAllowancePerDay: c.driverAllowancePerDay || "300",
+      enableWaterfallUpgrade: c.enableWaterfallUpgrade !== false, // defaults to true
       image: null
     });
     setIsModalOpen(true);
@@ -765,6 +771,51 @@ export default function ManageCarCategories() {
                     </div>
                   </div>
                 </div>
+
+                {/* NEW: Round Trip Pricing */}
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 block mb-2">Round Trip Min KM/Day</label>
+                    <div className="relative">
+                      <FaTachometerAlt className="absolute left-4 top-1/2 -translate-y-1/2 text-teal-500" size={16} />
+                      <input
+                        type="number"
+                        value={formData.minKmPerDay}
+                        onChange={(e) => setFormData({ ...formData, minKmPerDay: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 pl-12 pr-4 text-sm font-bold focus:ring-2 ring-teal-500"
+                        placeholder="e.g. 250"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 block mb-2">Driver Allowance/Day (₹)</label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-green-500" size={16} />
+                      <input
+                        type="number"
+                        value={formData.driverAllowancePerDay}
+                        onChange={(e) => setFormData({ ...formData, driverAllowancePerDay: e.target.value })}
+                        className="w-full bg-gray-50 border border-gray-300 rounded-lg py-2 pl-12 pr-4 text-sm font-bold focus:ring-2 ring-green-500"
+                        placeholder="e.g. 300"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* NEW: Waterfall Upgrade Toggle */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900">Enable Waterfall Upgrade</h3>
+                  <p className="text-xs text-gray-500 mt-1">If enabled, bookings for this category will upgrade to higher categories (e.g. Auto to Car) if no drivers accept within 2 mins.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, enableWaterfallUpgrade: !formData.enableWaterfallUpgrade })}
+                  className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${formData.enableWaterfallUpgrade ? 'bg-blue-600' : 'bg-gray-200'}`}
+                >
+                  <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${formData.enableWaterfallUpgrade ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
               </div>
 
               {/* Seat Layout */}

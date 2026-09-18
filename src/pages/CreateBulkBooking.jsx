@@ -340,16 +340,25 @@ export default function CreateBulkBooking() {
     });
   };
 
-  const calculateTotal = () => {
-    // Formula: Rate (KM) * Quantity * Days * Distance
+  const calculateCarPrice = (car) => {
     const distanceMultiplier = formData.tripType === 'RoundTrip' ? 2 : 1;
-    let baseTotal = selectedCars.reduce(
-      (acc, car) => acc + car.price * car.quantity * formData.days * ((formData.distance || 0) * distanceMultiplier),
-      0
-    );
+    const catDetails = categories.find(c => c._id === car.id);
+    const minKmPerDay = catDetails?.minKmPerDay || 250;
+    const driverAllowancePerDay = catDetails?.driverAllowancePerDay || 300;
+    const actualKm = (formData.distance || 0) * distanceMultiplier;
     
-    // Apply area surcharge multiplier
-    baseTotal = baseTotal * areaMultiplier;
+    if (formData.tripType === 'RoundTrip') {
+        const minimumKmRequired = minKmPerDay * formData.days;
+        const chargeableKm = Math.max(actualKm, minimumKmRequired);
+        const totalDriverAllowance = driverAllowancePerDay * formData.days;
+        return ((chargeableKm * car.price) + totalDriverAllowance) * car.quantity * areaMultiplier;
+    } else {
+        return car.price * car.quantity * actualKm * areaMultiplier;
+    }
+  };
+
+  const calculateTotal = () => {
+    const baseTotal = selectedCars.reduce((acc, car) => acc + calculateCarPrice(car), 0);
     const modified = baseTotal + baseTotal * (formData.priceModifier / 100);
     return Math.round(modified);
   };
@@ -984,7 +993,7 @@ export default function CreateBulkBooking() {
                         />
                       </div>
                       <div className="space-y-2">
-                        {formData.tripType === 'RoundTrip' ? (
+                        {formData.tripType === 'RoundTrip' && (
                           <>
                             <label className="text-[10px] font-black text-gray-400 uppercase">Return Date</label>
                             <input
@@ -994,15 +1003,6 @@ export default function CreateBulkBooking() {
                               onChange={e => setFormData({ ...formData, returnDate: e.target.value })}
                               className="w-full bg-blue-50 border-none rounded-2xl py-4 px-6 text-sm font-bold focus:ring-2 ring-blue-500"
                             />
-                          </>
-                        ) : (
-                          <>
-                            <label className="text-[10px] font-black text-gray-400 uppercase">Trip Duration (Days)</label>
-                            <div className="flex items-center gap-4 bg-gray-50 rounded-2xl px-6 py-2 border border-gray-100">
-                              <button onClick={() => setFormData({ ...formData, days: Math.max(1, formData.days - 1) })} className="text-gray-400 hover:text-gray-900"><FaMinus /></button>
-                              <span className="flex-1 text-center font-black">{formData.days} Days</span>
-                              <button onClick={() => setFormData({ ...formData, days: formData.days + 1 })} className="text-gray-400 hover:text-gray-900"><FaPlus /></button>
-                            </div>
                           </>
                         )}
                       </div>
@@ -1043,7 +1043,7 @@ export default function CreateBulkBooking() {
                       {selectedCars.map(car => (
                         <div key={car.id} className="flex justify-between items-center text-xs font-bold text-gray-500">
                           <span>{car.quantity}x {car.name}</span>
-                          <span className="text-gray-900">₹{(car.price * car.quantity * formData.days * (formData.distance || 0)).toLocaleString()}</span>
+                          <span className="text-gray-900">₹{Math.round(calculateCarPrice(car)).toLocaleString()}</span>
                         </div>
                       ))}
                       <div className="pt-4 border-t border-dashed border-gray-100">
