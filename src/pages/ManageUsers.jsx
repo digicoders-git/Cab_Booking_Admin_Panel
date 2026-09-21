@@ -3,7 +3,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useFont } from "../context/FontContext";
 import {
-  getAllUsers, updateUser, deleteUser, toggleUserStatus
+  getAllUsers, updateUser, deleteUser, toggleUserStatus, getUserRides
 } from "../apis/user";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -21,7 +21,7 @@ import {
   DollarSign, Activity, PieChart as PieChartIcon, BarChart3,
   LineChart as LineChartIcon, Target, Gauge, Zap, Shield,
   MoreVertical, DownloadCloud, Printer, UserCheck, UserPlus,
-  X, CheckCircle, AlertCircle, Clock, Star, MapPin
+  X, CheckCircle, AlertCircle, Clock, Star, MapPin, Car
 } from 'lucide-react';
 import Swal from "sweetalert2";
 import ReviewsModal from "../components/ReviewsModal";
@@ -150,6 +150,11 @@ export default function ManageUsers() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [viewing, setViewing] = useState(null);
+  const [userRidesData, setUserRidesData] = useState(null);
+  const [userRidesLoading, setUserRidesLoading] = useState(false);
+  const [rideActiveTab, setRideActiveTab] = useState('all'); // 'all', 'city', 'package'
+  const [rideStatusFilter, setRideStatusFilter] = useState('all');
+  const [rideSearch, setRideSearch] = useState('');
   const [viewingImage, setViewingImage] = useState(null);
   const [isEditing, setIsEditing] = useState(null);
   const [editForm, setEditForm] = useState({ name: "", email: "", aadhaarCard: "" });
@@ -158,6 +163,25 @@ export default function ManageUsers() {
   const [selectedChart, setSelectedChart] = useState('all');
   const [expandedRows, setExpandedRows] = useState({});
   const [reviewModal, setReviewModal] = useState({ isOpen: false, targetId: null });
+
+  const handleOpenUserDetails = async (u) => {
+    setViewing(u);
+    setUserRidesLoading(true);
+    setUserRidesData(null);
+    setRideActiveTab('all');
+    setRideStatusFilter('all');
+    setRideSearch('');
+    try {
+      const res = await getUserRides(u._id);
+      if (res && res.success) {
+        setUserRidesData(res);
+      }
+    } catch (err) {
+      console.error("Failed to load user rides", err);
+    } finally {
+      setUserRidesLoading(false);
+    }
+  };
 
   // Map Filter State
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -650,7 +674,11 @@ export default function ManageUsers() {
                         >
                           <td className="py-4 px-6">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border border-gray-100">
+                              <div 
+                                className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border border-gray-100 cursor-pointer hover:opacity-80 transition-opacity"
+                                onClick={(e) => { e.stopPropagation(); handleOpenUserDetails(u); }}
+                                title="Click to view Account & Rides"
+                              >
                                 {u.image ? (
                                   <img
                                     src={`${IMAGE_BASE_URL}${u.image}`}
@@ -662,8 +690,12 @@ export default function ManageUsers() {
                                   <User size={18} className="text-blue-600" />
                                 )}
                               </div>
-                              <div>
-                                <p className="font-medium text-gray-900">{u.name}</p>
+                              <div
+                                className="cursor-pointer"
+                                onClick={(e) => { e.stopPropagation(); handleOpenUserDetails(u); }}
+                                title="Click to view Account & Rides"
+                              >
+                                <p className="font-medium text-gray-900 hover:text-indigo-600 transition-colors">{u.name}</p>
                                 <p className="text-xs text-gray-500">{u.email}</p>
                               </div>
                             </div>
@@ -725,11 +757,11 @@ export default function ManageUsers() {
                             <div className="flex items-center justify-center gap-2">
                               {can('USER_READ') && (
                                 <button
-                                  onClick={(e) => { e.stopPropagation(); setViewing(u); }}
-                                  className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                                  title="View Details"
+                                  onClick={(e) => { e.stopPropagation(); handleOpenUserDetails(u); }}
+                                  className="p-1.5 hover:bg-indigo-50 rounded-lg transition-colors text-indigo-600 hover:text-indigo-800"
+                                  title="View Account Details & Complete Ride History"
                                 >
-                                  <Eye size={16} className="text-blue-600" />
+                                  <Eye size={16} />
                                 </button>
                               )}
 
@@ -1029,91 +1061,327 @@ export default function ManageUsers() {
 
       </div>
 
-      {/* View Modal */}
+      {/* View Modal with Account Details & Complete Ride History */}
       {viewing && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4 md:p-6 overflow-y-auto">
+          <div className="bg-white rounded-xl w-full max-w-5xl shadow-[0_25px_70px_rgba(0,0,0,0.5)] overflow-hidden my-auto max-h-[92vh] flex flex-col border border-gray-200 animate-in fade-in zoom-in-95 duration-200">
 
-            {/* Gradient Banner */}
-            <div className="relative h-28 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600">
+            {/* Header Banner with Profile & Customer Age */}
+            <div className="relative bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 text-white shrink-0 shadow-sm">
               <button
-                onClick={() => setViewing(null)}
-                className="absolute top-3 right-3 p-1.5 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+                onClick={() => { setViewing(null); setUserRidesData(null); }}
+                className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors text-white"
+                title="Close"
               >
-                <X size={16} className="text-white" />
+                <X size={18} />
               </button>
-            </div>
 
-            {/* Avatar — overlaps banner */}
-            <div className="flex flex-col items-center -mt-14 px-6 relative z-10">
-              <div className="w-24 h-24 rounded-full border-4 border-white shadow-xl overflow-hidden bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center relative z-10">
-                {viewing.image ? (
-                  <img
-                    src={`${IMAGE_BASE_URL}${viewing.image}`}
-                    alt={viewing.name}
-                    className="w-full h-full object-cover cursor-pointer"
-                    onClick={(e) => { e.stopPropagation(); setViewingImage(`${IMAGE_BASE_URL}${viewing.image}`); }}
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                      e.currentTarget.parentElement.innerHTML += '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
-                    }}
-                  />
-                ) : (
-                  <User size={40} className="text-indigo-400" />
-                )}
-              </div>
-
-              {/* Name & ID */}
-              <h2 className="mt-3 text-xl font-bold text-gray-900">{viewing.name}</h2>
-              <p className="text-xs text-gray-400 mb-4">ID: #{viewing._id?.slice(-8)}</p>
-
-              {/* Status + Verified badges */}
-              <div className="flex items-center gap-2 mb-6">
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${viewing.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'
-                  }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${viewing.isActive ? 'bg-green-500' : 'bg-red-500'}`} />
-                  {viewing.isActive ? 'Active' : 'Inactive'}
-                </span>
-                {viewing.isVerified && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
-                    <CheckCircle size={11} />
-                    Verified
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Info Rows */}
-            <div className="px-6 pb-4 space-y-2">
-              {[
-                { label: 'Email', value: viewing.email, icon: Mail },
-                { label: 'Phone', value: viewing.phone || 'Not provided', icon: Phone },
-                { label: 'Joined', value: new Date(viewing.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }), icon: Calendar },
-                { label: 'Total Bookings', value: viewing.totalBookings || 0, icon: Calendar, highlight: 'blue' },
-                { label: 'Total Spent', value: `₹${viewing.totalSpent || 0}`, icon: DollarSign, highlight: 'green' },
-              ].map(({ label, value, icon: Icon, highlight }) => (
-                <div key={label} className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-2xl">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-white rounded-xl shadow-sm flex items-center justify-center">
-                      <Icon size={14} className="text-indigo-400" />
-                    </div>
-                    <span className="text-sm text-gray-500">{label}</span>
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5 pr-10">
+                {/* User Info */}
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 border-white/20 shadow-md overflow-hidden bg-white/10 flex items-center justify-center shrink-0">
+                    {viewing.image ? (
+                      <img
+                        src={`${IMAGE_BASE_URL}${viewing.image}`}
+                        alt={viewing.name}
+                        className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                        onClick={(e) => { e.stopPropagation(); setViewingImage(`${IMAGE_BASE_URL}${viewing.image}`); }}
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.parentElement.innerHTML += '<svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+                        }}
+                      />
+                    ) : (
+                      <User size={36} className="text-white/80" />
+                    )}
                   </div>
-                  <span className={`text-sm font-semibold ${highlight === 'blue' ? 'text-blue-600' : highlight === 'green' ? 'text-green-600' : 'text-gray-800'
-                    }`}>{value}</span>
+
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{viewing.name || 'User'}</h2>
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                        viewing.isActive ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${viewing.isActive ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                        {viewing.isActive ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-indigo-200/70 font-mono mt-0.5">User ID: #{viewing._id}</p>
+
+                    <div className="flex flex-wrap items-center gap-3 sm:gap-4 mt-2 text-xs text-white/80">
+                      <a href={`tel:${viewing.phone}`} className="flex items-center gap-1.5 hover:text-white transition-colors bg-white/10 hover:bg-white/20 px-2.5 py-1 rounded-lg">
+                        <Phone size={12} className="text-indigo-300" />
+                        <span>{viewing.phone || 'No phone'}</span>
+                      </a>
+                      {viewing.email && (
+                        <a href={`mailto:${viewing.email}`} className="flex items-center gap-1.5 hover:text-white transition-colors bg-white/10 hover:bg-white/20 px-2.5 py-1 rounded-lg">
+                          <Mail size={12} className="text-indigo-300" />
+                          <span>{viewing.email}</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              ))}
+
+                {/* Customer Age / Tenure Card */}
+                <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl p-3.5 flex flex-col min-w-[220px] shadow-sm">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Clock size={14} className="text-amber-400" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300">Customer Tenure</span>
+                  </div>
+                  <p className="text-base sm:text-lg font-black text-white">
+                    {userRidesData?.stats?.customerAgeText || `${Math.max(0, Math.ceil((new Date() - new Date(viewing.createdAt)) / (1000 * 60 * 60 * 24)))} Days`}
+                  </p>
+                  <p className="text-[11px] text-indigo-200/70 flex items-center gap-1 mt-0.5">
+                    <Calendar size={11} />
+                    Joined: {new Date(viewing.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+
+              {/* Summary Stats Row */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mt-5 pt-4 border-t border-white/10">
+                <div className="bg-white/5 border border-white/10 rounded-lg p-2.5 shadow-xs">
+                  <span className="text-[10px] text-white/60 uppercase font-bold tracking-wider">Total Rides</span>
+                  <p className="text-base font-black text-white mt-0.5">
+                    {userRidesLoading ? '...' : (userRidesData?.stats?.totalRides ?? 0)}
+                  </p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-lg p-2.5 shadow-xs">
+                  <span className="text-[10px] text-emerald-400 uppercase font-bold tracking-wider">Completed</span>
+                  <p className="text-base font-black text-emerald-300 mt-0.5">
+                    {userRidesLoading ? '...' : (userRidesData?.stats?.completedRides ?? 0)}
+                  </p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-lg p-2.5 shadow-xs">
+                  <span className="text-[10px] text-red-400 uppercase font-bold tracking-wider">Cancelled</span>
+                  <p className="text-base font-black text-red-300 mt-0.5">
+                    {userRidesLoading ? '...' : (userRidesData?.stats?.cancelledRides ?? 0)}
+                  </p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-lg p-2.5 shadow-xs">
+                  <span className="text-[10px] text-amber-400 uppercase font-bold tracking-wider">Total Spent</span>
+                  <p className="text-base font-black text-amber-300 mt-0.5">
+                    ₹{userRidesLoading ? '...' : (userRidesData?.stats?.totalSpent ?? 0).toLocaleString('en-IN')}
+                  </p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-lg p-2.5 shadow-xs col-span-2 sm:col-span-1">
+                  <span className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Wallet Balance</span>
+                  <p className="text-base font-black text-white mt-0.5">
+                    ₹{((userRidesData?.user?.walletBalance ?? viewing.walletBalance) || 0).toLocaleString('en-IN')}
+                  </p>
+                </div>
+              </div>
             </div>
 
-            {/* Footer */}
-            <div className="px-6 pb-6 pt-2">
+            {/* Ride History Section (Scrollable) */}
+            <div className="p-5 sm:p-6 flex-1 overflow-y-auto bg-gray-50/50 space-y-4">
+              {/* Header with Tabs & Filters */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2 border-b border-gray-200">
+                {/* Tabs */}
+                <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-lg border border-gray-200/80 shadow-xs">
+                  <button
+                    onClick={() => setRideActiveTab('all')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                      rideActiveTab === 'all' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    All Rides ({userRidesData?.rides?.length || 0})
+                  </button>
+                  <button
+                    onClick={() => setRideActiveTab('city')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                      rideActiveTab === 'city' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    City Rides ({userRidesData?.regularRides?.length || 0})
+                  </button>
+                  <button
+                    onClick={() => setRideActiveTab('package')}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                      rideActiveTab === 'package' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Package Rides ({userRidesData?.fixedRides?.length || 0})
+                  </button>
+                </div>
+
+                {/* Filters */}
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  {/* Search inside rides */}
+                  <div className="relative flex-1 sm:w-56">
+                    <Search size={14} className="absolute left-3 top-2.5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search pickup, drop, ID..."
+                      value={rideSearch}
+                      onChange={(e) => setRideSearch(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-gray-300 rounded-lg shadow-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  {/* Status Filter */}
+                  <select
+                    value={rideStatusFilter}
+                    onChange={(e) => setRideStatusFilter(e.target.value)}
+                    className="px-2.5 py-1.5 text-xs font-semibold bg-white border border-gray-300 rounded-lg shadow-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-gray-700"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="Pending">Pending / Marketplace</option>
+                    <option value="Started">Started</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Rides List Content */}
+              {userRidesLoading ? (
+                <div className="py-16 text-center">
+                  <RefreshCw size={28} className="animate-spin text-indigo-600 mx-auto mb-3" />
+                  <p className="text-sm font-semibold text-gray-600">Loading user ride history...</p>
+                </div>
+              ) : (() => {
+                let ridesToShow = userRidesData?.rides || [];
+                if (rideActiveTab === 'city') ridesToShow = userRidesData?.regularRides || [];
+                if (rideActiveTab === 'package') ridesToShow = userRidesData?.fixedRides || [];
+
+                if (rideStatusFilter !== 'all') {
+                  ridesToShow = ridesToShow.filter(r => r.status?.toLowerCase() === rideStatusFilter.toLowerCase());
+                }
+
+                if (rideSearch.trim()) {
+                  const q = rideSearch.toLowerCase();
+                  ridesToShow = ridesToShow.filter(r => 
+                    r.pickup?.toLowerCase().includes(q) ||
+                    r.drop?.toLowerCase().includes(q) ||
+                    r.bookingId?.toLowerCase().includes(q) ||
+                    r.driver?.name?.toLowerCase().includes(q)
+                  );
+                }
+
+                if (ridesToShow.length === 0) {
+                  return (
+                    <div className="py-12 text-center bg-white rounded-xl border border-gray-200 shadow-xs">
+                      <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3 text-gray-400">
+                        <Car size={22} />
+                      </div>
+                      <h4 className="text-sm font-bold text-gray-800">No rides found</h4>
+                      <p className="text-xs text-gray-500 mt-1">This customer has not completed any rides matching the selected filter.</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="space-y-3">
+                    {ridesToShow.map((ride) => {
+                      const isCompleted = ride.status === 'Completed';
+                      const isCancelled = ride.status === 'Cancelled';
+                      const isPackage = ride.type === 'Package Ride';
+
+                      return (
+                        <div
+                          key={ride._id}
+                          className="bg-white rounded-xl p-4 sm:p-5 border border-gray-200/90 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all space-y-3"
+                        >
+                          {/* Ride Card Header */}
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 pb-2.5">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono font-bold text-xs text-gray-900 bg-gray-100 px-2 py-0.5 rounded-md">
+                                #{ride.bookingId}
+                              </span>
+                              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                                isPackage ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-blue-50 text-blue-700 border border-blue-200'
+                              }`}>
+                                {ride.type}
+                              </span>
+                              <span className="text-xs font-semibold text-gray-500">
+                                {ride.carCategory} • {ride.rideType}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-500 flex items-center gap-1">
+                                <Calendar size={11} className="text-gray-400" />
+                                {new Date(ride.date || ride.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                {ride.pickupTime ? ` (${ride.pickupTime})` : ` at ${new Date(ride.date || ride.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
+                              </span>
+                              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                                isCompleted ? 'bg-green-100 text-green-700 border border-green-200' :
+                                isCancelled ? 'bg-red-100 text-red-700 border border-red-200' :
+                                'bg-amber-100 text-amber-700 border border-amber-200'
+                              }`}>
+                                {ride.status}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Ride Route (Pickup -> Drop) */}
+                          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                            <div className="md:col-span-8 space-y-2">
+                              <div className="flex items-start gap-2">
+                                <div className="w-2.5 h-2.5 mt-1 rounded-full bg-emerald-500 shrink-0 shadow-xs ring-2 ring-emerald-100" />
+                                <div className="min-w-0">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Pickup</span>
+                                  <p className="text-xs font-medium text-gray-800 line-clamp-1" title={ride.pickup}>{ride.pickup}</p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-start gap-2">
+                                <div className="w-2.5 h-2.5 mt-1 rounded-full bg-rose-500 shrink-0 shadow-xs ring-2 ring-rose-100" />
+                                <div className="min-w-0">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Drop</span>
+                                  <p className="text-xs font-medium text-gray-800 line-clamp-1" title={ride.drop}>{ride.drop}</p>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Fare & Driver Column */}
+                            <div className="md:col-span-4 flex md:flex-col justify-between md:justify-center items-end border-t md:border-t-0 md:border-l border-gray-100 pt-2 md:pt-0 md:pl-4">
+                              <div className="text-left md:text-right">
+                                <span className="text-[10px] font-bold uppercase text-gray-400">Total Fare</span>
+                                <p className="text-lg font-black text-gray-900 leading-tight">
+                                  ₹{Number(ride.fare || 0).toLocaleString('en-IN')}
+                                </p>
+                                <p className="text-[10px] text-gray-500 font-medium">
+                                  {ride.paymentMethod} • <span className={ride.paymentStatus === 'Completed' ? 'text-emerald-600 font-bold' : 'text-amber-600 font-bold'}>{ride.paymentStatus === 'Completed' ? 'Paid' : 'Pending'}</span>
+                                </p>
+                              </div>
+
+                              <div className="text-right mt-1">
+                                {ride.driver ? (
+                                  <div className="text-xs">
+                                    <span className="text-[10px] text-gray-400 block">Driver</span>
+                                    <span className="font-semibold text-gray-800">{ride.driver.name}</span>
+                                    <a href={`tel:${ride.driver.phone}`} className="text-[11px] text-indigo-600 hover:underline block font-medium">
+                                      📞 {ride.driver.phone}
+                                    </a>
+                                  </div>
+                                ) : (
+                                  <span className="text-[11px] text-gray-400 italic">No driver assigned</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-white border-t border-gray-200 flex justify-end shrink-0 shadow-xs">
               <button
-                onClick={() => setViewing(null)}
-                className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl text-sm font-semibold hover:opacity-90 transition-opacity"
+                onClick={() => { setViewing(null); setUserRidesData(null); }}
+                className="px-6 py-2.5 bg-gray-900 hover:bg-black text-white rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-md"
               >
                 Close
               </button>
             </div>
+
           </div>
         </div>
       )}

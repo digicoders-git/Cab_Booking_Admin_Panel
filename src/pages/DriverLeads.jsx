@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import http from "../apis/http";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
-import { FaPhone, FaEnvelope, FaUser, FaClock, FaSearch, FaTrash, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { FaPhone, FaEnvelope, FaUser, FaClock, FaSearch, FaTrash, FaChevronLeft, FaChevronRight, FaUserPlus } from "react-icons/fa";
 export default function DriverLeads() {
+  const navigate = useNavigate();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -166,11 +168,18 @@ export default function DriverLeads() {
                     <td className="p-4">
                       <div className="flex items-center justify-end gap-2 text-gray-500 text-sm">
                         <button
+                          onClick={() => navigate("/drivers/manage", { state: { createFromLead: lead } })}
+                          className="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-medium transition"
+                          title="Convert to Driver"
+                        >
+                          <FaUserPlus size={12} /> Convert
+                        </button>
+                        <button
                           onClick={() => handleDelete(lead._id)}
-                          className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-2 rounded-full transition"
+                          className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition"
                           title="Delete Lead"
                         >
-                          <FaTrash />
+                          <FaTrash size={14} />
                         </button>
                       </div>
                     </td>

@@ -478,7 +478,7 @@ export default function CreateBulkBooking() {
 
   const generateReceipt = async (booking) => {
     const doc = new jsPDF();
-    const logoUrl = "/logo.png";
+    const logoUrl = "/logo2.png";
     
     // 1. External Border
     doc.setDrawColor(0);
@@ -989,6 +989,15 @@ export default function CreateBulkBooking() {
                                 returnDate: formData.returnDate < selected ? selected : formData.returnDate
                             });
                           }}
+                          className="w-full bg-gray-50 border-none rounded-2xl py-4 px-6 text-sm font-bold focus:ring-2 ring-blue-500"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase">Pickup Time</label>
+                        <input
+                          type="time"
+                          value={formData.time}
+                          onChange={e => setFormData({ ...formData, time: e.target.value })}
                           className="w-full bg-gray-50 border-none rounded-2xl py-4 px-6 text-sm font-bold focus:ring-2 ring-blue-500"
                         />
                       </div>

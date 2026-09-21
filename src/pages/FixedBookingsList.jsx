@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import http from '../apis/http';
 import { toast } from 'sonner';
-import { FaCar, FaClock, FaCheckCircle, FaTimesCircle, FaMapMarkerAlt, FaMoneyBillWave, FaTrash } from 'react-icons/fa';
+import { FaCar, FaClock, FaCheckCircle, FaTimesCircle, FaMapMarkerAlt, FaMoneyBillWave, FaTrash, FaUser, FaUserTie, FaPhoneAlt, FaSearch } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 
 const FixedBookingsList = () => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [bookedByFilter, setBookedByFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState('all');
@@ -72,9 +74,35 @@ const FixedBookingsList = () => {
     return <div className="text-gray-800 p-6 min-h-screen bg-gray-100 flex items-center justify-center">Loading bookings...</div>;
   }
 
-  // Pagination Logic
+  // Filtering & Pagination Logic
   const filteredBookings = bookings.filter((booking) => {
-    // 1. Date Filter
+    // 0. Search Query Filter
+    if (searchQuery.trim() !== '') {
+      const q = searchQuery.toLowerCase().trim();
+      const id = (booking._id || '').toLowerCase();
+      const customerName = (booking.customerName || '').toLowerCase();
+      const customerPhone = (booking.customerPhone || '').toLowerCase();
+      const userName = (booking.user?.name || '').toLowerCase();
+      const userPhone = (booking.user?.phone || '').toLowerCase();
+      const agentName = (booking.agent?.name || '').toLowerCase();
+      const agentPhone = (booking.agent?.phone || '').toLowerCase();
+      const pickup = (booking.pickupLocation || '').toLowerCase();
+      const drop = (booking.dropLocation || '').toLowerCase();
+      
+      const matches = id.includes(q) || customerName.includes(q) || customerPhone.includes(q) ||
+                      userName.includes(q) || userPhone.includes(q) || agentName.includes(q) ||
+                      agentPhone.includes(q) || pickup.includes(q) || drop.includes(q);
+      if (!matches) return false;
+    }
+
+    // 1. Booked By Filter (Agent vs Direct User)
+    if (bookedByFilter !== 'all') {
+      const isAgent = booking.bookedByModel === 'Agent' || !!booking.agent;
+      if (bookedByFilter === 'agent' && !isAgent) return false;
+      if (bookedByFilter === 'user' && isAgent) return false;
+    }
+
+    // 2. Date Filter
     if (dateFilter !== 'all') {
       const bookingDate = new Date(booking.createdAt || booking.pickupDate);
       const now = new Date();
@@ -93,12 +121,12 @@ const FixedBookingsList = () => {
       if (!passDate) return false;
     }
 
-    // 2. Status Filter
+    // 3. Status Filter
     if (statusFilter !== 'all') {
       if (booking.status !== statusFilter) return false;
     }
 
-    // 3. Payment Filter (Online vs Cash)
+    // 4. Payment Filter (Online vs Cash)
     if (paymentFilter !== 'all') {
       if (paymentFilter === 'Cash' && booking.paymentMethod !== 'Cash') return false;
       if (paymentFilter === 'Online' && booking.paymentMethod === 'Cash') return false;
@@ -119,11 +147,40 @@ const FixedBookingsList = () => {
       <div className="mb-6 flex flex-col md:flex-row justify-between md:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Fixed Package Bookings</h1>
-          <p className="text-gray-500 text-sm mt-1">View all user bookings and their current status</p>
+          <p className="text-gray-500 text-sm mt-1">View all user and agent bookings, customer info, and status</p>
         </div>
 
         {/* Filters Container */}
         <div className="flex flex-wrap items-center gap-3">
+          {/* Search Input */}
+          <div className="relative flex items-center bg-white border border-gray-300 rounded-lg px-3 py-2 shadow-sm focus-within:ring-2 focus-within:ring-indigo-500">
+            <FaSearch className="text-gray-400 mr-2 text-xs" />
+            <input 
+              type="text"
+              placeholder="Search Name, Phone, ID..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="bg-transparent text-sm text-gray-800 focus:outline-none placeholder-gray-400 w-44 md:w-56"
+            />
+          </div>
+
+          {/* Booked By Filter (Agent vs User) */}
+          <select 
+            value={bookedByFilter}
+            onChange={(e) => {
+              setBookedByFilter(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer"
+          >
+            <option value="all">All Booked By</option>
+            <option value="agent">Agent Bookings</option>
+            <option value="user">Direct User Bookings</option>
+          </select>
+
           {/* Status Filter */}
           <select 
             value={statusFilter}
@@ -185,15 +242,8 @@ const FixedBookingsList = () => {
             <option value="10">10 / page</option>
             <option value="20">20 / page</option>
             <option value="30">30 / page</option>
-            <option value="40">40 / page</option>
             <option value="50">50 / page</option>
-            <option value="60">60 / page</option>
-            <option value="70">70 / page</option>
-            <option value="80">80 / page</option>
-            <option value="90">90 / page</option>
             <option value="100">100 / page</option>
-            <option value="1000">1000 / page</option>
-            <option value="10000">10000 / page</option>
           </select>
         </div>
       </div>
@@ -204,7 +254,7 @@ const FixedBookingsList = () => {
             <thead className="bg-gray-50 text-gray-700 text-xs uppercase font-bold border-b border-gray-200">
               <tr>
                 <th className="px-6 py-4 whitespace-nowrap">ID & Date</th>
-                <th className="px-6 py-4 whitespace-nowrap">User Details</th>
+                <th className="px-6 py-4 whitespace-nowrap">Booked By / Customer</th>
                 <th className="px-6 py-4 whitespace-nowrap">Route (Pickup - Drop)</th>
                 <th className="px-6 py-4 whitespace-nowrap">Driver</th>
                 <th className="px-6 py-4 whitespace-nowrap">Status</th>
@@ -214,68 +264,117 @@ const FixedBookingsList = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {currentBookings.length > 0 ? currentBookings.map(booking => (
-                <tr key={booking._id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <p className="font-bold text-gray-800 text-xs mb-1">#{booking._id.slice(-8).toUpperCase()}</p>
-                    <p className="text-xs text-gray-500">{new Date(booking.pickupDate).toLocaleDateString()} {booking.pickupTime}</p>
-                  </td>
-                  
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <p className="font-semibold text-gray-800">{booking.user?.name || 'Unknown'}</p>
-                    <p className="text-xs text-gray-500">{booking.user?.phone || 'N/A'}</p>
-                  </td>
+              {currentBookings.length > 0 ? currentBookings.map(booking => {
+                const isAgentBooking = booking.bookedByModel === 'Agent' || !!booking.agent;
+                return (
+                  <tr key={booking._id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <p className="font-bold text-gray-800 text-xs mb-1">#{booking._id.slice(-8).toUpperCase()}</p>
+                      <p className="text-xs text-gray-500">{new Date(booking.pickupDate).toLocaleDateString()} {booking.pickupTime}</p>
+                    </td>
+                    
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {isAgentBooking ? (
+                        <div className="space-y-1.5 min-w-[200px]">
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200">
+                            <FaUserTie size={10} /> Agent Booking
+                          </span>
+                          <div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-[11px] font-bold text-gray-500">Agent:</span>
+                              <span className="text-xs font-semibold text-gray-900">{booking.agent?.name || 'Agent'}</span>
+                            </div>
+                            <p className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
+                              <FaPhoneAlt size={9} className="text-purple-600" />
+                              <a href={`tel:${booking.agent?.phone}`} className="hover:underline text-gray-700 font-medium">
+                                {booking.agent?.phone || 'N/A'}
+                              </a>
+                            </p>
+                          </div>
+                          <div className="pt-1 border-t border-gray-100">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[11px] font-bold text-gray-500">Customer:</span>
+                              <span className="text-xs font-semibold text-gray-900">{booking.customerName || 'N/A'}</span>
+                            </div>
+                            <p className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
+                              <FaPhoneAlt size={9} className="text-emerald-600" />
+                              <a href={`tel:${booking.customerPhone}`} className="hover:underline text-gray-700 font-medium">
+                                {booking.customerPhone || 'N/A'}
+                              </a>
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5 min-w-[180px]">
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-100 text-blue-700 border border-blue-200">
+                            <FaUser size={10} /> Direct User
+                          </span>
+                          <div>
+                            <p className="text-xs font-semibold text-gray-900">
+                              {booking.user?.name || booking.customerName || 'User'}
+                            </p>
+                            <p className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
+                              <FaPhoneAlt size={9} className="text-blue-600" />
+                              <a href={`tel:${booking.user?.phone || booking.customerPhone}`} className="hover:underline text-gray-700 font-medium">
+                                {booking.user?.phone || booking.customerPhone || 'N/A'}
+                              </a>
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </td>
 
-                  <td className="px-6 py-4 min-w-[250px]">
-                    <div className="flex items-start gap-2 mb-2">
-                      <div className="w-2 h-2 mt-1.5 rounded-full bg-green-500 shrink-0"></div>
-                      <p className="text-xs text-gray-800 line-clamp-1" title={booking.pickupLocation}>{booking.pickupLocation}</p>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="w-2 h-2 mt-1.5 rounded-full bg-red-500 shrink-0"></div>
-                      <p className="text-xs text-gray-800 line-clamp-1" title={booking.dropLocation}>{booking.dropLocation}</p>
-                    </div>
-                  </td>
-
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {booking.assignedDriver ? (
-                      <div>
-                        <p className="font-semibold text-gray-800">{booking.assignedDriver.name}</p>
-                        <p className="text-xs text-gray-500">{booking.assignedDriver.phone}</p>
+                    <td className="px-6 py-4 min-w-[250px]">
+                      <div className="flex items-start gap-2 mb-2">
+                        <div className="w-2 h-2 mt-1.5 rounded-full bg-green-500 shrink-0"></div>
+                        <p className="text-xs text-gray-800 line-clamp-1" title={booking.pickupLocation}>{booking.pickupLocation}</p>
                       </div>
-                    ) : (
-                      <span className="text-gray-400 italic text-xs">Unassigned</span>
-                    )}
-                  </td>
+                      <div className="flex items-start gap-2">
+                        <div className="w-2 h-2 mt-1.5 rounded-full bg-red-500 shrink-0"></div>
+                        <p className="text-xs text-gray-800 line-clamp-1" title={booking.dropLocation}>{booking.dropLocation}</p>
+                      </div>
+                    </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {getStatusBadge(booking.status)}
-                  </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {booking.assignedDriver ? (
+                        <div>
+                          <p className="font-semibold text-gray-800">{booking.assignedDriver.name}</p>
+                          <p className="text-xs text-gray-500">{booking.assignedDriver.phone}</p>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 italic text-xs">Unassigned</span>
+                      )}
+                    </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <p className="font-bold text-[10px] uppercase text-gray-500 mb-1">{booking.paymentMethod}</p>
-                    {getPaymentStatusBadge(booking.paymentStatus, booking.paymentMethod)}
-                  </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getStatusBadge(booking.status)}
+                    </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <p className="text-gray-800 font-bold">₹{(booking.totalWithTax || booking.price)?.toLocaleString('en-IN')}</p>
-                    <p className="text-gray-400 text-[10px] font-semibold mt-0.5">Base: ₹{booking.price}</p>
-                    <p className="text-indigo-600 text-xs font-semibold mt-0.5">Comm: ₹{booking.adminCommission}</p>
-                  </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <p className="font-bold text-[10px] uppercase text-gray-500 mb-1">{booking.paymentMethod}</p>
+                      {getPaymentStatusBadge(booking.paymentStatus, booking.paymentMethod)}
+                    </td>
 
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button 
-                      onClick={() => handleDelete(booking._id)}
-                      className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors shadow-sm border border-red-200"
-                      title="Delete Booking"
-                    >
-                      <FaTrash size={14} />
-                    </button>
-                  </td>
-                </tr>
-              )) : (
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <p className="text-gray-800 font-bold">₹{(booking.totalWithTax || booking.price)?.toLocaleString('en-IN')}</p>
+                      <p className="text-gray-400 text-[10px] font-semibold mt-0.5">Base: ₹{booking.price}</p>
+                      <p className="text-indigo-600 text-xs font-semibold mt-0.5">Comm: ₹{booking.adminCommission}</p>
+                    </td>
+
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <button 
+                        onClick={() => handleDelete(booking._id)}
+                        className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors shadow-sm border border-red-200"
+                        title="Delete Booking"
+                      >
+                        <FaTrash size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              }) : (
                 <tr>
-                  <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
                     No package bookings found.
                   </td>
                 </tr>

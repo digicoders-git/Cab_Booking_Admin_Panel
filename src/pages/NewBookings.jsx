@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { getNewBookingsAPI, markAllBookingsReadAPI } from '../apis/admin';
-import { Inbox, CheckCircle2, MapPin, Calendar, Phone, User, Tag } from 'lucide-react';
+import Swal from 'sweetalert2';
+import { getNewBookingsAPI, markAllBookingsReadAPI, markBookingReadAPI, deleteBookingAPI } from '../apis/admin';
+import { Inbox, CheckCircle2, MapPin, Calendar, Phone, User, Tag, Trash2, Check } from 'lucide-react';
 
 const NewBookings = () => {
+    const navigate = useNavigate();
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [marking, setMarking] = useState(false);
@@ -42,6 +45,42 @@ const NewBookings = () => {
         }
     };
 
+    const handleMarkSingleRead = async (id, type) => {
+        try {
+            const res = await markBookingReadAPI(id, type);
+            if (res.success) {
+                toast.success(res.message);
+                setBookings(bookings.filter(b => b._id !== id));
+            }
+        } catch (error) {
+            toast.error("Failed to mark booking as read");
+        }
+    };
+
+    const handleDeleteBooking = async (id, type) => {
+        const result = await Swal.fire({
+            title: "Are you sure?",
+            text: "You won't be able to revert this!",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#d33",
+            cancelButtonColor: "#3085d6",
+            confirmButtonText: "Yes, delete it!"
+        });
+
+        if (!result.isConfirmed) return;
+
+        try {
+            const res = await deleteBookingAPI(id, type);
+            if (res.success) {
+                toast.success(res.message);
+                setBookings(bookings.filter(b => b._id !== id));
+            }
+        } catch (error) {
+            toast.error("Failed to delete booking");
+        }
+    };
+
     const getBadgeColor = (type) => {
         switch (type) {
             case 'Normal Booking': return 'bg-blue-100 text-blue-800';
@@ -49,6 +88,16 @@ const NewBookings = () => {
             case 'Fixed Package': return 'bg-orange-100 text-orange-800';
             case 'Agent Lead': return 'bg-green-100 text-green-800';
             default: return 'bg-gray-100 text-gray-800';
+        }
+    };
+
+    const handleCardClick = (type) => {
+        switch (type) {
+            case 'Normal Booking': navigate('/bookings/manage'); break;
+            case 'Bulk Booking': navigate('/bulk-booking/history'); break;
+            case 'Fixed Package': navigate('/fixed-routes/bookings'); break;
+            case 'Agent Lead': navigate('/agent-leads/manage'); break;
+            default: break;
         }
     };
 
@@ -93,7 +142,11 @@ const NewBookings = () => {
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {bookings.map((booking) => (
-                            <div key={booking._id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
+                            <div 
+                                key={booking._id} 
+                                onClick={() => handleCardClick(booking.type)}
+                                className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow cursor-pointer"
+                            >
                                 <div className="flex justify-between items-start mb-4 pb-4 border-b border-gray-50">
                                     <div className="flex items-center gap-3">
                                         <div className="p-2 bg-gray-50 rounded-lg">
@@ -134,9 +187,27 @@ const NewBookings = () => {
                                     )}
                                 </div>
 
-                                <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-3 rounded-lg">
-                                    <Calendar className="w-4 h-4" />
-                                    <span>Created: {new Date(booking.date).toLocaleString('en-IN')}</span>
+                                <div className="flex items-center justify-between mt-4 border-t border-gray-50 pt-4">
+                                    <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 p-2 rounded-lg">
+                                        <Calendar className="w-4 h-4" />
+                                        <span>Created: {new Date(booking.date).toLocaleString('en-IN')}</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); handleMarkSingleRead(booking._id, booking.type); }}
+                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                            title="Mark as Read"
+                                        >
+                                            <Check className="w-5 h-5" />
+                                        </button>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); handleDeleteBooking(booking._id, booking.type); }}
+                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="Delete Booking"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         ))}

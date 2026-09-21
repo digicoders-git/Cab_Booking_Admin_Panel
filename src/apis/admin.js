@@ -108,3 +108,13 @@ export const markAllBookingsReadAPI = async () => {
     const response = await http.put('/api/admin/mark-bookings-read');
     return response.data;
 };
+
+export const markBookingReadAPI = async (id, type) => {
+    const response = await http.put(`/api/admin/mark-booking-read/${id}`, { type });
+    return response.data;
+};
+
+export const deleteBookingAPI = async (id, type) => {
+    const response = await http.delete(`/api/admin/booking/${id}`, { data: { type } });
+    return response.data;
+};

@@ -7,6 +7,8 @@ import {
   FaClock, 
   FaMoneyBillWave, 
   FaUserTie, 
+  FaUser,
+  FaPhoneAlt,
   FaTrash, 
   FaSearch, 
   FaTimes, 
@@ -288,7 +290,13 @@ const FixedRouteMarketplace = () => {
         const carCat = (booking.carCategory?.name || '').toLowerCase();
         const bookingId = (booking.bookingId || booking._id || '').toLowerCase();
 
-        const matches = pickup.includes(q) || drop.includes(q) || routeName.includes(q) || carCat.includes(q) || bookingId.includes(q);
+        const matches = pickup.includes(q) || drop.includes(q) || routeName.includes(q) || carCat.includes(q) || bookingId.includes(q) ||
+                        (booking.customerName || '').toLowerCase().includes(q) ||
+                        (booking.customerPhone || '').toLowerCase().includes(q) ||
+                        (booking.agent?.name || '').toLowerCase().includes(q) ||
+                        (booking.agent?.phone || '').toLowerCase().includes(q) ||
+                        (booking.user?.name || '').toLowerCase().includes(q) ||
+                        (booking.user?.phone || '').toLowerCase().includes(q);
         if (!matches) return false;
       }
 
@@ -348,31 +356,29 @@ const FixedRouteMarketplace = () => {
           {/* Radius Selector */}
           <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-200 flex-shrink-0">
             <FaCompass className="text-indigo-500 text-xs" />
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Radius:</label>
             <select
               value={radiusKm}
               onChange={(e) => setRadiusKm(e.target.value)}
-              className="border-none bg-transparent text-sm text-gray-800 font-bold focus:outline-none cursor-pointer"
+              className="text-xs font-semibold text-gray-700 bg-transparent focus:outline-none cursor-pointer"
             >
-              <option value="5">Within 5 km</option>
-              <option value="10">Within 10 km</option>
-              <option value="25">Within 25 km</option>
-              <option value="50">Within 50 km</option>
-              <option value="100">Within 100 km</option>
-              <option value="200">Within 200 km</option>
+              <option value="5">Within 5 KM</option>
+              <option value="10">Within 10 KM</option>
+              <option value="25">Within 25 KM</option>
+              <option value="50">Within 50 KM</option>
+              <option value="100">Within 100 KM</option>
               <option value="all">Any Distance</option>
             </select>
           </div>
 
-          {/* Date Filter */}
+          {/* Period Filter Dropdown */}
           <div className="flex items-center space-x-2 bg-white px-3 py-2 rounded-xl shadow-sm border border-gray-200 flex-shrink-0">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Date:</label>
-            <select
-              value={filterPeriod}
+            <FaClock className="text-indigo-500 text-xs" />
+            <select 
+              value={filterPeriod} 
               onChange={(e) => setFilterPeriod(e.target.value)}
-              className="border-none bg-transparent text-sm text-gray-700 font-medium focus:outline-none cursor-pointer"
+              className="text-xs font-semibold text-gray-700 bg-transparent focus:outline-none cursor-pointer"
             >
-              <option value="all">All Dates</option>
+              <option value="all">All Time</option>
               <option value="day">Today</option>
               <option value="week">This Week</option>
               <option value="month">This Month</option>
@@ -418,94 +424,145 @@ const FixedRouteMarketplace = () => {
       )}
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredBookings.map(booking => (
-          <div key={booking._id} className="bg-white rounded-2xl p-0 shadow-sm border border-gray-200 hover:border-indigo-400 hover:shadow-xl transition-all duration-300 group flex flex-col overflow-hidden">
-            {/* Card Header */}
-            <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-gray-50 to-white">
-              <div className="flex items-center space-x-2 text-gray-700 font-semibold">
-                <FaCar className="text-indigo-500 text-lg" />
-                <span className="truncate">{booking.carCategory?.name || 'Any Car'}</span>
-              </div>
-              <div className="flex items-center space-x-3">
-                <span className={`px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase border ${booking.paymentMethod === 'CASH' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-green-50 text-green-600 border-green-200'}`}>
-                  {booking.paymentMethod}
-                </span>
-                <button 
-                  onClick={() => handleDeleteBooking(booking._id)}
-                  className="text-red-400 hover:text-red-600 transition-colors p-1"
-                  title="Delete Booking"
-                >
-                  <FaTrash />
-                </button>
-              </div>
-            </div>
-
-            {/* Distance Badge if location search is active */}
-            {booking.distanceKm !== null && (
-              <div className="mx-5 mt-3 px-3 py-1.5 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-lg flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1.5 font-semibold text-emerald-800">
-                  <FaMapMarkerAlt className="text-emerald-600" />
-                  Distance from Searched Point:
-                </span>
-                <span className="font-extrabold bg-emerald-600 text-white px-2 py-0.5 rounded-md text-[11px] shadow-xs">
-                  {booking.distanceKm} KM
-                </span>
-              </div>
-            )}
-            
-            {/* Card Body - Route Details */}
-            <div className="p-6 flex-grow bg-white">
-              <div className="relative pl-6 space-y-5 mb-6">
-                {/* Vertical Line indicator */}
-                <div className="absolute left-[0.4rem] top-2 bottom-2 w-0.5 bg-gray-200 rounded-full"></div>
-                
-                {/* Pickup */}
-                <div className="relative">
-                  <div className="absolute -left-[1.65rem] top-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white z-10 shadow-sm"></div>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Pickup</p>
-                  <p className="text-gray-800 text-sm font-medium line-clamp-2" title={booking.pickupLocation}>
-                    {booking.pickupLocation}
-                  </p>
+        {filteredBookings.map(booking => {
+          const isAgent = booking.bookedByModel === 'Agent' || !!booking.agent;
+          return (
+            <div key={booking._id} className="bg-white rounded-2xl p-0 shadow-sm border border-gray-200 hover:border-indigo-400 hover:shadow-xl transition-all duration-300 group flex flex-col overflow-hidden">
+              {/* Card Header */}
+              <div className="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gradient-to-r from-gray-50 to-white">
+                <div className="flex items-center space-x-2 text-gray-700 font-semibold">
+                  <FaCar className="text-indigo-500 text-lg" />
+                  <span className="truncate">{booking.carCategory?.name || 'Any Car'}</span>
                 </div>
-
-                {/* Drop */}
-                <div className="relative">
-                  <div className="absolute -left-[1.65rem] top-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white z-10 shadow-sm"></div>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Drop</p>
-                  <p className="text-gray-800 text-sm font-medium line-clamp-2" title={booking.dropLocation}>
-                    {booking.dropLocation}
-                  </p>
+                <div className="flex items-center space-x-3">
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase border ${booking.paymentMethod === 'CASH' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-green-50 text-green-600 border-green-200'}`}>
+                    {booking.paymentMethod}
+                  </span>
+                  <button 
+                    onClick={() => handleDeleteBooking(booking._id)}
+                    className="text-red-400 hover:text-red-600 transition-colors p-1"
+                    title="Delete Booking"
+                  >
+                    <FaTrash />
+                  </button>
                 </div>
               </div>
 
-              {/* Time & Price Info */}
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-3">
-                <div className="flex justify-between items-center text-sm">
-                  <div className="flex items-center text-gray-500 font-medium">
-                    <FaClock className="mr-2 text-gray-400" /> Date & Time
+              {/* Distance Badge if location search is active */}
+              {booking.distanceKm !== null && (
+                <div className="mx-5 mt-3 px-3 py-1.5 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-lg flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-1.5 font-semibold text-emerald-800">
+                    <FaMapMarkerAlt className="text-emerald-600" />
+                    Distance from Searched Point:
+                  </span>
+                  <span className="font-extrabold bg-emerald-600 text-white px-2 py-0.5 rounded-md text-[11px] shadow-xs">
+                    {booking.distanceKm} KM
+                  </span>
+                </div>
+              )}
+              
+              {/* Card Body - Route Details */}
+              <div className="p-6 flex-grow bg-white flex flex-col justify-between">
+                <div>
+                  <div className="relative pl-6 space-y-5 mb-5">
+                    {/* Vertical Line indicator */}
+                    <div className="absolute left-[0.4rem] top-2 bottom-2 w-0.5 bg-gray-200 rounded-full"></div>
+                    
+                    {/* Pickup */}
+                    <div className="relative">
+                      <div className="absolute -left-[1.65rem] top-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white z-10 shadow-sm"></div>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Pickup</p>
+                      <p className="text-gray-800 text-sm font-medium line-clamp-2" title={booking.pickupLocation}>
+                        {booking.pickupLocation}
+                      </p>
+                    </div>
+
+                    {/* Drop */}
+                    <div className="relative">
+                      <div className="absolute -left-[1.65rem] top-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white z-10 shadow-sm"></div>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">Drop</p>
+                      <p className="text-gray-800 text-sm font-medium line-clamp-2" title={booking.dropLocation}>
+                        {booking.dropLocation}
+                      </p>
+                    </div>
                   </div>
-                  <span className="text-gray-800 font-bold">{new Date(booking.pickupDate).toLocaleDateString()} at {booking.pickupTime}</span>
+
+                  {/* Booked By & Contact Info */}
+                  <div className={`mb-4 p-3 rounded-xl border ${isAgent ? 'bg-purple-50/70 border-purple-200' : 'bg-blue-50/70 border-blue-200'}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[10px] font-bold ${isAgent ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                        {isAgent ? <FaUserTie size={10} /> : <FaUser size={10} />}
+                        {isAgent ? 'Agent Booking' : 'Direct User'}
+                      </span>
+                    </div>
+
+                    {isAgent ? (
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="border-r border-purple-100 pr-1">
+                          <p className="text-[10px] text-purple-700 font-bold uppercase">Agent Details</p>
+                          <p className="font-semibold text-gray-900 truncate">{booking.agent?.name || 'Agent'}</p>
+                          <p className="text-gray-600 flex items-center gap-1 text-[11px] mt-0.5">
+                            <FaPhoneAlt size={8} className="text-purple-600 shrink-0" />
+                            <a href={`tel:${booking.agent?.phone}`} className="hover:underline truncate font-medium">
+                              {booking.agent?.phone || 'N/A'}
+                            </a>
+                          </p>
+                        </div>
+                        <div className="pl-1">
+                          <p className="text-[10px] text-emerald-700 font-bold uppercase">Customer Details</p>
+                          <p className="font-semibold text-gray-900 truncate">{booking.customerName || 'N/A'}</p>
+                          <p className="text-gray-600 flex items-center gap-1 text-[11px] mt-0.5">
+                            <FaPhoneAlt size={8} className="text-emerald-600 shrink-0" />
+                            <a href={`tel:${booking.customerPhone}`} className="hover:underline truncate font-medium">
+                              {booking.customerPhone || 'N/A'}
+                            </a>
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-xs">
+                        <p className="text-[10px] text-blue-700 font-bold uppercase">Customer Details</p>
+                        <p className="font-semibold text-gray-900">{booking.user?.name || booking.customerName || 'User'}</p>
+                        <p className="text-gray-600 flex items-center gap-1 text-[11px] mt-0.5">
+                          <FaPhoneAlt size={8} className="text-blue-600 shrink-0" />
+                          <a href={`tel:${booking.user?.phone || booking.customerPhone}`} className="hover:underline font-medium">
+                            {booking.user?.phone || booking.customerPhone || 'N/A'}
+                          </a>
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                
-                <div className="border-t border-gray-200 pt-3 flex justify-between items-end">
-                   <div>
-                      <p className="text-[11px] text-gray-500 font-medium mb-0.5">Total Fare (Incl. GST)</p>
-                      <p className="text-green-600 font-bold text-xl flex items-center">
-                        ₹{(booking.totalWithTax || booking.price)?.toLocaleString('en-IN')}
-                      </p>
-                      <p className="text-[10px] text-gray-400 font-medium">Base: ₹{booking.price}</p>
-                   </div>
-                   <div className="text-right">
-                      <p className="text-[11px] text-gray-500 font-medium mb-0.5">Admin Comm.</p>
-                      <p className="text-indigo-600 font-bold text-lg">
-                        ₹{booking.adminCommission}
-                      </p>
-                   </div>
+
+                {/* Time & Price Info */}
+                <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 space-y-3">
+                  <div className="flex justify-between items-center text-sm">
+                    <div className="flex items-center text-gray-500 font-medium">
+                      <FaClock className="mr-2 text-gray-400" /> Date & Time
+                    </div>
+                    <span className="text-gray-800 font-bold">{new Date(booking.pickupDate).toLocaleDateString()} at {booking.pickupTime}</span>
+                  </div>
+                  
+                  <div className="border-t border-gray-200 pt-3 flex justify-between items-end">
+                     <div>
+                        <p className="text-[11px] text-gray-500 font-medium mb-0.5">Total Fare (Incl. GST)</p>
+                        <p className="text-green-600 font-bold text-xl flex items-center">
+                          ₹{(booking.totalWithTax || booking.price)?.toLocaleString('en-IN')}
+                        </p>
+                        <p className="text-[10px] text-gray-400 font-medium">Base: ₹{booking.price}</p>
+                     </div>
+                     <div className="text-right">
+                        <p className="text-[11px] text-gray-500 font-medium mb-0.5">Admin Comm.</p>
+                        <p className="text-indigo-600 font-bold text-lg">
+                          ₹{booking.adminCommission}
+                        </p>
+                     </div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
 
         {filteredBookings.length === 0 && (
           <div className="col-span-full py-16 text-center bg-white rounded-2xl border border-gray-200 shadow-sm p-8">

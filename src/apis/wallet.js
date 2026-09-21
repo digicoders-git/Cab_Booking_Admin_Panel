@@ -39,3 +39,9 @@ export const addManualBalance = async (targetUserId, targetUserModel, amount, de
   });
   return res.data;
 };
+
+export const getCustomerStatement = async (userId, userModel) => {
+  const res = await http.get(`/api/wallet/admin/customer-statement/${userId}${userModel ? `?userModel=${userModel}` : ''}`);
+  return res.data;
+};
+

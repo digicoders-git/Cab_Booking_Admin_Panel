@@ -829,8 +829,18 @@ export default function ManageBookings() {
                             )}
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-gray-900">{b.user?.name || b.agent?.name || 'Self'}</p>
-                            <p className="text-xs text-gray-500">{b.agent ? 'Agent' : 'Direct'}</p>
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-sm font-medium text-gray-900">{b.agent?.name || b.user?.name || 'Self'}</p>
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${b.agent ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-blue-100 text-blue-700 border border-blue-200'}`}>
+                                {b.agent ? 'Agent' : 'Direct'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                              <Phone size={10} className={b.agent ? "text-purple-500" : "text-blue-500"} />
+                              <a href={`tel:${b.agent?.phone || b.user?.phone}`} className="hover:underline">
+                                {b.agent?.phone || b.user?.phone || 'N/A'}
+                              </a>
+                            </p>
                           </div>
                         </div>
                       </td>

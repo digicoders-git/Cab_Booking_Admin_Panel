@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
+import http from "../apis/http";
 import { useAuth } from "../context/AuthContext";
 import { useFont } from "../context/FontContext";
 import {
   getAllDrivers, approveDriver, rejectDriver, updateDriver, toggleDriverStatus, deleteDriver, registerDriver,
-  searchDriversByRadius, searchDriversByHomeRadius, changeDriverOwnership
+  searchDriversByRadius, searchDriversByHomeRadius, changeDriverOwnership, getDriverFullHistory
 } from "../apis/driver";
 import { getAllVendors } from "../apis/vendor";
 import { toggleDriverOnline } from "../apis/admin";
@@ -25,14 +27,16 @@ import {
   FaMoneyBillWave, FaRoute, FaUsers, FaCouch, FaCircle, FaCalendarAlt, FaChevronLeft, FaChevronRight, FaStar, FaTrash,
   FaBan, FaMapMarkerAlt, FaLandmark, FaPalette, FaHistory, FaGlobe, FaClock, FaFileInvoice, FaHome,
   FaChartPie, FaChartBar, FaChartLine, FaChartArea, FaDownload, FaFilter, FaPrint, FaFilePdf, FaFileExcel,
-  FaGasPump, FaCogs, FaChair, FaPallet, FaWrench, FaShieldAlt, FaCreditCard, FaExchangeAlt
+  FaGasPump, FaCogs, FaChair, FaPallet, FaWrench, FaShieldAlt, FaCreditCard, FaExchangeAlt, FaTruck
 } from "react-icons/fa";
 import {
   Download, Filter, TrendingUp, DollarSign, Activity,
   PieChart as PieChartIcon, BarChart3, LineChart as LineChartIcon,
   Target, Gauge, Zap, Shield, MoreVertical, DownloadCloud, Printer,
   User, Users, Wallet, Briefcase, MapPin, Clock, Mail, Phone, Calendar,
-  Map, Home, CreditCard, Award, Star as StarIcon, ArrowRightLeft, Building2, Store, Copy
+  Map, Home, CreditCard, Award, Star as StarIcon, ArrowRightLeft, Building2, Store, Copy,
+  ChevronDown, ChevronUp, Car, FileText, CheckCircle2, XCircle, AlertCircle, ArrowUpRight, ArrowDownLeft,
+  RefreshCw, Layers, FileCheck, X, ExternalLink, Eye, ArrowRight, History, Search
 } from 'lucide-react';
 import Swal from "sweetalert2";
 import ReviewsModal from "../components/ReviewsModal";
@@ -70,7 +74,8 @@ const initialForm = {
   lastServiceDate: "", nextServiceDate: "", debtLimit: -500,
   accountNumber: "", ifscCode: "", accountHolderName: "", bankName: "",
   rejectionReason: "",
-  addressLatitude: null, addressLongitude: null
+  addressLatitude: null, addressLongitude: null,
+  leadId: ""
 };
 
 // --- Strategic Visual Components ---
@@ -178,10 +183,42 @@ const SelectField = ({ label, name, value, onChange, options, required = false, 
   );
 };
 
+// Document Image component with proper React error state handling
+const DocImage = ({ fileUrl, docLabel, onPreview }) => {
+  const [imgError, setImgError] = React.useState(false);
+  if (imgError) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-blue-50 text-center p-2 gap-1">
+        <FileText size={22} className="text-blue-400" />
+        <span className="text-[9px] font-bold text-blue-700 uppercase">File Saved</span>
+        <span className="text-[8px] text-blue-500 font-mono break-all leading-tight px-1">{fileUrl?.split('/').pop()}</span>
+      </div>
+    );
+  }
+  return (
+    <>
+      <img
+        src={fileUrl}
+        alt={docLabel}
+        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+        onError={() => setImgError(true)}
+        loading="lazy"
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 flex items-end justify-center transition-opacity pb-2">
+        <span className="text-white text-[10px] font-bold flex items-center gap-1">
+          <Eye size={11} /> View Full
+        </span>
+      </div>
+    </>
+  );
+};
+
 export default function ManageDrivers() {
   const { themeColors } = useTheme();
   const { admin } = useAuth();
   const { currentFont } = useFont();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   // Helper for Granular Permissions
   const can = (permission) => {
@@ -245,6 +282,45 @@ export default function ManageDrivers() {
     submitting: false
   });
 
+  // Driver Details / Inspection Modal States (Task 14)
+  const [driverDetailTab, setDriverDetailTab] = useState('profile'); // 'profile' | 'wallet' | 'rides'
+  const [driverHistoryData, setDriverHistoryData] = useState(null);
+  const [driverHistoryLoading, setDriverHistoryLoading] = useState(false);
+  const [actionDropdownDriverId, setActionDropdownDriverId] = useState(null);
+  const [walletFilterType, setWalletFilterType] = useState('all'); // 'all' | 'Credit' | 'Debit'
+  const [walletSearchQuery, setWalletSearchQuery] = useState('');
+  const [rideDetailTab, setRideDetailTab] = useState('all'); // 'all' | 'city' | 'package'
+  const [rideDetailStatus, setRideDetailStatus] = useState('all');
+  const [rideDetailSearch, setRideDetailSearch] = useState('');
+  const [selectedDocPreview, setSelectedDocPreview] = useState(null);
+
+  const openDriverDetails = async (driver, initialTab = 'profile') => {
+    setViewing(driver);
+    setDriverDetailTab(initialTab);
+    setActionDropdownDriverId(null);
+    setDriverHistoryLoading(true);
+    setDriverHistoryData(null);
+    try {
+      const data = await getDriverFullHistory(driver._id);
+      if (data && data.success) {
+        setDriverHistoryData(data);
+        if (data.driver) {
+          setViewing(data.driver);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading driver full history:", err);
+    } finally {
+      setDriverHistoryLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleCloseDropdown = () => setActionDropdownDriverId(null);
+    window.addEventListener("click", handleCloseDropdown);
+    return () => window.removeEventListener("click", handleCloseDropdown);
+  }, []);
+
   const textColorSecondary = useMemo(() => {
     return themeColors.textSecondary || "rgba(107, 114, 128, 1)";
   }, [themeColors]);
@@ -255,7 +331,20 @@ export default function ManageDrivers() {
 
   useEffect(() => {
     fetchInitialData();
-  }, []);
+    if (location.state?.createFromLead) {
+      const lead = location.state.createFromLead;
+      setIsEditing("new");
+      setEditForm(prev => ({
+        ...prev,
+        name: lead.name || "",
+        phone: lead.mobile || "",
+        email: lead.email || "",
+        leadId: lead._id || ""
+      }));
+      // Clear location state to prevent re-triggering
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state]);
 
   useEffect(() => {
     if (isEditing && addressRef.current && window.google) {
@@ -458,6 +547,7 @@ export default function ManageDrivers() {
     online: textFilteredList.filter(d => d.isOnline).length,
     active: textFilteredList.filter(d => d.isActive).length,
     inactive: textFilteredList.filter(d => d.isApproved && !d.isActive).length,
+    fleet: textFilteredList.filter(d => d.createdByModel === "Fleet").length,
   }), [textFilteredList]);
 
 
@@ -502,6 +592,8 @@ export default function ManageDrivers() {
       list = list.filter(d => !d.isActive);
     } else if (activeTab === "online") {
       list = list.filter(d => d.isOnline);
+    } else if (activeTab === "fleet") {
+      list = list.filter(d => d.createdByModel === "Fleet");
     }
 
     return list;
@@ -1005,6 +1097,15 @@ export default function ManageDrivers() {
           background: themeColors.surface,
           color: themeColors.text
         });
+
+        if (isEditing === "new" && editForm.leadId) {
+          try {
+            await http.delete(`/api/driver-leads/${editForm.leadId}`);
+          } catch (e) {
+            console.error("Failed to delete converted lead", e);
+          }
+        }
+
         setIsEditing(null);
         fetchDrivers();
       } else {
@@ -1280,7 +1381,8 @@ export default function ManageDrivers() {
               { id: "approved", label: "Approved", icon: FaCheckCircle },
               { id: "rejected", label: "Rejected", icon: FaBan },
               { id: "inactive", label: "Inactive", icon: FaTimesCircle },
-              { id: "online", label: "Online", icon: FaCircle }
+              { id: "online", label: "Online", icon: FaCircle },
+              { id: "fleet", label: "Fleet Data", icon: FaTruck }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -1297,7 +1399,8 @@ export default function ManageDrivers() {
                       tab.id === "approved" ? dynamicStats.approved :
                         tab.id === "rejected" ? dynamicStats.rejected :
                           tab.id === "inactive" ? dynamicStats.inactive :
-                            dynamicStats.online}
+                            tab.id === "fleet" ? dynamicStats.fleet :
+                              dynamicStats.online}
                 </span>
               </button>
             ))}
@@ -1574,13 +1677,74 @@ export default function ManageDrivers() {
                             </>
                           )}
                           {can('DRIVER_READ') && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setViewing(d); }}
-                              className="p-1 hover:bg-gray-100 rounded text-blue-600"
-                              title="View"
-                            >
-                              <FaEye size={14} />
-                            </button>
+                            <div className="relative inline-block text-left" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActionDropdownDriverId(actionDropdownDriverId === d._id ? null : d._id);
+                                }}
+                                className={`flex items-center gap-1 px-2.5 py-1 text-xs font-bold rounded-lg border transition-all shadow-xs ${
+                                  actionDropdownDriverId === d._id
+                                    ? 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-500/20'
+                                    : 'bg-white hover:bg-blue-50 text-blue-700 border-blue-200'
+                                }`}
+                                title="Check Driver Details & Lifetime History"
+                              >
+                                <Eye size={12} />
+                                <span>Details</span>
+                                <ChevronDown size={12} className={`transition-transform duration-200 ${actionDropdownDriverId === d._id ? 'rotate-180' : ''}`} />
+                              </button>
+
+                              {/* Dropdown Menu */}
+                              {actionDropdownDriverId === d._id && (
+                                <div 
+                                  className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-xl shadow-[0_15px_40px_rgba(0,0,0,0.18)] border border-gray-200 py-1.5 z-40 animate-in fade-in zoom-in-95 duration-150"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <div className="px-3 py-1.5 border-b border-gray-100 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                                    Check Driver Details
+                                  </div>
+                                  <button
+                                    onClick={() => openDriverDetails(d, 'profile')}
+                                    className="w-full text-left px-3 py-2 text-xs font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2.5 transition-colors"
+                                  >
+                                    <div className="p-1.5 rounded-lg bg-blue-100 text-blue-600 shrink-0">
+                                      <User size={13} />
+                                    </div>
+                                    <div>
+                                      <p className="font-semibold text-gray-900 leading-tight">Profile Details</p>
+                                      <p className="text-[10px] text-gray-500 leading-tight">Personal, Car & Docs</p>
+                                    </div>
+                                  </button>
+
+                                  <button
+                                    onClick={() => openDriverDetails(d, 'wallet')}
+                                    className="w-full text-left px-3 py-2 text-xs font-medium text-gray-700 hover:bg-emerald-50 hover:text-emerald-700 flex items-center gap-2.5 transition-colors"
+                                  >
+                                    <div className="p-1.5 rounded-lg bg-emerald-100 text-emerald-600 shrink-0">
+                                      <Wallet size={13} />
+                                    </div>
+                                    <div>
+                                      <p className="font-semibold text-gray-900 leading-tight">Wallet Details</p>
+                                      <p className="text-[10px] text-gray-500 leading-tight">Balance & Day-1 Txns</p>
+                                    </div>
+                                  </button>
+
+                                  <button
+                                    onClick={() => openDriverDetails(d, 'rides')}
+                                    className="w-full text-left px-3 py-2 text-xs font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 flex items-center gap-2.5 transition-colors"
+                                  >
+                                    <div className="p-1.5 rounded-lg bg-indigo-100 text-indigo-600 shrink-0">
+                                      <Car size={13} />
+                                    </div>
+                                    <div>
+                                      <p className="font-semibold text-gray-900 leading-tight">Ride Details</p>
+                                      <p className="text-[10px] text-gray-500 leading-tight">Day-1 All Rides History</p>
+                                    </div>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           )}
                           {can('DRIVER_EDIT') && (
                             <button
@@ -1909,253 +2073,978 @@ export default function ManageDrivers() {
 
       </div>
 
-      {/* View Modal */}
+      {/* 3-Tab Driver Inspection Modal (Profile, Wallet, Rides from Day 1) */}
       {viewing && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
-              <div className="flex items-center gap-3">
-                <div className="w-20 h-20 rounded-2xl border-4 border-white shadow-xl bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden">
-                  {viewing.image ? (
-                    <img src={`${IMAGE_BASE_URL}${viewing.image}`} alt={viewing.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <FaUserCircle size={32} className="text-blue-600" />
-                  )}
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4 md:p-6 overflow-y-auto">
+          <div className="bg-white rounded-xl w-full max-w-5xl shadow-[0_25px_70px_rgba(0,0,0,0.5)] overflow-hidden my-auto max-h-[92vh] flex flex-col border border-gray-200 animate-in fade-in zoom-in-95 duration-200">
+            
+            {/* Header Banner with Profile & Driver Platform Tenure */}
+            <div className="relative bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 text-white shrink-0 shadow-sm">
+              <button
+                onClick={() => { setViewing(null); setDriverHistoryData(null); }}
+                className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors text-white"
+                title="Close"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5 pr-10">
+                {/* Driver Info */}
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 border-white/20 shadow-md overflow-hidden bg-white/10 flex items-center justify-center shrink-0">
+                    {viewing.image ? (
+                      <img
+                        src={`${IMAGE_BASE_URL}${viewing.image}`}
+                        alt={viewing.name}
+                        className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                        onClick={(e) => { e.stopPropagation(); setSelectedDocPreview(`${IMAGE_BASE_URL}${viewing.image}`); }}
+                        onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling?.style && (e.currentTarget.nextSibling.style.display = 'flex'); }}
+                      />
+                    ) : null}
+                    <User size={36} className="text-white/80" style={{ display: viewing.image ? 'none' : 'block' }} />
+                  </div>
+
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{viewing.name || 'Driver'}</h2>
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                        viewing.isOnline ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-gray-500/20 text-gray-300 border border-gray-500/30'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${viewing.isOnline ? 'bg-emerald-400' : 'bg-gray-400'}`} />
+                        {viewing.isOnline ? 'Online' : 'Offline'}
+                      </span>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        viewing.isApproved ? 'bg-green-500/20 text-green-300 border border-green-500/30' :
+                        viewing.isRejected ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
+                        'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
+                      }`}>
+                        {viewing.isApproved ? 'Approved' : viewing.isRejected ? 'Rejected' : 'Pending Approval'}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-indigo-200/80 font-mono">
+                      <span>Driver ID: #{viewing._id?.slice(-8)}</span>
+                      <span>•</span>
+                      <span>Vehicle: {viewing.carDetails?.carModel || viewing.carModel || 'Standard'} ({viewing.carDetails?.carNumber || viewing.carNumber || 'N/A'})</span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-white/80">
+                      <a href={`tel:${viewing.phone}`} className="flex items-center gap-1.5 hover:text-white transition-colors bg-white/10 hover:bg-white/20 px-2.5 py-1 rounded-lg">
+                        <Phone size={12} className="text-indigo-300" />
+                        <span>{viewing.phone || 'No phone'}</span>
+                      </a>
+                      {viewing.email && (
+                        <a href={`mailto:${viewing.email}`} className="flex items-center gap-1.5 hover:text-white transition-colors bg-white/10 hover:bg-white/20 px-2.5 py-1 rounded-lg">
+                          <Mail size={12} className="text-indigo-300" />
+                          <span>{viewing.email}</span>
+                        </a>
+                      )}
+                      {viewing.referralCode && (
+                        <span className="flex items-center gap-1 bg-white/10 px-2.5 py-1 rounded-lg text-amber-300 font-mono">
+                          Ref: {viewing.referralCode}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">{viewing.name}</h2>
-                  <p className="text-sm text-gray-500">Driver ID: {viewing._id?.slice(-8)}</p>
+
+                {/* Driver Platform Tenure Card */}
+                <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl p-3.5 flex flex-col min-w-[220px] shadow-sm">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Clock size={14} className="text-amber-400" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300">Driver Tenure</span>
+                  </div>
+                  <p className="text-base sm:text-lg font-black text-white">
+                    {driverHistoryData?.tenure?.tenureText || `${Math.max(0, Math.ceil((new Date() - new Date(viewing.createdAt)) / (1000 * 60 * 60 * 24)))} Days`}
+                  </p>
+                  <p className="text-[11px] text-indigo-200/70 flex items-center gap-1 mt-0.5">
+                    <Calendar size={11} />
+                    Joined: {new Date(viewing.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </p>
                 </div>
               </div>
-              <button onClick={() => setViewing(null)} className="p-2 hover:bg-gray-100 rounded-lg">
-                <FaTimes size={18} className="text-gray-500" />
-              </button>
+
+              {/* Quick Metrics KPI Bar */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mt-5 pt-4 border-t border-white/10">
+                <div className="bg-white/5 border border-white/10 rounded-lg p-2.5">
+                  <span className="text-[10px] text-white/60 uppercase font-bold tracking-wider">Total Trips</span>
+                  <p className="text-base font-black text-white mt-0.5">
+                    {driverHistoryLoading ? '...' : (driverHistoryData?.rides?.totalRides ?? viewing.totalTrips ?? 0)}
+                  </p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-lg p-2.5">
+                  <span className="text-[10px] text-white/60 uppercase font-bold tracking-wider">Completed Rides</span>
+                  <p className="text-base font-black text-emerald-400 mt-0.5">
+                    {driverHistoryLoading ? '...' : (driverHistoryData?.rides?.completedRides ?? 0)}
+                  </p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-lg p-2.5">
+                  <span className="text-[10px] text-white/60 uppercase font-bold tracking-wider">Total Earnings</span>
+                  <p className="text-base font-black text-white mt-0.5">
+                    ₹{((driverHistoryData?.wallet?.totalEarnings ?? viewing.totalEarnings) || 0).toLocaleString('en-IN')}
+                  </p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-lg p-2.5">
+                  <span className="text-[10px] text-indigo-300 uppercase font-bold tracking-wider">Wallet Balance</span>
+                  <p className={`text-base font-black mt-0.5 ${((driverHistoryData?.wallet?.walletBalance ?? viewing.walletBalance) || 0) < 0 ? 'text-rose-400' : 'text-emerald-300'}`}>
+                    ₹{((driverHistoryData?.wallet?.walletBalance ?? viewing.walletBalance) || 0).toLocaleString('en-IN')}
+                  </p>
+                </div>
+                <div className="bg-white/5 border border-white/10 rounded-lg p-2.5">
+                  <span className="text-[10px] text-amber-300 uppercase font-bold tracking-wider">Rating</span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <StarIcon size={14} className="fill-amber-400 text-amber-400" />
+                    <span className="text-base font-black text-white">{viewing.rating ? Number(viewing.rating).toFixed(1) : 'New'}</span>
+                    <span className="text-[10px] text-white/60">({viewing.totalRatings || 0})</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="p-6">
-              {/* Quick Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
-                <div className="p-3 bg-blue-50 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-1">Rating</p>
-                  <div className="flex items-center gap-1">
-                    <FaStar className="text-yellow-400" size={14} />
-                    <p className="text-base font-bold text-gray-900">{viewing.rating || '0.0'}</p>
-                  </div>
-                </div>
-                <div className="p-3 bg-green-50 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-1">Earnings</p>
-                  <p className="text-base font-bold text-green-600">₹{viewing.totalEarnings || 0}</p>
-                </div>
-                <div className="p-3 bg-purple-50 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-1">Trips</p>
-                  <p className="text-base font-bold text-purple-600">{viewing.totalTrips || 0}</p>
-                </div>
-                <div className="p-3 bg-orange-50 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-1">Wallet</p>
-                  <p className="text-base font-bold text-orange-600">₹{viewing.walletBalance || 0}</p>
-                </div>
-                <div className="p-3 bg-red-50 rounded-lg">
-                  <p className="text-xs text-gray-500 mb-1">Debt Limit</p>
-                  <div className="flex items-center gap-1">
-                    <FaMoneyBillWave className="text-red-500" size={14} />
-                    <p className="text-base font-bold text-red-600">₹{viewing.debtLimit || -500}</p>
-                  </div>
-                </div>
+            {/* Navigation Tabs (Profile, Wallet, Rides) */}
+            <div className="bg-white px-6 py-2.5 border-b border-gray-200 flex items-center justify-between gap-4 shrink-0 shadow-xs">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setDriverDetailTab('profile')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                    driverDetailTab === 'profile'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  <User size={14} />
+                  <span>Profile Details</span>
+                </button>
+
+                <button
+                  onClick={() => setDriverDetailTab('wallet')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                    driverDetailTab === 'wallet'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  <Wallet size={14} />
+                  <span>Wallet & Transactions</span>
+                  {driverHistoryData?.wallet?.transactions && (
+                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                      driverDetailTab === 'wallet' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-700'
+                    }`}>
+                      {driverHistoryData.wallet.transactions.length}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setDriverDetailTab('rides')}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                    driverDetailTab === 'rides'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  <Car size={14} />
+                  <span>Ride History (Day 1)</span>
+                  {driverHistoryData?.rides?.allRides && (
+                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                      driverDetailTab === 'rides' ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-700'
+                    }`}>
+                      {driverHistoryData.rides.allRides.length}
+                    </span>
+                  )}
+                </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Personal Details */}
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Personal Details</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Email:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.email}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Phone:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.phone}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">License:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.licenseNumber || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Expiry:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.licenseExpiry ? new Date(viewing.licenseExpiry).toLocaleDateString() : 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Aadhar:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.aadharNumber || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">PAN:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.panNumber || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Address:</span>
-                      <span className="text-sm font-medium text-gray-900 text-right">{viewing.address}, {viewing.city} - {viewing.pincode}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Vehicle Details */}
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Vehicle Details</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Model:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.carDetails?.carModel || viewing.carModel || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Brand:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.carDetails?.carBrand || viewing.carBrand || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Number:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.carDetails?.carNumber || viewing.carNumber || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Color:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.carDetails?.carColor || viewing.carColor || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Year:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.carDetails?.manufacturingYear || viewing.manufacturingYear || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Seats:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.carDetails?.seatCapacity || viewing.availableSeats || 4}</span>
-                    </div>
-                    <div className="flex justify-between mt-1">
-                      <span className="text-sm text-gray-500">Layout:</span>
-                      <div className="flex flex-wrap gap-1 justify-end">
-                        {(() => {
-                          const carTypeId = viewing.carDetails?.carType || viewing.carType;
-                          let layoutData = viewing.carDetails?.seatLayout;
-                          if (!layoutData && carTypeId && typeof carTypeId === 'object') {
-                            layoutData = carTypeId.seatLayout;
-                          } else if (!layoutData) {
-                            const category = categories.find(c => c._id === carTypeId);
-                            layoutData = category?.seatLayout;
-                          }
-                          let layout = [];
-                          if (layoutData) {
-                            try {
-                              layout = typeof layoutData === 'string' ? JSON.parse(layoutData) : layoutData;
-                            } catch (e) { }
-                          }
-                          return layout && layout.length > 0 ? layout.map((seat, i) => (
-                            <span key={i} className="px-1.5 py-0.5 bg-gray-100 border border-gray-200 shadow-sm rounded text-[10px] text-gray-700">{seat}</span>
-                          )) : <span className="text-sm font-medium text-gray-900">Standard</span>;
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bank Details */}
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Bank Details</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Bank:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.bankDetails?.bankName || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Account:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.bankDetails?.accountNumber || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">IFSC:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.bankDetails?.ifscCode || 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Holder:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.bankDetails?.accountHolderName || 'N/A'}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Expiry Dates */}
-                <div className="space-y-3">
-                  <h3 className="text-sm font-semibold text-gray-700 border-b pb-2">Expiry & Status</h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Insurance:</span>
-                      <span className={`text-sm font-medium ${new Date(viewing.carDetails?.insuranceExpiry) < new Date() ? 'text-red-500' : 'text-gray-900'}`}>{viewing.carDetails?.insuranceExpiry ? new Date(viewing.carDetails.insuranceExpiry).toLocaleDateString() : 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">Permit:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.carDetails?.permitExpiry ? new Date(viewing.carDetails.permitExpiry).toLocaleDateString() : 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">PUC:</span>
-                      <span className="text-sm font-medium text-gray-900">{viewing.carDetails?.pucExpiry ? new Date(viewing.carDetails.pucExpiry).toLocaleDateString() : 'N/A'}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Document Images Section */}
-              <div className="mt-8 space-y-4">
-                <h3 className="text-sm font-semibold text-gray-700 border-b pb-2 flex items-center gap-2">
-                  <FaFileInvoice className="text-blue-500" /> Vehicle Documents (Images)
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  {[
-                    { label: 'RC Front', key: 'rc' },
-                    { label: 'Insurance', key: 'insurance' },
-                    { label: 'Permit', key: 'permit' },
-                    { label: 'PUC', key: 'puc' }
-                  ].map((doc) => (
-                    <div key={doc.key} className="space-y-2">
-                      <p className="text-[10px] font-medium text-gray-500 text-center uppercase tracking-wider">{doc.label}</p>
-                      <div className="aspect-[4/3] rounded-lg border border-gray-200 bg-gray-50 overflow-hidden relative group cursor-pointer"
-                        onClick={() => window.open(`${IMAGE_BASE_URL}${viewing.carDetails?.carDocuments?.[doc.key]}`, '_blank')}>
-                        {viewing.carDetails?.carDocuments?.[doc.key] ? (
-                          <img
-                            src={`${IMAGE_BASE_URL}${viewing.carDetails.carDocuments[doc.key]}`}
-                            alt={doc.label}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-gray-300">
-                            <FaBan size={20} />
-                            <span className="text-[9px] mt-1 uppercase">No File</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Rejection Reason if any */}
-              {viewing.isRejected && viewing.rejectionReason && (
-                <div className="mt-6 p-4 bg-red-50 border border-red-100 rounded-xl">
-                  <h4 className="text-xs font-bold text-red-700 uppercase tracking-wider mb-1">Rejection Reason</h4>
-                  <p className="text-sm text-red-600">{viewing.rejectionReason}</p>
-                </div>
+              {can('DRIVER_EDIT') && (
+                <button
+                  onClick={() => {
+                    const d = viewing;
+                    setViewing(null);
+                    handleOpenEdit(d);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 transition-colors"
+                >
+                  <FaEdit size={12} />
+                  <span>Edit Driver</span>
+                </button>
               )}
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3 sticky bottom-0 bg-white">
+            {/* Modal Body Content (Scrollable) */}
+            <div className="p-5 sm:p-6 flex-1 overflow-y-auto bg-gray-50/50">
+              {driverHistoryLoading ? (
+                <div className="py-16 text-center">
+                  <RefreshCw size={28} className="animate-spin text-blue-600 mx-auto mb-3" />
+                  <p className="text-sm font-semibold text-gray-600">Loading driver history & transactions from Day 1...</p>
+                </div>
+              ) : (
+                <>
+                  {/* TAB 1: PROFILE DETAILS */}
+                  {driverDetailTab === 'profile' && (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        {/* Personal Details */}
+                        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-xs space-y-3">
+                          <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider pb-2 border-b border-gray-100 flex items-center gap-2">
+                            <User size={14} className="text-blue-600" />
+                            Personal Information
+                          </h4>
+                          <div className="space-y-2.5 text-xs">
+                            <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                              <span className="text-gray-500">Full Name</span>
+                              <span className="font-semibold text-gray-900">{viewing.name}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                              <span className="text-gray-500">Phone</span>
+                              <span className="font-semibold text-gray-900">{viewing.phone}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                              <span className="text-gray-500">Email</span>
+                              <span className="font-semibold text-gray-900">{viewing.email || '—'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                              <span className="text-gray-500">License Number</span>
+                              <span className="font-semibold text-gray-900 font-mono">{viewing.licenseNumber || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                              <span className="text-gray-500">License Expiry</span>
+                              <span className={`font-semibold ${viewing.licenseExpiry && new Date(viewing.licenseExpiry) < new Date() ? 'text-red-500' : 'text-gray-900'}`}>
+                                {viewing.licenseExpiry ? new Date(viewing.licenseExpiry).toLocaleDateString('en-IN') : 'N/A'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                              <span className="text-gray-500">Aadhar Number</span>
+                              <span className="font-semibold text-gray-900 font-mono">{viewing.aadharNumber || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                              <span className="text-gray-500">PAN Number</span>
+                              <span className="font-semibold text-gray-900 font-mono">{viewing.panNumber || 'N/A'}</span>
+                            </div>
+                            <div className="pt-1">
+                              <span className="text-gray-500 block mb-1">Registered Address</span>
+                              <p className="font-medium text-gray-900 leading-relaxed">
+                                {viewing.address || '—'}{viewing.city ? `, ${viewing.city}` : ''}{viewing.state ? `, ${viewing.state}` : ''}{viewing.pincode ? ` - ${viewing.pincode}` : ''}
+                              </p>
+                              {viewing.addressLatitude && viewing.addressLongitude && (
+                                <a
+                                  href={`https://www.google.com/maps?q=${viewing.addressLatitude},${viewing.addressLongitude}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1.5 mt-2 text-blue-600 hover:text-blue-800 font-semibold"
+                                >
+                                  <MapPin size={12} />
+                                  <span>View on Google Maps</span>
+                                  <ExternalLink size={10} />
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Vehicle & Car Details */}
+                        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-xs space-y-3">
+                          <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider pb-2 border-b border-gray-100 flex items-center gap-2">
+                            <Car size={14} className="text-indigo-600" />
+                            Vehicle Details
+                          </h4>
+                          <div className="space-y-2.5 text-xs">
+                            <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                              <span className="text-gray-500">Brand & Model</span>
+                              <span className="font-semibold text-gray-900">{viewing.carDetails?.carBrand || viewing.carBrand || ''} {viewing.carDetails?.carModel || viewing.carModel || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                              <span className="text-gray-500">Registration Number</span>
+                              <span className="font-semibold text-gray-900 font-mono bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                                {viewing.carDetails?.carNumber || viewing.carNumber || 'N/A'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                              <span className="text-gray-500">Vehicle Type</span>
+                              <span className="font-semibold text-gray-900">{viewing.carDetails?.vehicleType || viewing.vehicleType || 'Car'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                              <span className="text-gray-500">Color</span>
+                              <span className="font-semibold text-gray-900">{viewing.carDetails?.carColor || viewing.carColor || '—'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                              <span className="text-gray-500">Manufacturing Year</span>
+                              <span className="font-semibold text-gray-900">{viewing.carDetails?.manufacturingYear || viewing.manufacturingYear || '—'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                              <span className="text-gray-500">Seating Capacity</span>
+                              <span className="font-semibold text-gray-900">{viewing.carDetails?.seatCapacity || viewing.availableSeats || 4} Persons</span>
+                            </div>
+                            <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                              <span className="text-gray-500">Insurance Expiry</span>
+                              <span className={`font-semibold ${viewing.carDetails?.insuranceExpiry && new Date(viewing.carDetails.insuranceExpiry) < new Date() ? 'text-red-500' : 'text-gray-900'}`}>
+                                {viewing.carDetails?.insuranceExpiry ? new Date(viewing.carDetails.insuranceExpiry).toLocaleDateString('en-IN') : 'N/A'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                              <span className="text-gray-500">Permit Expiry</span>
+                              <span className="font-semibold text-gray-900">{viewing.carDetails?.permitExpiry ? new Date(viewing.carDetails.permitExpiry).toLocaleDateString('en-IN') : 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                              <span className="text-gray-500">PUC Expiry</span>
+                              <span className="font-semibold text-gray-900">{viewing.carDetails?.pucExpiry ? new Date(viewing.carDetails.pucExpiry).toLocaleDateString('en-IN') : 'N/A'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Bank Details & Ownership */}
+                        <div className="space-y-5">
+                          <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-xs space-y-3">
+                            <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider pb-2 border-b border-gray-100 flex items-center gap-2">
+                              <CreditCard size={14} className="text-emerald-600" />
+                              Bank Account
+                            </h4>
+                            <div className="space-y-2.5 text-xs">
+                              <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                                <span className="text-gray-500">Bank Name</span>
+                                <span className="font-semibold text-gray-900">{viewing.bankDetails?.bankName || 'Not Added'}</span>
+                              </div>
+                              <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                                <span className="text-gray-500">Account Number</span>
+                                <span className="font-semibold text-gray-900 font-mono">{viewing.bankDetails?.accountNumber || 'Not Added'}</span>
+                              </div>
+                              <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                                <span className="text-gray-500">IFSC Code</span>
+                                <span className="font-semibold text-gray-900 font-mono">{viewing.bankDetails?.ifscCode || 'Not Added'}</span>
+                              </div>
+                              <div className="flex justify-between items-center py-1 border-b border-gray-50">
+                                <span className="text-gray-500">Account Holder</span>
+                                <span className="font-semibold text-gray-900">{viewing.bankDetails?.accountHolderName || 'Not Added'}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-xs space-y-3">
+                            <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider pb-2 border-b border-gray-100 flex items-center gap-2">
+                              <Building2 size={14} className="text-purple-600" />
+                              Ownership & Account Info
+                            </h4>
+                            <div className="space-y-2 text-xs">
+                              <div className="flex justify-between items-center py-1">
+                                <span className="text-gray-500">Owner Model</span>
+                                <span className="font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                                  {viewing.createdByModel || 'Direct'}
+                                </span>
+                              </div>
+                              {viewing.createdBy && (
+                                <div className="flex justify-between items-center py-1">
+                                  <span className="text-gray-500">Assigned Vendor/Fleet</span>
+                                  <span className="font-semibold text-gray-900">{viewing.createdBy?.companyName || viewing.createdBy?.name || '—'}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between items-center py-1">
+                                <span className="text-gray-500">Debt Limit</span>
+                                <span className="font-semibold text-rose-600">₹{viewing.debtLimit || -500}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Official Documents Gallery - All 8 Documents */}
+                      <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-xs space-y-3">
+                        <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                          <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+                            <FileCheck size={14} className="text-blue-600" />
+                            Driver & Vehicle Documents (Click to inspect)
+                          </h4>
+                          <span className="text-[11px] text-gray-400">4 Document Slots</span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-1">
+                          {(() => {
+                            const docs = [
+                              { 
+                                label: 'RC Book', 
+                                file: viewing.carDetails?.carDocuments?.rc || viewing.rcImage || viewing.carDocuments?.rc || null,
+                                desc: viewing.carDetails?.carNumber || viewing.carNumber || null
+                              },
+                              { 
+                                label: 'Insurance Policy', 
+                                file: viewing.carDetails?.carDocuments?.insurance || viewing.insuranceImage || viewing.carDocuments?.insurance || null,
+                                desc: viewing.carDetails?.insuranceExpiry ? `Exp: ${new Date(viewing.carDetails.insuranceExpiry).toLocaleDateString('en-IN')}` : null
+                              },
+                              { 
+                                label: 'Road Permit', 
+                                file: viewing.carDetails?.carDocuments?.permit || viewing.permitImage || viewing.carDocuments?.permit || null,
+                                desc: viewing.carDetails?.permitExpiry ? `Exp: ${new Date(viewing.carDetails.permitExpiry).toLocaleDateString('en-IN')}` : null
+                              },
+                              { 
+                                label: 'PUC Certificate', 
+                                file: viewing.carDetails?.carDocuments?.puc || viewing.pucImage || viewing.carDocuments?.puc || null,
+                                desc: viewing.carDetails?.pucExpiry ? `Exp: ${new Date(viewing.carDetails.pucExpiry).toLocaleDateString('en-IN')}` : null
+                              }
+                            ];
+                            return docs.map((doc, idx) => {
+                              const fileUrl = doc.file ? `${IMAGE_BASE_URL}${doc.file}` : null;
+                              const uploadedCount = docs.filter(d => d.file).length;
+                              return (
+                                <div key={idx} className="space-y-1.5">
+                                  <div className="text-center">
+                                    <p className="text-[11px] font-bold text-gray-700 uppercase tracking-wider">{doc.label}</p>
+                                    {doc.desc && <p className="text-[10px] text-gray-400 font-mono truncate px-1" title={doc.desc}>{doc.desc}</p>}
+                                  </div>
+                                  <div
+                                    className={`aspect-[4/3] rounded-xl border-2 overflow-hidden relative group transition-all ${
+                                      doc.file 
+                                        ? 'border-blue-200 cursor-pointer hover:border-blue-500 hover:shadow-lg bg-white' 
+                                        : 'border-dashed border-gray-200 bg-gray-50 flex items-center justify-center'
+                                    }`}
+                                    onClick={() => doc.file && setSelectedDocPreview(fileUrl)}
+                                    title={doc.file ? `Click to view ${doc.label}` : `${doc.label} not uploaded`}
+                                  >
+                                    {doc.file ? (
+                                      <DocImage fileUrl={fileUrl} docLabel={doc.label} onPreview={() => setSelectedDocPreview(fileUrl)} />
+                                    ) : (
+                                      <div className="flex flex-col items-center justify-center text-gray-300 p-2 text-center h-full">
+                                        <FaBan size={20} className="text-gray-200" />
+                                        <span className="text-[10px] mt-1.5 font-semibold text-gray-400">Not Uploaded</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  {doc.file && (
+                                    <a
+                                      href={fileUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center justify-center gap-1 text-[10px] text-blue-600 hover:text-blue-800 font-semibold py-0.5 hover:underline"
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <ExternalLink size={10} />
+                                      Open in New Tab
+                                    </a>
+                                  )}
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                        {/* Summary Bar */}
+                        {(() => {
+                          const docs = [
+                            viewing.carDetails?.carDocuments?.rc, viewing.carDetails?.carDocuments?.insurance,
+                            viewing.carDetails?.carDocuments?.permit, viewing.carDetails?.carDocuments?.puc
+                          ];
+                          const uploaded = docs.filter(Boolean).length;
+                          return (
+                            <div className={`mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs`}>
+                              <span className="text-gray-500">
+                                <span className={`font-bold ${uploaded === 4 ? 'text-emerald-600' : uploaded >= 2 ? 'text-amber-600' : 'text-red-500'}`}>{uploaded}/4</span> documents uploaded
+                              </span>
+                              <div className="flex gap-1">
+                                {docs.map((f, i) => (
+                                  <div key={i} className={`w-4 h-1.5 rounded-full ${f ? 'bg-emerald-400' : 'bg-gray-200'}`} />
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Rejection Alert */}
+                      {viewing.isRejected && viewing.rejectionReason && (
+                        <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
+                          <AlertCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-xs font-bold text-red-800 uppercase tracking-wider">Rejection Reason</p>
+                            <p className="text-xs text-red-700 mt-0.5">{viewing.rejectionReason}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* TAB 2: WALLET & DAY-1 TRANSACTIONS */}
+                  {driverDetailTab === 'wallet' && (
+                    <div className="space-y-5">
+                      {/* Wallet Highlights Row */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Current Balance</span>
+                          <p className={`text-xl font-black mt-1 ${((driverHistoryData?.wallet?.walletBalance ?? viewing.walletBalance) || 0) < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                            ₹{((driverHistoryData?.wallet?.walletBalance ?? viewing.walletBalance) || 0).toLocaleString('en-IN')}
+                          </p>
+                          <span className="text-[10px] text-gray-400 mt-1 block">Live wallet balance</span>
+                        </div>
+
+                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Total Credits (+)</span>
+                          <p className="text-xl font-black text-emerald-600 mt-1">
+                            ₹{(driverHistoryData?.wallet?.totalCredits || 0).toLocaleString('en-IN')}
+                          </p>
+                          <span className="text-[10px] text-gray-400 mt-1 block">Earnings & recharges</span>
+                        </div>
+
+                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Total Debits (-)</span>
+                          <p className="text-xl font-black text-rose-600 mt-1">
+                            ₹{(driverHistoryData?.wallet?.totalDebits || 0).toLocaleString('en-IN')}
+                          </p>
+                          <span className="text-[10px] text-gray-400 mt-1 block">Commissions & payouts</span>
+                        </div>
+
+                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Debt Limit</span>
+                          <p className="text-xl font-black text-indigo-600 mt-1">
+                            ₹{(driverHistoryData?.wallet?.debtLimit || -500).toLocaleString('en-IN')}
+                          </p>
+                          <span className="text-[10px] text-gray-400 mt-1 block">Max negative allowed</span>
+                        </div>
+                      </div>
+
+                      {/* Transactions Filters & Search */}
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-gray-200 shadow-xs">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => setWalletFilterType('all')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                              walletFilterType === 'all' ? 'bg-slate-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            All Txns ({driverHistoryData?.wallet?.transactions?.length || 0})
+                          </button>
+                          <button
+                            onClick={() => setWalletFilterType('Credit')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                              walletFilterType === 'Credit' ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                            }`}
+                          >
+                            Credits Only (+)
+                          </button>
+                          <button
+                            onClick={() => setWalletFilterType('Debit')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                              walletFilterType === 'Debit' ? 'bg-rose-600 text-white' : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
+                            }`}
+                          >
+                            Debits Only (-)
+                          </button>
+                        </div>
+
+                        <div className="relative w-full sm:w-64">
+                          <Search size={14} className="absolute left-3 top-2.5 text-gray-400" />
+                          <input
+                            type="text"
+                            placeholder="Search category, note, ID..."
+                            value={walletSearchQuery}
+                            onChange={(e) => setWalletSearchQuery(e.target.value)}
+                            className="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Transactions Table from Day 1 */}
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-xs overflow-hidden">
+                        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-2">
+                            <History size={14} className="text-blue-600" />
+                            Lifetime Transactions History (Day 1 to Present)
+                          </h4>
+                        </div>
+
+                        {(() => {
+                          const allTxns = driverHistoryData?.wallet?.transactions || [];
+                          let filtered = allTxns;
+
+                          if (walletFilterType !== 'all') {
+                            filtered = filtered.filter(t => t.type === walletFilterType);
+                          }
+
+                          if (walletSearchQuery.trim()) {
+                            const q = walletSearchQuery.toLowerCase();
+                            filtered = filtered.filter(t =>
+                              (t.category && t.category.toLowerCase().includes(q)) ||
+                              (t.description && t.description.toLowerCase().includes(q)) ||
+                              (t._id && t._id.toLowerCase().includes(q)) ||
+                              (t.relatedBooking?._id && t.relatedBooking._id.toLowerCase().includes(q))
+                            );
+                          }
+
+                          if (filtered.length === 0) {
+                            return (
+                              <div className="py-12 text-center text-gray-400">
+                                <Wallet size={32} className="mx-auto mb-2 text-gray-300" />
+                                <p className="text-sm font-semibold text-gray-600">No transactions recorded yet</p>
+                                <p className="text-xs text-gray-400 mt-0.5">Transactions from Day 1 will appear here.</p>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-left text-xs">
+                                <thead className="bg-gray-50 text-gray-500 font-bold uppercase tracking-wider border-b border-gray-100">
+                                  <tr>
+                                    <th className="py-3 px-4">Date & Time</th>
+                                    <th className="py-3 px-4">Type & Category</th>
+                                    <th className="py-3 px-4">Description / Booking</th>
+                                    <th className="py-3 px-4 text-center">Status</th>
+                                    <th className="py-3 px-4 text-right">Amount</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                  {filtered.map((t) => {
+                                    const isCredit = t.type === 'Credit';
+                                    return (
+                                      <tr key={t._id} className="hover:bg-gray-50/80 transition-colors">
+                                        <td className="py-3 px-4 text-gray-600 whitespace-nowrap">
+                                          <p className="font-semibold text-gray-900">
+                                            {new Date(t.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                          </p>
+                                          <p className="text-[10px] text-gray-400">
+                                            {new Date(t.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                                          </p>
+                                        </td>
+                                        <td className="py-3 px-4">
+                                          <div className="flex items-center gap-2">
+                                            <div className={`p-1.5 rounded-lg ${isCredit ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                                              {isCredit ? <ArrowDownLeft size={13} /> : <ArrowUpRight size={13} />}
+                                            </div>
+                                            <div>
+                                              <p className="font-bold text-gray-900">{t.category || (isCredit ? 'Credit' : 'Debit')}</p>
+                                              <span className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded ${isCredit ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-rose-50 text-rose-600 border border-rose-200'}`}>
+                                                {t.type}
+                                              </span>
+                                            </div>
+                                          </div>
+                                        </td>
+                                        <td className="py-3 px-4 max-w-xs">
+                                          <p className="text-gray-800 font-medium truncate" title={t.description}>
+                                            {t.description || '—'}
+                                          </p>
+                                          {t.relatedBooking && (
+                                            <p className="text-[10px] text-blue-600 font-mono mt-0.5">
+                                              Ref Booking: #{t.relatedBooking._id?.toString().slice(-8).toUpperCase()}
+                                            </p>
+                                          )}
+                                        </td>
+                                        <td className="py-3 px-4 text-center">
+                                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                            t.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
+                                            t.status === 'Pending' ? 'bg-amber-100 text-amber-700' :
+                                            'bg-rose-100 text-rose-700'
+                                          }`}>
+                                            {t.status || 'Completed'}
+                                          </span>
+                                        </td>
+                                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                                          <span className={`text-sm font-black ${isCredit ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                            {isCredit ? '+' : '-'}₹{Number(t.amount || 0).toLocaleString('en-IN')}
+                                          </span>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 3: RIDE DETAILS (DAY 1 ALL RIDES) */}
+                  {driverDetailTab === 'rides' && (
+                    <div className="space-y-5">
+                      {/* Rides Stats Row */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Total Rides Assigned</span>
+                          <p className="text-xl font-black text-gray-900 mt-1">
+                            {driverHistoryData?.rides?.totalRides || 0}
+                          </p>
+                          <span className="text-[10px] text-gray-400 mt-1 block">Lifetime trips</span>
+                        </div>
+
+                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Completed Trips</span>
+                          <p className="text-xl font-black text-emerald-600 mt-1">
+                            {driverHistoryData?.rides?.completedRides || 0}
+                          </p>
+                          <span className="text-[10px] text-emerald-600 font-semibold mt-1 block">
+                            {driverHistoryData?.rides?.totalRides ? Math.round((driverHistoryData.rides.completedRides / driverHistoryData.rides.totalRides) * 100) : 0}% success rate
+                          </span>
+                        </div>
+
+                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Cancelled Trips</span>
+                          <p className="text-xl font-black text-rose-600 mt-1">
+                            {driverHistoryData?.rides?.cancelledRides || 0}
+                          </p>
+                          <span className="text-[10px] text-rose-500 mt-1 block">Cancelled by user/driver</span>
+                        </div>
+
+                        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-xs">
+                          <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Total Gross Fare</span>
+                          <p className="text-xl font-black text-indigo-600 mt-1">
+                            ₹{(driverHistoryData?.rides?.totalFareGenerated || 0).toLocaleString('en-IN')}
+                          </p>
+                          <span className="text-[10px] text-gray-400 mt-1 block">Completed trip value</span>
+                        </div>
+                      </div>
+
+                      {/* Rides Filters & Search */}
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-3.5 rounded-xl border border-gray-200 shadow-xs">
+                        {/* Sub Tabs */}
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => setRideDetailTab('all')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                              rideDetailTab === 'all' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            All Rides ({driverHistoryData?.rides?.allRides?.length || 0})
+                          </button>
+                          <button
+                            onClick={() => setRideDetailTab('city')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                              rideDetailTab === 'city' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            City Rides ({driverHistoryData?.rides?.regularRides?.length || 0})
+                          </button>
+                          <button
+                            onClick={() => setRideDetailTab('package')}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                              rideDetailTab === 'package' ? 'bg-indigo-600 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                            }`}
+                          >
+                            Package Rides ({driverHistoryData?.rides?.fixedRides?.length || 0})
+                          </button>
+                        </div>
+
+                        {/* Search & Status Filter */}
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                          <div className="relative flex-1 sm:w-56">
+                            <Search size={14} className="absolute left-3 top-2.5 text-gray-400" />
+                            <input
+                              type="text"
+                              placeholder="Search pickup, drop, passenger, ID..."
+                              value={rideDetailSearch}
+                              onChange={(e) => setRideDetailSearch(e.target.value)}
+                              className="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            />
+                          </div>
+
+                          <select
+                            value={rideDetailStatus}
+                            onChange={(e) => setRideDetailStatus(e.target.value)}
+                            className="px-2.5 py-1.5 text-xs font-semibold bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer text-gray-700"
+                          >
+                            <option value="all">All Status</option>
+                            <option value="Completed">Completed</option>
+                            <option value="Cancelled">Cancelled</option>
+                            <option value="Ongoing">Ongoing / Started</option>
+                            <option value="Accepted">Accepted</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Rides List Cards */}
+                      {(() => {
+                        let ridesToShow = driverHistoryData?.rides?.allRides || [];
+                        if (rideDetailTab === 'city') ridesToShow = driverHistoryData?.rides?.regularRides || [];
+                        if (rideDetailTab === 'package') ridesToShow = driverHistoryData?.rides?.fixedRides || [];
+
+                        if (rideDetailStatus !== 'all') {
+                          if (rideDetailStatus === 'Ongoing') {
+                            ridesToShow = ridesToShow.filter(r => ['Ongoing', 'Started', 'Accepted'].includes(r.status));
+                          } else {
+                            ridesToShow = ridesToShow.filter(r => r.status === rideDetailStatus);
+                          }
+                        }
+
+                        if (rideDetailSearch.trim()) {
+                          const q = rideDetailSearch.toLowerCase();
+                          ridesToShow = ridesToShow.filter(r =>
+                            (r.pickup && r.pickup.toLowerCase().includes(q)) ||
+                            (r.drop && r.drop.toLowerCase().includes(q)) ||
+                            (r.bookingId && r.bookingId.toLowerCase().includes(q)) ||
+                            (r._id && r._id.toLowerCase().includes(q)) ||
+                            (r.customer?.name && r.customer.name.toLowerCase().includes(q)) ||
+                            (r.customer?.phone && r.customer.phone.includes(q))
+                          );
+                        }
+
+                        if (ridesToShow.length === 0) {
+                          return (
+                            <div className="py-14 text-center bg-white rounded-xl border border-gray-200 shadow-xs">
+                              <Car size={36} className="mx-auto mb-2 text-gray-300" />
+                              <p className="text-sm font-semibold text-gray-700">No rides found</p>
+                              <p className="text-xs text-gray-400 mt-0.5">Try changing filter or search criteria.</p>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div className="space-y-3">
+                            {ridesToShow.map((ride) => {
+                              const isCompleted = ride.status === 'Completed';
+                              const isCancelled = ride.status === 'Cancelled';
+                              return (
+                                <div
+                                  key={ride._id}
+                                  className="bg-white rounded-xl border border-gray-200 p-4 shadow-xs hover:shadow-md transition-all space-y-3"
+                                >
+                                  {/* Top Row: IDs, Service Type & Status */}
+                                  <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-gray-100">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-mono text-xs font-bold text-gray-900 bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                                        #{ride.bookingId || ride._id?.slice(-8).toUpperCase()}
+                                      </span>
+                                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                        ride.type === 'Package Ride' ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-blue-100 text-blue-700 border border-blue-200'
+                                      }`}>
+                                        {ride.type} • {ride.rideType}
+                                      </span>
+                                      <span className="text-[10px] text-gray-400">
+                                        Vehicle: {ride.carCategory}
+                                      </span>
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs text-gray-500 font-medium">
+                                        {new Date(ride.date || ride.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                        {ride.pickupTime ? ` at ${ride.pickupTime}` : ''}
+                                      </span>
+                                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                                        isCompleted ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                                        isCancelled ? 'bg-rose-100 text-rose-700 border border-rose-200' :
+                                        'bg-amber-100 text-amber-700 border border-amber-200'
+                                      }`}>
+                                        {ride.status}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Middle Row: Route & Customer Info */}
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-center">
+                                    {/* Route */}
+                                    <div className="md:col-span-2 space-y-1.5">
+                                      <div className="flex items-start gap-2">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 mt-1 shrink-0" />
+                                        <p className="text-xs font-medium text-gray-800 leading-snug line-clamp-1" title={ride.pickup}>
+                                          <span className="text-gray-400 font-normal">Pickup: </span>{ride.pickup}
+                                        </p>
+                                      </div>
+                                      <div className="flex items-start gap-2">
+                                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500 mt-1 shrink-0" />
+                                        <p className="text-xs font-medium text-gray-800 leading-snug line-clamp-1" title={ride.drop}>
+                                          <span className="text-gray-400 font-normal">Drop: </span>{ride.drop}
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    {/* Passenger & Financials */}
+                                    <div className="bg-gray-50 p-2.5 rounded-lg border border-gray-100 flex items-center justify-between gap-3 text-xs">
+                                      <div>
+                                        <p className="text-[10px] text-gray-400 uppercase font-bold">Passenger</p>
+                                        <p className="font-semibold text-gray-900">{ride.customer?.name || 'Passenger'}</p>
+                                        <a href={`tel:${ride.customer?.phone}`} className="text-[11px] text-blue-600 hover:underline font-mono">
+                                          {ride.customer?.phone || 'No phone'}
+                                        </a>
+                                      </div>
+
+                                      <div className="text-right">
+                                        <p className="text-[10px] text-gray-400 uppercase font-bold">Fare / Earning</p>
+                                        <p className="text-sm font-black text-gray-900">₹{Number(ride.fare || 0).toLocaleString('en-IN')}</p>
+                                        <p className="text-[10px] text-emerald-600 font-bold">
+                                          Net: ₹{Number(ride.driverEarning || ride.fare || 0).toLocaleString('en-IN')}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Bottom Sub-info */}
+                                  <div className="flex flex-wrap items-center justify-between text-[11px] text-gray-500 pt-2 border-t border-gray-50">
+                                    <div className="flex items-center gap-3">
+                                      <span>Payment: <strong className="text-gray-700">{ride.paymentMethod}</strong></span>
+                                      <span>•</span>
+                                      <span>Pay Status: <strong className={ride.paymentStatus === 'Completed' ? 'text-emerald-600' : 'text-amber-600'}>{ride.paymentStatus}</strong></span>
+                                    </div>
+                                    {ride.distanceKm > 0 && (
+                                      <span>Est. Distance: <strong className="text-gray-700">{ride.distanceKm} km</strong></span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 px-6 border-t border-gray-200 flex items-center justify-between bg-white shrink-0">
+              <p className="text-xs text-gray-400">
+                Driver Profile & Lifetime Activity Tracker
+              </p>
               <button
-                onClick={() => setViewing(null)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+                onClick={() => { setViewing(null); setDriverHistoryData(null); }}
+                className="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-xs font-bold transition-colors"
               >
                 Close
               </button>
-              <button
-                onClick={() => {
-                  setViewing(null);
-                  handleOpenEdit(viewing);
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* Full Document / Image Viewer Popup */}
+      {selectedDocPreview && (
+        <div
+          className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-[70] p-4"
+          onClick={() => setSelectedDocPreview(null)}
+        >
+          <div className="relative max-w-4xl max-h-[92vh] bg-white rounded-2xl overflow-hidden shadow-[0_30px_80px_rgba(0,0,0,0.7)] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            {/* Lightbox Header */}
+            <div className="flex items-center justify-between px-4 py-3 bg-gray-900 text-white shrink-0">
+              <div className="flex items-center gap-2">
+                <Eye size={14} className="text-blue-400" />
+                <span className="text-xs font-semibold">Document Preview</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <a
+                  href={selectedDocPreview}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-2.5 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-[11px] font-semibold transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ExternalLink size={11} />
+                  Open Full
+                </a>
+                <button
+                  onClick={() => setSelectedDocPreview(null)}
+                  className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+            {/* Image Content */}
+            <div className="flex-1 overflow-auto flex items-center justify-center bg-gray-950 p-4 min-h-[300px]">
+              <img
+                src={selectedDocPreview}
+                alt="Document Preview"
+                className="max-w-full max-h-[75vh] object-contain rounded-lg shadow-lg"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  const fallback = document.createElement('div');
+                  fallback.className = 'flex flex-col items-center justify-center text-white p-8 text-center gap-3';
+                  fallback.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-gray-400"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg><p class="text-sm font-semibold text-gray-300">Cannot preview this file type</p><a href="${selectedDocPreview}" target="_blank" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm font-bold transition-colors">Download / Open File</a>`;
+                  e.currentTarget.parentElement.appendChild(fallback);
                 }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-              >
-                Edit Driver
-              </button>
+              />
             </div>
           </div>
         </div>

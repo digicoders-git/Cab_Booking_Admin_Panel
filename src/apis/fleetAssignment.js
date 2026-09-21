@@ -18,6 +18,15 @@ export const createFleetAssignment = async (data) => {
     }
 };
 
+export const updateFleetAssignment = async (id, data) => {
+    try {
+        const res = await http.put(`/api/fleet/assignment/update/${id}`, data);
+        return res.data;
+    } catch (err) {
+        return err.response?.data || { success: false, message: "Error updating assignment" };
+    }
+};
+
 export const deleteFleetAssignment = async (id) => {
     try {
         const res = await http.delete(`/api/fleet/assignment/delete/${id}`);

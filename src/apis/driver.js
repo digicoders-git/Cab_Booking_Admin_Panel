@@ -59,3 +59,9 @@ export const changeDriverOwnership = async (id, payload) => {
   const res = await http.put(`/api/drivers/change-ownership/${id}`, payload);
   return res.data;
 };
+
+export const getDriverFullHistory = async (id) => {
+  const res = await http.get(`/api/drivers/${id}/full-history`);
+  return res.data;
+};
+

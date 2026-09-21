@@ -8,7 +8,8 @@ import {
   getPendingPayouts,
   approvePayout,
   rejectPayout,
-  addManualBalance
+  addManualBalance,
+  getCustomerStatement
 } from "../apis/wallet";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -29,7 +30,8 @@ import {
   Download, Filter, TrendingUp, Activity, DollarSign, CreditCard,
   PieChart as PieChartIcon, BarChart3, LineChart as LineChartIcon,
   Target, Gauge, Zap, Shield, MoreVertical, DownloadCloud, Printer,
-  Clock, Calendar, Eye, ArrowUpCircle, ArrowDownCircle, Users
+  Clock, Calendar, Eye, ArrowUpCircle, ArrowDownCircle, Users,
+  X, ExternalLink, FileText, CheckCircle2, AlertCircle, RefreshCw, UserCheck, Phone, Mail, User as UserIcon
 } from 'lucide-react';
 import Swal from "sweetalert2";
 
@@ -136,6 +138,13 @@ export default function WalletManagement() {
   const [selectedChart, setSelectedChart] = useState('all');
   const [expandedRows, setExpandedRows] = useState({});
   const [rowsPerPage, setRowsPerPage] = useState(10);
+
+  // Customer Statement Modal States (Point 27)
+  const [selectedUserForStatement, setSelectedUserForStatement] = useState(null);
+  const [customerStatementLoading, setCustomerStatementLoading] = useState(false);
+  const [customerStatementData, setCustomerStatementData] = useState(null);
+  const [customerStatementFilter, setCustomerStatementFilter] = useState("all");
+  const [customerStatementSearch, setCustomerStatementSearch] = useState("");
 
   const textColorSecondary = useMemo(() => {
     if (theme === "dark") return "rgba(255, 255, 255, 0.6)";
@@ -423,6 +432,95 @@ export default function WalletManagement() {
     }));
   };
 
+  const handleOpenCustomerStatement = async (entityUser, entityModel, fallbackName) => {
+    const userId = entityUser?._id || entityUser?.id || (typeof entityUser === 'string' ? entityUser : null);
+    if (!userId) {
+      Swal.fire({
+        icon: "info",
+        title: "No User Account ID",
+        text: `This transaction is associated with: ${fallbackName || 'System'}. No linked user profile ID found.`,
+        background: themeColors.surface,
+        color: themeColors.text
+      });
+      return;
+    }
+
+    setSelectedUserForStatement({
+      id: userId,
+      name: entityUser?.name || fallbackName || "Customer",
+      phone: entityUser?.phone || "",
+      email: entityUser?.email || "",
+      image: entityUser?.image || null,
+      userModel: entityModel || "User"
+    });
+    setCustomerStatementLoading(true);
+    setCustomerStatementFilter("all");
+    setCustomerStatementSearch("");
+
+    try {
+      const res = await getCustomerStatement(userId, entityModel);
+      if (res?.success) {
+        setCustomerStatementData(res);
+      } else {
+        throw new Error(res?.message || "Failed to fetch statement");
+      }
+    } catch (err) {
+      console.error("Failed to load customer statement:", err);
+      // Fallback: calculate from already loaded transactions
+      const userTx = transactions.filter(t => (
+        (t.user?._id === userId || t.user === userId || t.recipient?._id === userId || t.recipient === userId)
+      ));
+      let cred = 0, deb = 0, pend = 0;
+      userTx.forEach(t => {
+        const a = Number(t.amount) || 0;
+        if (t.status?.toLowerCase() === 'pending') pend += a;
+        else if (t.type?.toLowerCase() === 'credit') cred += a;
+        else if (t.type?.toLowerCase() === 'debit') deb += a;
+      });
+      setCustomerStatementData({
+        success: true,
+        user: entityUser,
+        stats: {
+          walletBalance: entityUser?.walletBalance !== undefined ? entityUser.walletBalance : (cred - deb),
+          pendingAmount: pend,
+          totalCredit: cred,
+          totalDebit: deb,
+          totalTransactions: userTx.length
+        },
+        transactions: userTx
+      });
+    } finally {
+      setCustomerStatementLoading(false);
+    }
+  };
+
+  const filteredCustomerTransactions = useMemo(() => {
+    if (!customerStatementData?.transactions) return [];
+    let list = customerStatementData.transactions;
+
+    if (customerStatementFilter === "credit") {
+      list = list.filter(t => t.type?.toLowerCase() === "credit");
+    } else if (customerStatementFilter === "debit") {
+      list = list.filter(t => t.type?.toLowerCase() === "debit");
+    } else if (customerStatementFilter === "pending") {
+      list = list.filter(t => t.status?.toLowerCase() === "pending");
+    }
+
+    if (customerStatementSearch.trim()) {
+      const q = customerStatementSearch.toLowerCase();
+      list = list.filter(t =>
+        t._id?.toLowerCase().includes(q) ||
+        t.description?.toLowerCase().includes(q) ||
+        t.category?.toLowerCase().includes(q) ||
+        t.status?.toLowerCase().includes(q) ||
+        String(t.amount)?.includes(q) ||
+        t.relatedBooking?.bookingId?.toLowerCase().includes(q)
+      );
+    }
+
+    return list;
+  }, [customerStatementData, customerStatementFilter, customerStatementSearch]);
+
   const filteredData = useMemo(() => {
     let list = [];
     if (activeTab === "payouts") {
@@ -558,8 +656,9 @@ export default function WalletManagement() {
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
                   <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Trace Ref</th>
+                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Date & Time</th>
                   <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Type</th>
-                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Principal Entity</th>
+                  <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Customer / Entity</th>
                   <th className="text-left py-4 px-6 text-xs font-medium text-gray-500 uppercase">Details</th>
                   <th className="text-right py-4 px-6 text-xs font-medium text-gray-500 uppercase">Amount</th>
                   <th className="text-center py-4 px-6 text-xs font-medium text-gray-500 uppercase">Status</th>
@@ -578,6 +677,21 @@ export default function WalletManagement() {
                       <td className="py-4 px-6">
                         <span className="text-xs font-mono text-gray-500">#{t._id?.slice(-8).toUpperCase()}</span>
                       </td>
+                      <td className="py-4 px-6 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600 shrink-0">
+                            <Clock size={13} />
+                          </div>
+                          <div>
+                            <p className="text-xs font-semibold text-gray-900">
+                              {t.createdAt ? new Date(t.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
+                            </p>
+                            <p className="text-[11px] font-medium text-gray-500">
+                              {t.createdAt ? new Date(t.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : ''}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
                       <td className="py-4 px-6">
                         <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-medium ${t.type?.toLowerCase() === 'credit'
                           ? 'bg-green-100 text-green-700'
@@ -589,7 +703,7 @@ export default function WalletManagement() {
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border border-gray-100">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border border-gray-100 shrink-0">
                             {t.user?.image ? (
                               <img 
                                 src={`${IMAGE_BASE_URL}${t.user?.image}`} 
@@ -601,11 +715,30 @@ export default function WalletManagement() {
                               <FaBuilding size={14} className="text-blue-600" />
                             )}
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{t.user?.name || t.recipient?.name || 'Anonymous'}</p>
-                            <p className="text-xs text-gray-500">
+                          <div className="min-w-0">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenCustomerStatement(
+                                  t.user || t.recipient,
+                                  t.userModel || t.recipientModel,
+                                  t.user?.name || t.recipient?.name
+                                );
+                              }}
+                              className="group text-left flex items-center gap-1.5 text-sm font-bold text-blue-600 hover:text-blue-800 transition-colors"
+                              title="Click to view Customer Transaction Ledger & Wallet details"
+                            >
+                              <span className="truncate max-w-[140px] sm:max-w-[190px] group-hover:underline">
+                                {t.user?.name || t.recipient?.name || 'Anonymous'}
+                              </span>
+                              <ExternalLink size={12} className="opacity-70 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all text-blue-600 shrink-0" />
+                            </button>
+                            <p className="text-xs text-gray-500 truncate">
                               {t.user?.phone || t.recipient?.phone ? `${t.user?.phone || t.recipient?.phone} • ` : ''}
-                              {t.userModel || t.recipientModel || 'System'}
+                              <span className="inline-block px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-100 text-gray-600">
+                                {t.userModel || t.recipientModel || 'System'}
+                              </span>
                             </p>
                           </div>
                         </div>
@@ -663,7 +796,7 @@ export default function WalletManagement() {
                     </tr>
                     {expandedRows[t._id] && (
                       <tr className="bg-gray-50">
-                        <td colSpan={activeTab === "payouts" ? 7 : 6} className="p-6">
+                        <td colSpan={activeTab === "payouts" ? 8 : 7} className="p-6">
                           <div className="grid grid-cols-2 gap-6">
                             <div>
                               <h4 className="text-xs font-medium text-gray-500 mb-3 uppercase">Transaction Details</h4>
@@ -949,7 +1082,355 @@ export default function WalletManagement() {
           )}
         </div>
 
-        {/* Tab Controls */}
+        {/* Customer Transaction Ledger & Statement Modal (Point 27) */}
+        {selectedUserForStatement && (
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+            <div
+              className="bg-white rounded-2xl w-full max-w-5xl shadow-[0_25px_70px_rgba(0,0,0,0.5)] overflow-hidden my-auto max-h-[92vh] flex flex-col border border-gray-200 animate-in fade-in zoom-in-95 duration-200"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header Banner (Admin Panel Signature Theme) */}
+              <div className="relative bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 text-white shrink-0 shadow-sm">
+                <div className="absolute top-4 right-4 flex items-center gap-2">
+                  <button
+                    onClick={() => handleOpenCustomerStatement(selectedUserForStatement, selectedUserForStatement.userModel, selectedUserForStatement.name)}
+                    disabled={customerStatementLoading}
+                    className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors text-white cursor-pointer"
+                    title="Refresh statement"
+                  >
+                    <RefreshCw size={16} className={customerStatementLoading ? "animate-spin text-indigo-300" : ""} />
+                  </button>
+                  <button
+                    onClick={() => setSelectedUserForStatement(null)}
+                    className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors text-white cursor-pointer"
+                    title="Close"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5 pr-16">
+                  {/* User Profile Info */}
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-2xl border-2 border-white/20 shadow-md overflow-hidden bg-white/10 flex items-center justify-center shrink-0">
+                      {selectedUserForStatement.image ? (
+                        <img
+                          src={`${IMAGE_BASE_URL}${selectedUserForStatement.image}`}
+                          alt={selectedUserForStatement.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.parentElement.innerHTML = '<span class="text-xl font-bold text-white">' + (selectedUserForStatement.name?.[0]?.toUpperCase() || 'U') + '</span>';
+                          }}
+                        />
+                      ) : (
+                        <span className="text-xl font-bold text-white">
+                          {selectedUserForStatement.name?.[0]?.toUpperCase() || 'U'}
+                        </span>
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                          {selectedUserForStatement.name}
+                        </h2>
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 uppercase tracking-wider">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                          {selectedUserForStatement.userModel || "Customer"}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-indigo-200/70 font-mono mt-0.5">
+                        Account ID: #{selectedUserForStatement.id}
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-white/80">
+                        {selectedUserForStatement.phone && (
+                          <a href={`tel:${selectedUserForStatement.phone}`} className="flex items-center gap-1.5 hover:text-white transition-colors bg-white/10 hover:bg-white/20 px-2.5 py-1 rounded-lg">
+                            <Phone size={12} className="text-indigo-300" />
+                            <span>{selectedUserForStatement.phone}</span>
+                          </a>
+                        )}
+                        {selectedUserForStatement.email && (
+                          <a href={`mailto:${selectedUserForStatement.email}`} className="flex items-center gap-1.5 hover:text-white transition-colors bg-white/10 hover:bg-white/20 px-2.5 py-1 rounded-lg">
+                            <Mail size={12} className="text-indigo-300" />
+                            <span>{selectedUserForStatement.email}</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 bg-slate-50/70 overflow-y-auto space-y-6 flex-1">
+                {customerStatementLoading ? (
+                  <div className="py-20 flex flex-col items-center justify-center gap-3">
+                    <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-sm font-semibold text-gray-600">
+                      Fetching customer transaction ledger and balance...
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* KPI Summary Cards Grid (Balance, Pending, Total Credits, Total Debits) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {/* 1. Wallet Balance (+ / -) */}
+                      <div
+                        className={`bg-white rounded-2xl p-4 shadow-sm border-2 transition-all ${
+                          (customerStatementData?.stats?.walletBalance ?? 0) >= 0
+                            ? "border-emerald-500/40 hover:border-emerald-500"
+                            : "border-rose-500/40 hover:border-rose-500"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                            Current Wallet
+                          </span>
+                          <div className={`p-2.5 rounded-xl ${
+                            (customerStatementData?.stats?.walletBalance ?? 0) >= 0
+                              ? "bg-emerald-50 text-emerald-600"
+                              : "bg-rose-50 text-rose-600"
+                          }`}>
+                            <FaWallet size={16} />
+                          </div>
+                        </div>
+                        <div className="mt-2">
+                          <p className={`text-2xl sm:text-3xl font-black ${
+                            (customerStatementData?.stats?.walletBalance ?? 0) >= 0
+                              ? "text-emerald-600"
+                              : "text-rose-600"
+                          }`}>
+                            {(customerStatementData?.stats?.walletBalance ?? 0) >= 0 ? "+" : "-"}₹{Math.abs(customerStatementData?.stats?.walletBalance ?? 0).toLocaleString('en-IN')}
+                          </p>
+                          <p className="text-[11px] font-semibold mt-0.5 text-gray-500">
+                            {(customerStatementData?.stats?.walletBalance ?? 0) >= 0
+                              ? "Active Wallet Balance"
+                              : "Payment Due / Overdue Debt"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 2. Pending Amount */}
+                      <div className="bg-white rounded-2xl p-4 shadow-sm border border-amber-200/80 hover:border-amber-400 transition-all">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                            Pending Dues / Hold
+                          </span>
+                          <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600">
+                            <Clock size={16} />
+                          </div>
+                        </div>
+                        <div className="mt-2">
+                          <p className="text-2xl sm:text-3xl font-black text-amber-600">
+                            ₹{(customerStatementData?.stats?.pendingAmount ?? 0).toLocaleString('en-IN')}
+                          </p>
+                          <p className="text-[11px] font-semibold mt-0.5 text-gray-500">
+                            {(customerStatementData?.stats?.pendingAmount ?? 0) > 0
+                              ? "Transactions under processing"
+                              : "Zero pending dues"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 3. Total Credited (+) */}
+                      <div className="bg-white rounded-2xl p-4 shadow-sm border border-blue-200/80 hover:border-blue-400 transition-all">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                            Total Credited (+)
+                          </span>
+                          <div className="p-2.5 rounded-xl bg-blue-50 text-blue-600">
+                            <ArrowDownCircle size={16} />
+                          </div>
+                        </div>
+                        <div className="mt-2">
+                          <p className="text-2xl sm:text-3xl font-black text-blue-600">
+                            +₹{(customerStatementData?.stats?.totalCredit ?? 0).toLocaleString('en-IN')}
+                          </p>
+                          <p className="text-[11px] font-semibold mt-0.5 text-gray-500">
+                            Lifetime added / earned
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* 4. Total Debited (-) */}
+                      <div className="bg-white rounded-2xl p-4 shadow-sm border border-purple-200/80 hover:border-purple-400 transition-all">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                            Total Debited (-)
+                          </span>
+                          <div className="p-2.5 rounded-xl bg-purple-50 text-purple-600">
+                            <ArrowUpCircle size={16} />
+                          </div>
+                        </div>
+                        <div className="mt-2">
+                          <p className="text-2xl sm:text-3xl font-black text-purple-600">
+                            -₹{(customerStatementData?.stats?.totalDebit ?? 0).toLocaleString('en-IN')}
+                          </p>
+                          <p className="text-[11px] font-semibold mt-0.5 text-gray-500">
+                            Lifetime spent / deducted
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Filter Bar & Search */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-2.5 rounded-xl border border-gray-200 shadow-xs">
+                      {/* Type Filter Tabs */}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {[
+                          { id: 'all', label: `All (${customerStatementData?.transactions?.length || 0})` },
+                          { id: 'credit', label: 'Credits (+)' },
+                          { id: 'debit', label: 'Debits (-)' },
+                          { id: 'pending', label: 'Pending' }
+                        ].map(tab => (
+                          <button
+                            key={tab.id}
+                            onClick={() => setCustomerStatementFilter(tab.id)}
+                            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                              customerStatementFilter === tab.id
+                                ? "bg-slate-900 text-white shadow-sm"
+                                : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                            }`}
+                          >
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Search Inside Customer Statement */}
+                      <div className="relative min-w-[240px]">
+                        <FaSearch size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search Ref, Category, Booking..."
+                          value={customerStatementSearch}
+                          onChange={(e) => setCustomerStatementSearch(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-300 rounded-lg text-xs text-gray-900 placeholder-gray-400 outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Customer Transactions Table */}
+                    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-xs">
+                      <div className="overflow-x-auto max-h-[380px]">
+                        <table className="w-full text-left">
+                          <thead className="sticky top-0 z-10 bg-slate-100/90 backdrop-blur-xs border-b border-gray-200">
+                            <tr>
+                              <th className="py-3.5 px-4 text-[11px] font-bold text-slate-700 uppercase tracking-wider">Date & Time</th>
+                              <th className="py-3.5 px-4 text-[11px] font-bold text-slate-700 uppercase tracking-wider">Trace Ref</th>
+                              <th className="py-3.5 px-4 text-[11px] font-bold text-slate-700 uppercase tracking-wider">Type</th>
+                              <th className="py-3.5 px-4 text-[11px] font-bold text-slate-700 uppercase tracking-wider">Category / Reason</th>
+                              <th className="py-3.5 px-4 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-right">Amount</th>
+                              <th className="py-3.5 px-4 text-[11px] font-bold text-slate-700 uppercase tracking-wider text-center">Status</th>
+                              <th className="py-3.5 px-4 text-[11px] font-bold text-slate-700 uppercase tracking-wider">Booking Ref</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {filteredCustomerTransactions.length === 0 ? (
+                              <tr>
+                                <td colSpan={7} className="py-12 text-center text-gray-400 text-xs font-medium">
+                                  No transactions found matching your criteria.
+                                </td>
+                              </tr>
+                            ) : (
+                              filteredCustomerTransactions.map((tx) => (
+                                <tr key={tx._id} className="hover:bg-slate-50/80 transition-colors bg-white">
+                                  <td className="py-3 px-4 whitespace-nowrap">
+                                    <div className="flex items-center gap-2">
+                                      <div className="p-1 rounded-md bg-blue-50 text-blue-600 shrink-0">
+                                        <Clock size={12} />
+                                      </div>
+                                      <div>
+                                        <p className="text-xs font-bold text-gray-900">
+                                          {tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A'}
+                                        </p>
+                                        <p className="text-[10px] font-medium text-gray-500">
+                                          {tx.createdAt ? new Date(tx.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) : ''}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    <span className="font-mono text-xs font-bold text-gray-800 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-md">
+                                      #{tx._id?.slice(-8).toUpperCase()}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-bold ${
+                                      tx.type?.toLowerCase() === 'credit'
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                        : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                    }`}>
+                                      {tx.type?.toLowerCase() === 'credit' ? <FaArrowDown size={9} /> : <FaArrowUp size={9} />}
+                                      {tx.type}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    <p className="text-xs font-bold text-gray-900">
+                                      {tx.category || tx.description || 'Adjustment'}
+                                    </p>
+                                    {tx.description && tx.description !== tx.category && (
+                                      <p className="text-[11px] text-gray-500 truncate max-w-[220px]">
+                                        {tx.description}
+                                      </p>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-4 text-right whitespace-nowrap">
+                                    <span className={`text-sm font-black ${
+                                      tx.type?.toLowerCase() === 'credit' ? 'text-emerald-600' : 'text-rose-600'
+                                    }`}>
+                                      {tx.type?.toLowerCase() === 'credit' ? '+' : '-'}₹{Number(tx.amount || 0).toLocaleString('en-IN')}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4 text-center">
+                                    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                                      tx.status?.toLowerCase() === 'completed'
+                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                        : tx.status?.toLowerCase() === 'pending'
+                                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                          : 'bg-rose-50 text-rose-700 border border-rose-200'
+                                    }`}>
+                                      {tx.status}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4">
+                                    {tx.relatedBooking ? (
+                                      <span className="font-mono text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+                                        #{tx.relatedBooking.bookingId || tx.relatedBooking._id?.slice(-6)}
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs text-gray-400">—</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="px-6 py-4 bg-white border-t border-gray-200 flex items-center justify-between gap-4">
+                <p className="text-xs font-medium text-gray-500">
+                  Showing <span className="font-bold text-gray-900">{filteredCustomerTransactions.length}</span> of <span className="font-bold text-gray-900">{customerStatementData?.transactions?.length || 0}</span> customer transactions
+                </p>
+                <button
+                  onClick={() => setSelectedUserForStatement(null)}
+                  className="px-6 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
