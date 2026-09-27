@@ -22,6 +22,7 @@ const ManageFixedRoutes = () => {
     maxDistanceKm: '',
     extraDistanceChargePerKm: '',
     distanceKm: '',
+    orderIndex: 0,
     isActive: true
   });
   const [loading, setLoading] = useState(false);
@@ -149,6 +150,7 @@ const ManageFixedRoutes = () => {
       tripType: 'One-Way', maxTimeHours: '', extraTimeChargePerHour: '',
       maxDistanceKm: '', extraDistanceChargePerKm: '',
       distanceKm: '',
+      orderIndex: 0,
       isActive: true 
     });
     setEditingId(null);
@@ -174,6 +176,7 @@ const ManageFixedRoutes = () => {
       maxDistanceKm: route.maxDistanceKm || '',
       extraDistanceChargePerKm: route.extraDistanceChargePerKm || '',
       distanceKm: route.distanceKm || '',
+      orderIndex: route.orderIndex !== undefined ? route.orderIndex : 0,
       isActive: route.isActive
     });
     if (pickupRef.current) pickupRef.current.value = route.pickupLocation;
@@ -277,6 +280,12 @@ const ManageFixedRoutes = () => {
             <input type="number" name="extraDistanceChargePerKm" value={formData.extraDistanceChargePerKm} onChange={handleChange} min="0" className="w-full bg-gray-50 border border-gray-300 text-gray-800 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="e.g. 15" />
           </div>
 
+          {/* Display Order / Index Number */}
+          <div>
+            <label className="block text-gray-700 text-sm font-bold mb-2">Display Order / Index <span className="font-normal text-gray-400">(1 = Top, 2, 3...)</span></label>
+            <input type="number" name="orderIndex" value={formData.orderIndex} onChange={handleChange} min="0" className="w-full bg-gray-50 border border-gray-300 text-gray-800 p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all" placeholder="e.g. 1" />
+          </div>
+
           <div className="flex items-end space-x-2">
             <button type="submit" disabled={loading} className={`flex-1 ${editingId ? 'bg-green-600 hover:bg-green-700' : 'bg-indigo-600 hover:bg-indigo-700'} text-white font-bold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition duration-200`}>
               {loading ? 'Saving...' : (editingId ? 'Update Package' : 'Create Package')}
@@ -308,9 +317,14 @@ const ManageFixedRoutes = () => {
                   <FaCar className="text-indigo-500 text-lg" />
                   <span className="truncate">{route.carCategory?.name || 'Unknown Category'}</span>
                 </div>
-                <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase ${route.isActive ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>
-                  {route.isActive ? 'Active' : 'Inactive'}
-                </span>
+                <div className="flex items-center space-x-2">
+                  <span className="px-2.5 py-1 rounded-md text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm" title="Index Number">
+                    Index: {route.orderIndex ?? 0}
+                  </span>
+                  <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase ${route.isActive ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>
+                    {route.isActive ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
               </div>
 
               {/* Card Body - Route Details */}
@@ -353,9 +367,14 @@ const ManageFixedRoutes = () => {
                 </div>
                 {/* Trip Type + Time Info */}
                 <div className="flex items-center justify-between text-xs mt-2 mb-1">
-                  <span className={`px-2 py-0.5 rounded-full font-bold ${route.tripType === 'Round-Trip' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                    {route.tripType || 'One-Way'}
-                  </span>
+                  <div className="flex items-center space-x-1.5">
+                    <span className={`px-2 py-0.5 rounded-full font-bold ${route.tripType === 'Round-Trip' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {route.tripType || 'One-Way'}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100 text-[11px]">
+                      Index No: {route.orderIndex ?? 0}
+                    </span>
+                  </div>
                   {route.maxTimeHours > 0 ? (
                     <span className="text-orange-600 font-semibold">
                       ⏱ {route.maxTimeHours}h | +₹{route.extraTimeChargePerHour}/hr

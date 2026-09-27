@@ -3,8 +3,9 @@ import { useTheme } from '../context/ThemeContext';
 import { useFont } from '../context/FontContext';
 import { useAuth } from '../context/AuthContext';
 import { getAllBulkBookingsHistory, deleteBulkBooking, endBulkBooking } from '../apis/bulkBooking';
-import { FaHistory, FaSearch, FaSyncAlt, FaCar, FaTrash, FaEye, FaFilePdf, FaCheckCircle, FaCalendarAlt, FaClock } from 'react-icons/fa';
+import { FaHistory, FaSearch, FaSyncAlt, FaCar, FaTrash, FaEye, FaFilePdf, FaCheckCircle, FaCalendarAlt, FaClock, FaUserPlus } from 'react-icons/fa';
 import Swal from 'sweetalert2';
+import AssignBulkDriversModal from '../components/AssignBulkDriversModal';
 
 export default function BulkBookingHistory() {
   const { themeColors, theme } = useTheme();
@@ -19,6 +20,10 @@ export default function BulkBookingHistory() {
 
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Assign Drivers Modal state
+  const [selectedAssignBooking, setSelectedAssignBooking] = useState(null);
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
 
   const BASE = import.meta.env.VITE_API_BASE_URL || '';
   const IMAGE_BASE_URL = BASE.replace(/\/api\/?$/, '').replace(/\/$/, '') + '/uploads/';
@@ -111,18 +116,32 @@ export default function BulkBookingHistory() {
   };
 
   const filteredBookings = useMemo(() => {
+    const q = (searchQuery || '').trim().toLowerCase();
+    const currentAdminId = String(admin?._id || admin?.id || admin?.adminId || '');
+
     return bookings.filter(b => {
-      const matchSearch = b._id.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          b.pickup.address.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          b.drop.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (b.createdBy?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (b.assignedFleet?.companyName || '').toLowerCase().includes(searchQuery.toLowerCase());
+      const bId = String(b._id || '').toLowerCase();
+      const pickupAddr = String(b.pickup?.address || '').toLowerCase();
+      const dropAddr = String(b.drop?.address || '').toLowerCase();
+      const creatorName = String(b.createdBy?.name || '').toLowerCase();
+      const fleetName = String(b.assignedFleet?.companyName || '').toLowerCase();
+
+      const matchSearch = !q || 
+                          bId.includes(q) || 
+                          pickupAddr.includes(q) || 
+                          dropAddr.includes(q) ||
+                          creatorName.includes(q) ||
+                          fleetName.includes(q);
       
       const matchStatus = statusFilter === 'all' || b.status === statusFilter;
       
       let matchTab = true;
       if (activeTab === 'accepted_by_me') {
-        matchTab = Boolean(b.assignedAdmin && admin?.id && b.assignedAdmin.toString() === admin.id.toString());
+        const assignedAdminId = String(b.assignedAdmin?._id || b.assignedAdmin?.id || b.assignedAdmin || '');
+        matchTab = Boolean(
+          (assignedAdminId && (assignedAdminId === currentAdminId || admin?.role === 'SuperAdmin')) ||
+          (!b.assignedFleet && (b.status === 'Accepted' || b.status === 'Ongoing') && admin?.role === 'SuperAdmin')
+        );
       }
       
       return matchSearch && matchStatus && matchTab;
@@ -260,28 +279,55 @@ export default function BulkBookingHistory() {
                         <div className="flex flex-col gap-1 max-w-[200px]">
                           <div className="flex items-start gap-2">
                             <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0" />
-                            <p className="text-xs truncate" title={b.pickup.address} style={{ color: themeColors.text }}>{b.pickup.address}</p>
+                            <p className="text-xs truncate" title={b.pickup?.address} style={{ color: themeColors.text }}>{b.pickup?.address || 'N/A'}</p>
                           </div>
                           <div className="border-l-2 border-dashed border-gray-300 ml-1 h-3 my-0.5" />
                           <div className="flex items-start gap-2">
                             <div className="w-2 h-2 rounded-full bg-red-500 mt-1.5 shrink-0" />
-                            <p className="text-xs truncate" title={b.drop.address} style={{ color: themeColors.text }}>{b.drop.address}</p>
+                            <p className="text-xs truncate" title={b.drop?.address} style={{ color: themeColors.text }}>{b.drop?.address || 'N/A'}</p>
                           </div>
                           <div className="text-[10px] text-gray-500 mt-1 flex items-center gap-1 font-medium bg-gray-100 rounded px-1.5 py-0.5 w-max">
-                            <FaCar /> {b.carsRequired.reduce((sum, car) => sum + (car.quantity || 1), 0)} Cars Required
+                            <FaCar /> {b.carsRequired?.reduce((sum, car) => sum + (car.quantity || 1), 0) || 0} Cars Required
                           </div>
                         </div>
                       </td>
 
-                      {/* Assigned Fleet */}
+                      {/* Assigned Fleet / Admin */}
                       <td className="px-6 py-4">
                         {b.assignedFleet ? (
                           <div>
                             <p className="text-sm font-semibold text-indigo-600">{b.assignedFleet.companyName}</p>
-                            <p className="text-xs text-gray-500">{b.assignedFleet.ownerName}</p>
+                            <p className="text-xs text-gray-500">{b.assignedFleet.ownerName || 'Fleet Partner'}</p>
+                          </div>
+                        ) : b.assignedAdmin ? (
+                          <div>
+                            <p className="text-sm font-semibold text-blue-600">Admin Managed</p>
+                            <p className="text-xs text-gray-500">{b.assignedAdmin.name || 'System Admin'}</p>
                           </div>
                         ) : (
                           <span className="text-xs text-gray-400 italic">Unassigned</span>
+                        )}
+
+                        {/* Assigned Drivers Progress Badge */}
+                        {b.carsRequired && b.carsRequired.length > 0 && (
+                          <div className="mt-1.5 flex items-center gap-1.5">
+                            {(() => {
+                              const totalNeeded = b.carsRequired.reduce((sum, c) => sum + (c.quantity || 1), 0);
+                              const assignedCount = b.assignedDrivers?.length || 0;
+                              const isFullyAssigned = assignedCount >= totalNeeded && totalNeeded > 0;
+                              return (
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                                  isFullyAssigned 
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                                    : assignedCount > 0 
+                                      ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+                                      : 'bg-gray-100 text-gray-600 border border-gray-200'
+                                }`}>
+                                  🚗 {assignedCount} / {totalNeeded} Drivers
+                                </span>
+                              );
+                            })()}
+                          </div>
                         )}
                       </td>
 
@@ -300,7 +346,18 @@ export default function BulkBookingHistory() {
 
                       {/* Actions */}
                       <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Assign Drivers Button (Accepted or Ongoing) */}
+                          {(b.status === 'Accepted' || b.status === 'Ongoing') && (
+                            <button 
+                              onClick={() => { setSelectedAssignBooking(b); setIsAssignModalOpen(true); }}
+                              className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200 transition flex items-center gap-1.5 shadow-2xs"
+                              title="Assign or Manage Drivers"
+                            >
+                              <FaUserPlus size={12} />
+                              <span className="hidden sm:inline">Assign Drivers</span>
+                            </button>
+                          )}
                           <button 
                             onClick={() => { setSelectedBooking(b); setIsModalOpen(true); }}
                             className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition"
@@ -458,18 +515,95 @@ export default function BulkBookingHistory() {
                 </div>
               </div>
 
-              {/* Assigned Fleet Info */}
-              {selectedBooking.assignedFleet && (
+              {/* Assigned Fleet / Admin Info */}
+              {(selectedBooking.assignedFleet || selectedBooking.assignedAdmin) && (
                 <div className="rounded-xl border p-5" style={{ borderColor: theme === 'dark' ? '#374151' : '#e5e7eb' }}>
                   <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">🏢</div>
-                    Assigned Fleet
+                    {selectedBooking.assignedFleet ? "Assigned Fleet Partner" : "Managed by Admin"}
                   </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div><span className="text-xs text-gray-500 block">Company Name</span><p className="font-medium">{selectedBooking.assignedFleet.companyName}</p></div>
-                    <div><span className="text-xs text-gray-500 block">Owner Name</span><p className="font-medium">{selectedBooking.assignedFleet.ownerName}</p></div>
-                    <div><span className="text-xs text-gray-500 block">Email</span><p className="font-medium">{selectedBooking.assignedFleet.email}</p></div>
-                    <div><span className="text-xs text-gray-500 block">Phone</span><p className="font-medium">{selectedBooking.assignedFleet.phone}</p></div>
+                  {selectedBooking.assignedFleet ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div><span className="text-xs text-gray-500 block">Company Name</span><p className="font-medium">{selectedBooking.assignedFleet.companyName}</p></div>
+                      <div><span className="text-xs text-gray-500 block">Owner Name</span><p className="font-medium">{selectedBooking.assignedFleet.ownerName}</p></div>
+                      <div><span className="text-xs text-gray-500 block">Email</span><p className="font-medium">{selectedBooking.assignedFleet.email}</p></div>
+                      <div><span className="text-xs text-gray-500 block">Phone</span><p className="font-medium">{selectedBooking.assignedFleet.phone}</p></div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div><span className="text-xs text-gray-500 block">Admin Name</span><p className="font-medium">{selectedBooking.assignedAdmin.name || 'System Admin'}</p></div>
+                      <div><span className="text-xs text-gray-500 block">Email</span><p className="font-medium">{selectedBooking.assignedAdmin.email || 'N/A'}</p></div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Assigned Drivers List */}
+              {selectedBooking.assignedDrivers && selectedBooking.assignedDrivers.length > 0 && (
+                <div className="rounded-xl border p-5" style={{ borderColor: theme === 'dark' ? '#374151' : '#e5e7eb' }}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-base flex items-center gap-2">
+                      <FaCar className="text-blue-600" />
+                      Assigned Drivers ({selectedBooking.assignedDrivers.length})
+                    </h3>
+                    {(selectedBooking.status === 'Accepted' || selectedBooking.status === 'Ongoing') && (
+                      <button
+                        onClick={() => {
+                          const current = selectedBooking;
+                          setIsModalOpen(false);
+                          setSelectedAssignBooking(current);
+                          setIsAssignModalOpen(true);
+                        }}
+                        className="text-xs text-blue-600 font-bold hover:underline"
+                      >
+                        Edit Assignments
+                      </button>
+                    )}
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {selectedBooking.assignedDrivers.map((ad, idx) => {
+                      const catName = ad.category?.name || ad.categoryName || ad.driver?.carDetails?.carType?.name || 'Vehicle';
+                      const isSettled = ad.payoutSettled;
+                      const payout = ad.payoutAmount || 0;
+                      return (
+                        <div key={idx} className="py-2.5 flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2.5">
+                            <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-[10px]">
+                              {idx + 1}
+                            </span>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <p className="font-bold text-gray-800">{ad.driver?.name || 'Driver'}</p>
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-700 border border-purple-200">
+                                  {catName}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-gray-500">
+                                {ad.driver?.phone || 'No phone'} • {ad.car?.carNumber || ad.driver?.carDetails?.carNumber || 'Vehicle'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right flex flex-col items-end gap-1">
+                            <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${
+                              ad.status === 'Completed' ? 'bg-emerald-100 text-emerald-700' :
+                              ad.status === 'Ongoing' ? 'bg-amber-100 text-amber-700' :
+                              'bg-blue-100 text-blue-700'
+                            }`}>
+                              {ad.status}
+                            </span>
+                            {isSettled ? (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                ₹{payout.toLocaleString()} Settled (Wallet)
+                              </span>
+                            ) : payout > 0 ? (
+                              <span className="text-[10px] text-gray-500 font-medium">
+                                Est: ₹{payout.toLocaleString()}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -478,6 +612,19 @@ export default function BulkBookingHistory() {
           </div>
         </div>
       )}
+
+      {/* Assign Bulk Drivers Modal */}
+      <AssignBulkDriversModal
+        isOpen={isAssignModalOpen}
+        onClose={() => {
+          setIsAssignModalOpen(false);
+          setSelectedAssignBooking(null);
+        }}
+        booking={selectedAssignBooking}
+        onAssignmentSuccess={() => {
+          fetchBookings();
+        }}
+      />
     </div>
   );
 }

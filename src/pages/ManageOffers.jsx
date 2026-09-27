@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, X, Search, Tag, CheckCircle, XCircle, Gift, DollarSign, Calendar } from "lucide-react";
+import { Plus, X, Search, Tag, CheckCircle, XCircle, Gift, DollarSign, Calendar, Sparkles } from "lucide-react";
 import { FaEdit, FaTrashAlt, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { Toaster, toast } from "sonner";
 import Swal from "sweetalert2";
@@ -20,10 +20,20 @@ const ManageOffers = () => {
     maxDiscountAmount: "",
     bookingType: "Normal",
     validTill: "",
+    orderIndex: 0,
     isActive: true
   });
 
   const [loading, setLoading] = useState(false);
+
+  // --- First Ride Welcome Discount State ---
+  const [firstRideSettings, setFirstRideSettings] = useState({
+    enableFirstRideDiscount: true,
+    firstRideDiscountType: 'FLAT',
+    firstRideDiscountAmount: 50,
+    firstRideMaxDiscount: 100
+  });
+  const [savingFirstRide, setSavingFirstRide] = useState(false);
 
   // --- 1. DATA FETCHING ---
   const fetchData = async () => {
@@ -40,8 +50,41 @@ const ManageOffers = () => {
     }
   };
 
+  const fetchSettings = async () => {
+    try {
+      const resp = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/settings`);
+      if (resp.data.success && resp.data.settings) {
+        setFirstRideSettings({
+          enableFirstRideDiscount: resp.data.settings.enableFirstRideDiscount ?? true,
+          firstRideDiscountType: resp.data.settings.firstRideDiscountType || 'FLAT',
+          firstRideDiscountAmount: resp.data.settings.firstRideDiscountAmount ?? 50,
+          firstRideMaxDiscount: resp.data.settings.firstRideMaxDiscount ?? 100
+        });
+      }
+    } catch (err) {
+      console.error("Fetch Settings Error:", err);
+    }
+  };
+
+  const handleSaveFirstRideSettings = async (e) => {
+    e.preventDefault();
+    setSavingFirstRide(true);
+    try {
+      const token = localStorage.getItem("admin-token");
+      await axios.put(`${import.meta.env.VITE_API_BASE_URL}/api/settings/toggle-share-ride`, firstRideSettings, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      toast.success("First Ride Welcome Discount settings updated successfully!");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to update settings");
+    } finally {
+      setSavingFirstRide(false);
+    }
+  };
+
   useEffect(() => {
     fetchData();
+    fetchSettings();
   }, []);
 
   // --- 2. FORM OPERATIONS ---
@@ -62,6 +105,7 @@ const ManageOffers = () => {
         maxDiscountAmount: formData.discountType === "PERCENTAGE" && formData.maxDiscountAmount ? Number(formData.maxDiscountAmount) : null,
         bookingType: formData.bookingType,
         validTill: formData.validTill,
+        orderIndex: formData.orderIndex !== undefined && formData.orderIndex !== '' ? Number(formData.orderIndex) : 0,
         isActive: formData.isActive
       };
 
@@ -94,6 +138,7 @@ const ManageOffers = () => {
       maxDiscountAmount: "",
       bookingType: "Normal",
       validTill: "",
+      orderIndex: 0,
       isActive: true
     });
     setEditId(null);
@@ -108,6 +153,7 @@ const ManageOffers = () => {
       maxDiscountAmount: item.maxDiscountAmount || "",
       bookingType: item.bookingType,
       validTill: item.validTill ? new Date(new Date(item.validTill).getTime() - new Date(item.validTill).getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "",
+      orderIndex: item.orderIndex !== undefined ? item.orderIndex : 0,
       isActive: item.isActive
     });
     setShowModal(true);
@@ -255,6 +301,105 @@ const ManageOffers = () => {
         </div>
       </div>
 
+      {/* 🎉 First Ride Welcome Discount Configuration Card */}
+      <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-yellow-500/10 border border-amber-300/40 rounded-2xl p-6 mb-8 shadow-sm backdrop-blur-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-amber-200/40">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center text-white shadow-md shadow-amber-500/30 text-xl">
+              🎉
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-lg font-bold text-gray-900">First Ride Welcome Discount</h3>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
+                  New Users Auto-Apply
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                  Normal & Bulk Rides
+                </span>
+              </div>
+              <p className="text-xs text-gray-600 mt-0.5">
+                Naye register hone wale users ko unki 1st ride par bina coupon code ke automatic discount milta hai.
+              </p>
+            </div>
+          </div>
+
+          {/* Toggle Switch */}
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-gray-700">Status:</span>
+            <button
+              type="button"
+              onClick={() => setFirstRideSettings(prev => ({ ...prev, enableFirstRideDiscount: !prev.enableFirstRideDiscount }))}
+              className={`px-4 py-1.5 rounded-xl text-xs font-bold tracking-wide transition-all ${
+                firstRideSettings.enableFirstRideDiscount 
+                  ? 'bg-green-600 text-white shadow-md shadow-green-600/20' 
+                  : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              }`}
+            >
+              {firstRideSettings.enableFirstRideDiscount ? 'ENABLED (ON)' : 'DISABLED (OFF)'}
+            </button>
+          </div>
+        </div>
+
+        {/* Configuration Form */}
+        <form onSubmit={handleSaveFirstRideSettings} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-5 items-end">
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
+              Discount Type
+            </label>
+            <select
+              value={firstRideSettings.firstRideDiscountType}
+              onChange={(e) => setFirstRideSettings(prev => ({ ...prev, firstRideDiscountType: e.target.value }))}
+              className="w-full bg-white border border-gray-300 text-gray-800 p-2.5 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
+            >
+              <option value="FLAT">Flat Discount (₹)</option>
+              <option value="PERCENTAGE">Percentage (%)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
+              {firstRideSettings.firstRideDiscountType === 'PERCENTAGE' ? 'Discount Percentage (%)' : 'Discount Amount (₹)'}
+            </label>
+            <input
+              type="number"
+              min="1"
+              max={firstRideSettings.firstRideDiscountType === 'PERCENTAGE' ? 100 : undefined}
+              value={firstRideSettings.firstRideDiscountAmount}
+              onChange={(e) => setFirstRideSettings(prev => ({ ...prev, firstRideDiscountAmount: Number(e.target.value) }))}
+              className="w-full bg-white border border-gray-300 text-gray-800 p-2.5 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
+              placeholder="e.g. 50"
+            />
+          </div>
+
+          {firstRideSettings.firstRideDiscountType === 'PERCENTAGE' && (
+            <div>
+              <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
+                Max Cap (₹)
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={firstRideSettings.firstRideMaxDiscount}
+                onChange={(e) => setFirstRideSettings(prev => ({ ...prev, firstRideMaxDiscount: Number(e.target.value) }))}
+                className="w-full bg-white border border-gray-300 text-gray-800 p-2.5 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500"
+                placeholder="e.g. 100"
+              />
+            </div>
+          )}
+
+          <div>
+            <button
+              type="submit"
+              disabled={savingFirstRide}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold p-2.5 rounded-xl text-sm shadow-md shadow-amber-500/20 transition-all active:scale-95 disabled:opacity-50"
+            >
+              {savingFirstRide ? 'Saving...' : 'Save Settings'}
+            </button>
+          </div>
+        </form>
+      </div>
+
       {/* Main Table Container */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
         {/* Tab Filters */}
@@ -287,6 +432,7 @@ const ManageOffers = () => {
             <thead>
               <tr className="bg-gray-50 border-b border-gray-200">
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Promo Code</th>
+                <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Index No</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Discount</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Booking Type</th>
                 <th className="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-center">Valid Till</th>
@@ -297,7 +443,7 @@ const ManageOffers = () => {
             <tbody className="divide-y divide-gray-100">
               {filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-16 text-center">
+                  <td colSpan="7" className="px-6 py-16 text-center">
                     <Gift size={40} className="mx-auto text-gray-300 mb-3" />
                     <p className="text-gray-400 font-medium">No offers found</p>
                     <p className="text-gray-300 text-sm mt-1">Create a new promo code to get started</p>
@@ -310,6 +456,11 @@ const ManageOffers = () => {
                       <div className="font-bold text-blue-600 text-sm tracking-wide bg-blue-50 px-3 py-1 rounded-md inline-block border border-blue-100">
                         {item.code}
                       </div>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="px-2.5 py-1 rounded-md text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-sm" title="Index Number">
+                        Index: {item.orderIndex ?? 0}
+                      </span>
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className="text-sm font-bold text-gray-900">
@@ -517,6 +668,20 @@ const ManageOffers = () => {
                     className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Display Order / Index <span className="font-normal text-gray-400 text-xs">(1 = Top, 2, 3...)</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={formData.orderIndex}
+                  onChange={(e) => setFormData({ ...formData, orderIndex: e.target.value })}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 outline-none text-sm transition-all"
+                  placeholder="e.g. 1"
+                />
               </div>
 
               <div className="flex gap-3 pt-2">

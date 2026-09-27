@@ -98,3 +98,13 @@ export const checkAreaSurcharge = async (data) => {
         return err.response?.data || { success: false, message: "Network Error" };
     }
 };
+
+export const assignDriverToBulk = async (bookingId, payload) => {
+    try {
+        const res = await http.post(`/api/bulk-bookings/assign-driver/${bookingId}`, payload);
+        return res.data;
+    } catch (err) {
+        return err.response?.data || { success: false, message: "Network Error" };
+    }
+};
+

@@ -99,6 +99,13 @@ export const exportTaxReportCSV = async (timeframe) => {
     return response.data;
 };
 
+export const fetchTaxReportData = async (timeframe) => {
+    const response = await http.get(`/api/admin/export-tax-report`, {
+        params: { timeframe, format: 'json' }
+    });
+    return response.data;
+};
+
 export const getNewBookingsAPI = async () => {
     const response = await http.get('/api/admin/new-bookings');
     return response.data;

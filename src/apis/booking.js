@@ -26,3 +26,22 @@ export const deleteBooking = async (id) => {
         return err.response?.data || { success: false, message: "Network Error" };
     }
 };
+
+export const createBooking = async (bookingData) => {
+    try {
+        const res = await http.post("/api/bookings/create", bookingData);
+        return res.data;
+    } catch (err) {
+        return err.response?.data || { success: false, message: "Network Error" };
+    }
+};
+
+export const searchCabs = async (data) => {
+    try {
+        const res = await http.post("/api/bookings/search-cabs", data);
+        return res.data;
+    } catch (err) {
+        return err.response?.data || { success: false, message: "Network Error" };
+    }
+};
+

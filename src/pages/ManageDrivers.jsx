@@ -942,7 +942,7 @@ export default function ManageDrivers() {
       carNumber: d.carDetails?.carNumber || d.carNumber || "",
       carModel: d.carDetails?.carModel || d.carModel || "",
       carBrand: d.carDetails?.carBrand || d.carBrand || "",
-      carType: d.carDetails?.carType || d.carType || "",
+      carType: d.carDetails?.carType?._id || d.carDetails?.carType || d.carType || "",
       carColor: d.carDetails?.carColor || d.carColor || "",
       manufacturingYear: d.carDetails?.manufacturingYear || d.manufacturingYear || "",
       seatCapacity: d.carDetails?.seatCapacity || d.availableSeats || 4,

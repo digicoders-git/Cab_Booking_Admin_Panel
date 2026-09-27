@@ -10,7 +10,9 @@ import {
   RadialBarChart, RadialBar,
   FunnelChart, Funnel
 } from 'recharts';
-import { getFullReport as fetchReportAPI, exportTransactionsCSV, exportTaxReportCSV } from '../apis/admin';
+import { getFullReport as fetchReportAPI, exportTransactionsCSV, exportTaxReportCSV, fetchTaxReportData } from '../apis/admin';
+import { generateTaxReportPDF, generateSystemSummaryPDF, generateTransactionsPDF } from '../utils/reportPdfGenerator';
+import { toast } from 'sonner';
 import {
   Download, RefreshCw, Filter, Calendar, DollarSign, TrendingUp,
   TrendingDown, Users, Car, CreditCard, Banknote, Wallet,
@@ -87,6 +89,9 @@ const AdminReportPage = () => {
 
   const [exportTimeframe, setExportTimeframe] = useState('monthly');
   const [isExporting, setIsExporting] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [isExportingSummaryPdf, setIsExportingSummaryPdf] = useState(false);
+  const [isExportingTxPdf, setIsExportingTxPdf] = useState(false);
 
   const handleExport = async () => {
     try {
@@ -104,9 +109,10 @@ const AdminReportPage = () => {
       // Cleanup
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
+      toast.success('Transactions CSV exported successfully!');
     } catch (error) {
       console.error('Error exporting transactions:', error);
-      alert('Failed to export transactions');
+      toast.error('Failed to export transactions');
     } finally {
       setIsExporting(false);
     }
@@ -128,11 +134,73 @@ const AdminReportPage = () => {
       // Cleanup
       link.parentNode.removeChild(link);
       window.URL.revokeObjectURL(url);
+      toast.success('Tax Report Excel (.xlsx) exported successfully!');
     } catch (error) {
       console.error('Error exporting tax report:', error);
-      alert('Failed to export tax report');
+      toast.error('Failed to export tax report');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  // Tax / GST Report in PDF format
+  const handleTaxReportPDF = async () => {
+    try {
+      setIsExportingPdf(true);
+      const res = await fetchTaxReportData(exportTimeframe);
+      if (res && res.success) {
+        generateTaxReportPDF({
+          data: res.data || [],
+          totals: res.totals || {},
+          timeframe: exportTimeframe
+        });
+        toast.success('Tax / GST Report PDF generated successfully!');
+      } else {
+        toast.error(res?.message || 'Failed to fetch tax report data');
+      }
+    } catch (error) {
+      console.error('Error exporting tax report PDF:', error);
+      toast.error('Failed to generate Tax Report PDF');
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
+  // Executive System Summary Report in PDF format
+  const handleSystemSummaryPDF = () => {
+    try {
+      setIsExportingSummaryPdf(true);
+      if (!reportData) {
+        toast.error('Report data is still loading, please wait');
+        return;
+      }
+      generateSystemSummaryPDF({
+        reportData,
+        timeframe: exportTimeframe
+      });
+      toast.success('System Summary PDF generated successfully!');
+    } catch (error) {
+      console.error('Error generating summary PDF:', error);
+      toast.error('Failed to generate System Summary PDF');
+    } finally {
+      setIsExportingSummaryPdf(false);
+    }
+  };
+
+  // Transactions ledger in PDF format
+  const handleTransactionsPDF = () => {
+    try {
+      setIsExportingTxPdf(true);
+      generateTransactionsPDF({
+        transactions,
+        timeframe: exportTimeframe
+      });
+      toast.success('Transactions PDF downloaded successfully!');
+    } catch (error) {
+      console.error('Error exporting transactions PDF:', error);
+      toast.error('Failed to generate Transactions PDF');
+    } finally {
+      setIsExportingTxPdf(false);
     }
   };
   const toggleRowExpansion = (id) => {
@@ -792,7 +860,7 @@ const AdminReportPage = () => {
           <h3 className="text-lg font-semibold text-gray-900">All Transactions</h3>
           <p className="text-sm text-gray-500">Complete transaction history</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
           <select 
             value={exportTimeframe} 
             onChange={(e) => setExportTimeframe(e.target.value)}
@@ -802,14 +870,23 @@ const AdminReportPage = () => {
             <option value="weekly">Weekly</option>
             <option value="monthly">Monthly</option>
             <option value="yearly">Yearly</option>
+            <option value="all">All Time</option>
           </select>
+          <button 
+            onClick={handleTransactionsPDF}
+            disabled={isExportingTxPdf}
+            className={`px-3.5 py-2 text-sm flex items-center gap-1.5 text-white font-medium rounded-lg transition-colors ${isExportingTxPdf ? 'bg-red-400' : 'bg-red-600 hover:bg-red-700'}`}
+          >
+            <FileText size={16} />
+            {isExportingTxPdf ? 'Generating...' : 'Export PDF'}
+          </button>
           <button 
             onClick={handleExport}
             disabled={isExporting}
-            className={`px-4 py-2 text-sm flex items-center gap-2 text-white rounded-lg transition-colors ${isExporting ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'}`}
+            className={`px-3.5 py-2 text-sm flex items-center gap-1.5 text-white font-medium rounded-lg transition-colors ${isExporting ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'}`}
           >
             <DownloadCloud size={16} />
-            {isExporting ? 'Exporting...' : 'Export Transactions'}
+            {isExporting ? 'Exporting...' : 'Export CSV'}
           </button>
         </div>
       </div>
@@ -941,46 +1018,137 @@ const AdminReportPage = () => {
       {/* Export Options */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-2 sm:p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Export Reports</h3>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Export Reports</h3>
+            <p className="text-xs text-gray-500">Download formatted reports in PDF & Excel</p>
+          </div>
           <select 
             value={exportTimeframe} 
             onChange={(e) => setExportTimeframe(e.target.value)}
-            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white font-medium text-gray-700"
           >
             <option value="daily">Daily</option>
             <option value="weekly">Weekly</option>
             <option value="monthly">Monthly</option>
             <option value="yearly">Yearly</option>
+            <option value="all">All Time</option>
           </select>
         </div>
         <div className="space-y-3">
-
+          {/* 1. Tax / GST Report PDF (Recommended & User requested) */}
           <button 
-            onClick={handleExport} 
-            disabled={isExporting}
-            className={`w-full p-3 border border-gray-200 rounded-lg flex items-center justify-between ${isExporting ? 'bg-gray-100 opacity-70' : 'hover:bg-gray-50'}`}
+            onClick={handleTaxReportPDF} 
+            disabled={isExportingPdf}
+            className={`w-full p-3.5 border-2 border-red-200 bg-red-50/50 hover:bg-red-50 rounded-xl flex items-center justify-between transition-all group ${isExportingPdf ? 'opacity-70 cursor-wait' : 'cursor-pointer hover:shadow-sm hover:border-red-300'}`}
           >
-            <div className="flex items-center gap-3">
-              <DownloadCloud size={18} className="text-blue-500" />
-              <span className="text-sm font-medium text-gray-700">
-                {isExporting ? 'Exporting CSV...' : 'CSV File (Transactions)'}
-              </span>
+            <div className="flex items-center gap-3 text-left">
+              <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                <FileText size={20} className="text-red-600" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-gray-900">
+                    Tax / GST Audit Report (PDF)
+                  </span>
+                  <span className="text-[10px] uppercase font-extrabold bg-red-600 text-white px-1.5 py-0.5 rounded">
+                    PDF
+                  </span>
+                </div>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  Full tax audit: Base Fare, CGST (2.5%), SGST (2.5%) & Grand Total in clean PDF
+                </p>
+              </div>
             </div>
-            <Download size={16} className="text-gray-400" />
+            <div className="p-2 bg-white rounded-lg border border-red-200 text-red-600 group-hover:bg-red-600 group-hover:text-white transition-colors">
+              <Download size={16} />
+            </div>
           </button>
 
+          {/* 2. Tax / GST Report Excel */}
           <button 
             onClick={handleTaxExport} 
             disabled={isExporting}
-            className={`w-full p-3 border border-gray-200 rounded-lg flex items-center justify-between mt-2 ${isExporting ? 'bg-gray-100 opacity-70' : 'hover:bg-gray-50'}`}
+            className={`w-full p-3 border border-gray-200 hover:border-emerald-300 hover:bg-emerald-50/40 rounded-xl flex items-center justify-between transition-all group ${isExporting ? 'bg-gray-100 opacity-70' : 'cursor-pointer'}`}
           >
-            <div className="flex items-center gap-3">
-              <FileText size={18} className="text-green-500" />
-              <span className="text-sm font-medium text-gray-700">
-                {isExporting ? 'Exporting Tax Report...' : 'Tax / GST Report'}
-              </span>
+            <div className="flex items-center gap-3 text-left">
+              <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+                <FileSpreadsheet size={18} className="text-emerald-700" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-gray-800">
+                    Tax / GST Report (Excel / XLSX)
+                  </span>
+                  <span className="text-[10px] uppercase font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">
+                    XLSX
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Spreadsheet format for accountant and tax filings
+                </p>
+              </div>
             </div>
-            <Download size={16} className="text-gray-400" />
+            <div className="p-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-500 group-hover:text-emerald-600">
+              <Download size={15} />
+            </div>
+          </button>
+
+          {/* 3. Executive System Summary PDF */}
+          <button 
+            onClick={handleSystemSummaryPDF} 
+            disabled={isExportingSummaryPdf}
+            className={`w-full p-3 border border-gray-200 hover:border-blue-300 hover:bg-blue-50/40 rounded-xl flex items-center justify-between transition-all group ${isExportingSummaryPdf ? 'bg-gray-100 opacity-70' : 'cursor-pointer'}`}
+          >
+            <div className="flex items-center gap-3 text-left">
+              <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
+                <Award size={18} className="text-blue-600" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-gray-800">
+                    Executive System Summary (PDF)
+                  </span>
+                  <span className="text-[10px] uppercase font-bold bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
+                    Summary
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  KPI overview, revenue distributions & recent financial ledger
+                </p>
+              </div>
+            </div>
+            <div className="p-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-500 group-hover:text-blue-600">
+              <Download size={15} />
+            </div>
+          </button>
+
+          {/* 4. Transactions CSV */}
+          <button 
+            onClick={handleExport} 
+            disabled={isExporting}
+            className={`w-full p-3 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 rounded-xl flex items-center justify-between transition-all group ${isExporting ? 'bg-gray-100 opacity-70' : 'cursor-pointer'}`}
+          >
+            <div className="flex items-center gap-3 text-left">
+              <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center shrink-0">
+                <DownloadCloud size={18} className="text-gray-600" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold text-gray-800">
+                    All Transactions (CSV)
+                  </span>
+                  <span className="text-[10px] uppercase font-bold bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">
+                    CSV
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Raw data dump of all wallet credits and debits
+                </p>
+              </div>
+            </div>
+            <div className="p-2 bg-gray-50 rounded-lg border border-gray-200 text-gray-500 group-hover:text-gray-700">
+              <Download size={15} />
+            </div>
           </button>
         </div>
 
@@ -1027,11 +1195,25 @@ const AdminReportPage = () => {
               </div>
             </div>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 sm:space-x-3">
+              {/* Quick PDF Export */}
+              <button
+                onClick={handleTaxReportPDF}
+                disabled={isExportingPdf}
+                title="Download Tax Report PDF"
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold rounded-lg text-white shadow-sm transition-all ${
+                  isExportingPdf ? 'bg-red-400 cursor-wait' : 'bg-red-600 hover:bg-red-700'
+                }`}
+              >
+                <FileText size={16} />
+                <span>{isExportingPdf ? 'Generating...' : 'Download PDF Report'}</span>
+              </button>
+
               {/* Refresh */}
               <button
                 onClick={fetchFullReport}
-                className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                title="Refresh Report"
               >
                 <RefreshCw size={18} />
               </button>

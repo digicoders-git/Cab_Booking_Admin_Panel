@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import Swal from "sweetalert2";
 import ReviewsModal from "../components/ReviewsModal";
+import AdminBookRideModal from "../components/AdminBookRideModal";
 import { GoogleMap, useJsApiLoader, Marker, Autocomplete, Circle } from '@react-google-maps/api';
 
 const LIBRARIES = ['places'];
@@ -163,6 +164,7 @@ export default function ManageUsers() {
   const [selectedChart, setSelectedChart] = useState('all');
   const [expandedRows, setExpandedRows] = useState({});
   const [reviewModal, setReviewModal] = useState({ isOpen: false, targetId: null });
+  const [bookRideModal, setBookRideModal] = useState({ isOpen: false, user: null });
 
   const handleOpenUserDetails = async (u) => {
     setViewing(u);
@@ -755,6 +757,19 @@ export default function ManageUsers() {
                           </td>
                           <td className="py-4 px-6 text-center">
                             <div className="flex items-center justify-center gap-2">
+                              {/* 🚕 Quick Book Ride for this User */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setBookRideModal({ isOpen: true, user: u });
+                                }}
+                                className="p-1.5 bg-blue-50 hover:bg-blue-600 rounded-lg transition-colors text-blue-600 hover:text-white group flex items-center gap-1 shadow-xs border border-blue-200"
+                                title={`Book Cab for ${u.name}`}
+                              >
+                                <Car size={15} />
+                                <span className="text-[10px] font-bold hidden sm:inline">Book</span>
+                              </button>
+
                               {can('USER_READ') && (
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleOpenUserDetails(u); }}
@@ -1124,19 +1139,30 @@ export default function ManageUsers() {
                   </div>
                 </div>
 
-                {/* Customer Age / Tenure Card */}
-                <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl p-3.5 flex flex-col min-w-[220px] shadow-sm">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Clock size={14} className="text-amber-400" />
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300">Customer Tenure</span>
+                {/* Customer Actions & Tenure Card */}
+                <div className="flex flex-col gap-2 shrink-0">
+                  <button
+                    onClick={() => {
+                      setBookRideModal({ isOpen: true, user: viewing });
+                    }}
+                    className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95"
+                  >
+                    <Car size={15} /> Book Ride for {viewing.name?.split(' ')[0] || 'User'}
+                  </button>
+
+                  <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl p-3 flex flex-col min-w-[210px] shadow-sm">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <Clock size={13} className="text-amber-400" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-300">Customer Tenure</span>
+                    </div>
+                    <p className="text-sm sm:text-base font-black text-white">
+                      {userRidesData?.stats?.customerAgeText || `${Math.max(0, Math.ceil((new Date() - new Date(viewing.createdAt)) / (1000 * 60 * 60 * 24)))} Days`}
+                    </p>
+                    <p className="text-[10px] text-indigo-200/70 flex items-center gap-1 mt-0.5">
+                      <Calendar size={10} />
+                      Joined: {new Date(viewing.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </p>
                   </div>
-                  <p className="text-base sm:text-lg font-black text-white">
-                    {userRidesData?.stats?.customerAgeText || `${Math.max(0, Math.ceil((new Date() - new Date(viewing.createdAt)) / (1000 * 60 * 60 * 24)))} Days`}
-                  </p>
-                  <p className="text-[11px] text-indigo-200/70 flex items-center gap-1 mt-0.5">
-                    <Calendar size={11} />
-                    Joined: {new Date(viewing.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                  </p>
                 </div>
               </div>
 
@@ -1476,6 +1502,16 @@ export default function ManageUsers() {
         onClose={() => setReviewModal({ isOpen: false, targetId: null })}
         targetId={reviewModal.targetId}
         type="user"
+      />
+
+      {/* 🚕 Admin Quick Book Ride for User Modal */}
+      <AdminBookRideModal
+        isOpen={bookRideModal.isOpen}
+        onClose={() => setBookRideModal({ isOpen: false, user: null })}
+        user={bookRideModal.user}
+        onBookingSuccess={() => {
+          fetchUsers();
+        }}
       />
     </div>
   );
