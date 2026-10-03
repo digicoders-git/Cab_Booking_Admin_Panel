@@ -34,6 +34,8 @@ const DriverLeads = lazy(() => import("../pages/DriverLeads"));
 const ManageFixedRoutes = lazy(() => import("../pages/ManageFixedRoutes"));
 const FixedRouteMarketplace = lazy(() => import("../pages/FixedRouteMarketplace"));
 const FixedBookingsList = lazy(() => import("../pages/FixedBookingsList"));
+const ManageRentalPackages = lazy(() => import("../pages/ManageRentalPackages"));
+const ManageRentalBookings = lazy(() => import("../pages/ManageRentalBookings"));
 
 const routes = [
   { path: "/dashboard", component: Dashboard, name: "Dashboard", icon: FaTachometerAlt, permission: "DASHBOARD_READ" },
@@ -63,6 +65,8 @@ const routes = [
   { path: "/fixed-routes/manage", component: ManageFixedRoutes, name: "Manage Packages", icon: FaRoute, permission: "BOOKING_CREATE" },
   { path: "/fixed-routes/marketplace", component: FixedRouteMarketplace, name: "Fixed Marketplace", icon: FaBriefcase, permission: "BOOKING_READ" },
   { path: "/fixed-routes/bookings", component: FixedBookingsList, name: "Fixed Bookings", icon: FaBriefcase, permission: "BOOKING_READ" },
+  { path: "/rentals/packages", component: ManageRentalPackages, name: "Rental Packages", icon: FaRoute, permission: "BOOKING_CREATE" },
+  { path: "/rentals/bookings", component: ManageRentalBookings, name: "Rental Bookings", icon: FaRoute, permission: "BOOKING_READ" },
   { path: "/admin/profile", component: AdminProfile, name: "Profile", icon: FaUserShield },
   { path: "/reports", component: Reports, name: "Reports", icon: FaTachometerAlt, permission: "REPORT_READ" },
 ];
