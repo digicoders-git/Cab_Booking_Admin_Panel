@@ -65,3 +65,14 @@ export const getDriverFullHistory = async (id) => {
   return res.data;
 };
 
+export const exportDriverReportPdf = async (id) => {
+    try {
+        const response = await http.get(`/api/drivers/export-driver-report/${id}`, {
+            responseType: 'blob' // Important for receiving binary data
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error exporting driver report:", error);
+        return null;
+    }
+};

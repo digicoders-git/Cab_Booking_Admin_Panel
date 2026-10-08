@@ -24,3 +24,7 @@ export const getUserRides = async (id) => {
     const res = await http.get(`/api/users/${id}/rides`);
     return res.data;
 };
+export const exportUserReportPdf = async (id) => {
+    const res = await http.get(`/api/users/export-user-report/${id}`, { responseType: 'blob' });
+    return res.data;
+};

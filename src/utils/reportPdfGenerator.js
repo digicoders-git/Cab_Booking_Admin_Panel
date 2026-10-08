@@ -338,13 +338,13 @@ export const generateSystemSummaryPDF = ({ reportData = {}, timeframe = 'monthly
 
   currentY += (2 * (cardH + 4)) + 6;
 
-  // Section 2: Recent Transactions Table
+  // Section 2: All Financial Transactions Table
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(30, 41, 59);
-  doc.text("2. RECENT FINANCIAL TRANSACTIONS", 14, currentY);
+  doc.text("2. ALL FINANCIAL TRANSACTIONS", 14, currentY);
 
-  const txRows = transactions.slice(0, 20).map((t, idx) => [
+  const txRows = transactions.map((t, idx) => [
     (idx + 1).toString(),
     new Date(t.createdAt).toLocaleDateString('en-IN'),
     t.user?.name || t.userModel || "System",
@@ -558,4 +558,99 @@ export const generateTransactionsPDF = ({ transactions = [], timeframe = 'monthl
 
   const filename = `Kwikcab_Transactions_${tfLabel.toLowerCase()}_${new Date().toISOString().split("T")[0]}.pdf`;
   doc.save(filename);
+};
+
+export const generateCityReportPDF = (reportData) => {
+  if (!reportData || !reportData.bookings) return;
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  
+  const pageWidth = doc.internal.pageSize.getWidth();
+  
+  // Header Background Bar (Navy / Brand primary)
+  doc.setFillColor(30, 58, 138); 
+  doc.rect(0, 0, pageWidth, 26, "F");
+  
+  // Accent Line
+  doc.setFillColor(37, 99, 235);
+  doc.rect(0, 26, pageWidth, 2, "F");
+
+  // Title
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text("KWIK CAB SERVICES - ADMIN PORTAL", 14, 11);
+
+  doc.setFontSize(9.5);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(219, 234, 254);
+  doc.text(`CITY-WISE BOOKING REPORT: ${reportData.city.toUpperCase()}`, 14, 18);
+
+  // Meta Info
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  doc.setFontSize(8);
+  doc.text(`Generated: ${dateStr}`, pageWidth - 14, 16, { align: "right" });
+
+  // 4 Top KPI Highlights
+  const startY = 32;
+  const cardGap = 5;
+  const cardWidth = (pageWidth - 28 - (3 * cardGap)) / 4;
+  
+  const cards = [
+    { label: "TOTAL BOOKINGS", value: `${reportData.summary.totalBookings}`, bg: [240, 249, 255], border: [186, 230, 253], text: [3, 105, 161] },
+    { label: "COMPLETED RIDES", value: `${reportData.summary.completedRides}`, bg: [240, 253, 244], border: [187, 247, 208], text: [21, 128, 61] },
+    { label: "CANCELLED RIDES", value: `${reportData.summary.cancelledRides}`, bg: [254, 242, 242], border: [254, 202, 202], text: [185, 28, 28] },
+    { label: "TOTAL REVENUE", value: `Rs. ${reportData.summary.totalRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, bg: [245, 243, 255], border: [221, 214, 254], text: [109, 40, 217] },
+  ];
+
+  cards.forEach((card, idx) => {
+    const x = 14 + idx * (cardWidth + cardGap);
+    doc.setFillColor(...card.bg);
+    doc.setDrawColor(...card.border);
+    doc.roundedRect(x, startY, cardWidth, 17, 2, 2, "FD");
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text(card.label, x + 4, startY + 6);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(...card.text);
+    doc.text(card.value, x + 4, startY + 13);
+  });
+
+  const tableData = reportData.bookings.map((b) => [
+    new Date(b.createdAt).toLocaleDateString(),
+    b.customerName,
+    b.rideType,
+    b.pickupAddress?.substring(0, 40) + (b.pickupAddress?.length > 40 ? '...' : ''),
+    b.status,
+    `Rs. ${b.fare}`
+  ]);
+
+  autoTable(doc, {
+    startY: startY + 24,
+    head: [["Date", "Customer", "Type", "Pickup Address", "Status", "Fare"]],
+    body: tableData,
+    theme: "grid",
+    headStyles: { fillColor: [248, 250, 252], textColor: [71, 85, 105], fontStyle: "bold", fontSize: 8, halign: 'center' },
+    bodyStyles: { fontSize: 8, textColor: [51, 65, 85] },
+    alternateRowStyles: { fillColor: [250, 250, 250] },
+    columnStyles: {
+      0: { halign: 'center' },
+      2: { halign: 'center' },
+      4: { halign: 'center' },
+      5: { halign: 'right' }
+    },
+    didDrawCell: (data) => {
+      if (data.section === 'body' && data.column.index === 4) {
+        const val = data.cell.raw;
+        if (val === 'Completed') data.cell.styles.textColor = [22, 163, 74];
+        else if (['Cancelled', 'Expired'].includes(val)) data.cell.styles.textColor = [220, 38, 38];
+        else data.cell.styles.textColor = [202, 138, 4];
+      }
+    }
+  });
+
+  doc.save(`City_Report_${reportData.city.replace(/[^a-z0-9]/gi, '_')}_${new Date().getTime()}.pdf`);
 };

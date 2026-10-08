@@ -2,7 +2,7 @@ import { lazy } from "react";
 import {
   FaTachometerAlt, FaTruck, FaUserTie, FaCar, FaUsers,
   FaBell, FaUserShield, FaWallet, FaRoute, FaCarSide,
-  FaAddressCard, FaSitemap, FaMap, FaStore, FaMapMarkerAlt, FaGlobe, FaTag, FaPlus, FaBriefcase, FaMoneyBillWave, FaHistory, FaInbox
+  FaAddressCard, FaSitemap, FaMap, FaStore, FaMapMarkerAlt, FaGlobe, FaTag, FaPlus, FaBriefcase, FaMoneyBillWave, FaHistory, FaInbox, FaMapPin
 } from "react-icons/fa";
 
 const Dashboard = lazy(() => import("../pages/Dashboard"));
@@ -18,6 +18,7 @@ const WalletManagement = lazy(() => import("../pages/WalletManagement"));
 const ManageBookings = lazy(() => import("../pages/ManageBookings"));
 const ManageCarCategories = lazy(() => import("../pages/ManageCarCategories"));
 const Reports = lazy(() => import("../pages/Reports"));
+const CityWiseReport = lazy(() => import("../pages/CityWiseReport"));
 const Support = lazy(() => import("../pages/Support"));
 const LiveTracking = lazy(() => import("../pages/LiveTracking"));
 const Vendor = lazy(() => import("../pages/Vendor"));
@@ -68,7 +69,8 @@ const routes = [
   { path: "/rentals/packages", component: ManageRentalPackages, name: "Rental Packages", icon: FaRoute, permission: "BOOKING_CREATE" },
   { path: "/rentals/bookings", component: ManageRentalBookings, name: "Rental Bookings", icon: FaRoute, permission: "BOOKING_READ" },
   { path: "/admin/profile", component: AdminProfile, name: "Profile", icon: FaUserShield },
-  { path: "/reports", component: Reports, name: "Reports", icon: FaTachometerAlt, permission: "REPORT_READ" },
+  { path: "/reports", component: Reports, name: "Main Reports", icon: FaTachometerAlt, permission: "REPORT_READ" },
+  { path: "/reports/city", component: CityWiseReport, name: "City Reports", icon: FaMapPin, permission: "REPORT_READ" },
 ];
 
 export default routes;

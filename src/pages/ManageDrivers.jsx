@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useFont } from "../context/FontContext";
 import {
   getAllDrivers, approveDriver, rejectDriver, updateDriver, toggleDriverStatus, deleteDriver, registerDriver,
-  searchDriversByRadius, searchDriversByHomeRadius, changeDriverOwnership, getDriverFullHistory
+  searchDriversByRadius, searchDriversByHomeRadius, changeDriverOwnership, getDriverFullHistory, exportDriverReportPdf
 } from "../apis/driver";
 import { getAllVendors } from "../apis/vendor";
 import { toggleDriverOnline } from "../apis/admin";
@@ -39,7 +39,9 @@ import {
   RefreshCw, Layers, FileCheck, X, ExternalLink, Eye, ArrowRight, History, Search
 } from 'lucide-react';
 import Swal from "sweetalert2";
+import { toast } from "sonner";
 import ReviewsModal from "../components/ReviewsModal";
+import { useReactToPrint } from "react-to-print";
 
 // Chart Colors
 const CHART_COLORS = {
@@ -269,6 +271,7 @@ export default function ManageDrivers() {
   const liveSearchRef = useRef(null);
   const homeSearchRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const modalRef = useRef(null);
   const markersRef = useRef([]);
   const [showMap, setShowMap] = useState(true);
   const [isAddressSelected, setIsAddressSelected] = useState(false);
@@ -313,6 +316,68 @@ export default function ManageDrivers() {
     } finally {
       setDriverHistoryLoading(false);
     }
+  };
+
+  const handlePrint = useReactToPrint({
+    content: () => modalRef.current,
+    documentTitle: viewing ? `Driver_Report_${viewing.name.replace(/\s+/g, '_')}` : "Driver_Report",
+    onBeforeGetContent: () => {
+        toast.loading("Preparing PDF...", { id: "pdfGen" });
+        return Promise.resolve();
+    },
+    onAfterPrint: () => {
+        toast.success("PDF ready!", { id: "pdfGen" });
+    },
+    onPrintError: () => {
+        toast.error("Error preparing PDF", { id: "pdfGen" });
+    }
+  });
+
+  const handleDownloadPdf = async () => {
+    if (!viewing || !viewing._id) return;
+    toast.loading("Generating PDF from server...", { id: "pdfGen" });
+    try {
+        const blob = await exportDriverReportPdf(viewing._id);
+        if (blob) {
+            const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Driver_Report_${viewing.name.replace(/\s+/g, '_')}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            toast.success("PDF Downloaded successfully!", { id: "pdfGen" });
+        } else {
+            toast.error("Failed to generate PDF from server.", { id: "pdfGen" });
+        }
+    } catch (err) {
+        console.error("PDF download error:", err);
+        toast.error("Error downloading PDF.", { id: "pdfGen" });
+    }
+  };
+
+  const handleWhatsAppShare = (driver) => {
+    // Generate a beautiful WhatsApp message
+    let msg = `*DRIVER REPORT SUMMARY*\n\n`;
+    msg += `*Name:* ${driver.name}\n`;
+    msg += `*Phone:* ${driver.phone}\n`;
+    msg += `*Status:* ${driver.isApproved ? 'Approved' : 'Pending/Rejected'}\n\n`;
+    
+    if (driverHistoryData && driverHistoryData.wallet) {
+        msg += `*Wallet Balance:* Rs. ${driverHistoryData.wallet.walletBalance}\n`;
+        msg += `*Total Earnings:* Rs. ${driverHistoryData.wallet.totalEarnings}\n\n`;
+    }
+    
+    msg += `*Message:* Hello ${driver.name}, your report summary is ready. Please find the details above.\n\n`;
+    msg += `Regards,\n*Kwik Cabs Team*`;
+    
+    const encodedMsg = encodeURIComponent(msg);
+    // Remove all non-numeric characters from phone number, and ensure country code exists
+    let phoneNum = driver.phone.replace(/\D/g, '');
+    if (phoneNum.length === 10) phoneNum = '91' + phoneNum; // Default to India if 10 digits
+    
+    const url = `https://wa.me/${phoneNum}?text=${encodedMsg}`;
+    window.open(url, '_blank');
   };
 
   useEffect(() => {
@@ -2076,13 +2141,13 @@ export default function ManageDrivers() {
       {/* 3-Tab Driver Inspection Modal (Profile, Wallet, Rides from Day 1) */}
       {viewing && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4 md:p-6 overflow-y-auto">
-          <div className="bg-white rounded-xl w-full max-w-5xl shadow-[0_25px_70px_rgba(0,0,0,0.5)] overflow-hidden my-auto max-h-[92vh] flex flex-col border border-gray-200 animate-in fade-in zoom-in-95 duration-200">
+          <div ref={modalRef} className="bg-white rounded-xl w-full max-w-5xl shadow-[0_25px_70px_rgba(0,0,0,0.5)] overflow-hidden my-auto max-h-[92vh] flex flex-col border border-gray-200 animate-in fade-in zoom-in-95 duration-200 print:max-h-none print:overflow-visible print:shadow-none print:border-0 print:m-0">
             
             {/* Header Banner with Profile & Driver Platform Tenure */}
             <div className="relative bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 text-white shrink-0 shadow-sm">
               <button
                 onClick={() => { setViewing(null); setDriverHistoryData(null); }}
-                className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors text-white"
+                className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors text-white print:hidden"
                 title="Close"
               >
                 <X size={18} />
@@ -2255,23 +2320,34 @@ export default function ManageDrivers() {
                 </button>
               </div>
 
-              {can('DRIVER_EDIT') && (
+              <div className="flex items-center gap-2 print:hidden">
                 <button
-                  onClick={() => {
-                    const d = viewing;
-                    setViewing(null);
-                    handleOpenEdit(d);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 transition-colors"
+                  onClick={() => handleDownloadPdf(viewing)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors"
+                  title="Export PDF"
                 >
-                  <FaEdit size={12} />
-                  <span>Edit Driver</span>
+                  <FaDownload size={12} />
+                  <span>Export</span>
                 </button>
-              )}
+
+                {can('DRIVER_EDIT') && (
+                  <button
+                    onClick={() => {
+                      const d = viewing;
+                      setViewing(null);
+                      handleOpenEdit(d);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 transition-colors"
+                  >
+                    <FaEdit size={12} />
+                    <span>Edit Driver</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Modal Body Content (Scrollable) */}
-            <div className="p-5 sm:p-6 flex-1 overflow-y-auto bg-gray-50/50">
+            <div className="p-5 sm:p-6 flex-1 overflow-y-auto bg-gray-50/50 print:overflow-visible print:h-auto">
               {driverHistoryLoading ? (
                 <div className="py-16 text-center">
                   <RefreshCw size={28} className="animate-spin text-blue-600 mx-auto mb-3" />
@@ -2989,7 +3065,7 @@ export default function ManageDrivers() {
               </p>
               <button
                 onClick={() => { setViewing(null); setDriverHistoryData(null); }}
-                className="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-xs font-bold transition-colors"
+                className="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg text-xs font-bold transition-colors print:hidden"
               >
                 Close
               </button>

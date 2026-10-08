@@ -94,7 +94,7 @@ const NewBookings = () => {
     const handleCardClick = (type) => {
         switch (type) {
             case 'Normal Booking': navigate('/bookings/manage'); break;
-            case 'Bulk Booking': navigate('/bulk-booking/history'); break;
+            case 'Bulk Booking': navigate('/bulk-marketplace'); break;
             case 'Fixed Package': navigate('/fixed-routes/bookings'); break;
             case 'Agent Lead': navigate('/agent-leads/manage'); break;
             default: break;

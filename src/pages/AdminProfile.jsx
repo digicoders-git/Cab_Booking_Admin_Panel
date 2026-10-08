@@ -253,8 +253,8 @@ export default function AdminProfile() {
       "adminBulkAdvancePct", "fleetBulkSecurityPct", "maxNegativeWalletLimit"
     ];
     for (let key of keysToCheck) {
-      if (bulkSettings[key] === '' || bulkSettings[key] < 1) {
-        return toast.error(`${key} must be 1 or greater.`);
+      if (bulkSettings[key] === '' || bulkSettings[key] < 0) {
+        return toast.error(`${key} cannot be less than 0.`);
       }
     }
     if (bulkSettings.defaultCommission === '' || bulkSettings.defaultCommission < 0) {
@@ -820,7 +820,7 @@ export default function AdminProfile() {
                               onChange={(e) => setBulkSettings({ ...bulkSettings, [role.pctKey]: e.target.value === '' ? '' : Number(e.target.value) })}
                               className="w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                               style={{ backgroundColor: inputBg, borderColor, color: textMain }}
-                              min="1" max="100"
+                              min="0" max="100"
                             />
                           </div>
                         </div>

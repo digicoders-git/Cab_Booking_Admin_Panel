@@ -28,6 +28,11 @@ export const getFullReport = async () => {
     return response.data;
 };
 
+export const getCityWiseReportAPI = async (city) => {
+    const response = await http.get(`/api/admin/city-wise-report`, { params: { city } });
+    return response.data;
+};
+
 export const updateAdminNotifications = async (id, data) => {
     const response = await http.put(`/api/admin/notifications/${id}`, data);
     return response.data;

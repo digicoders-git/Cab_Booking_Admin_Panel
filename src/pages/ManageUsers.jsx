@@ -3,7 +3,7 @@ import { useTheme } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
 import { useFont } from "../context/FontContext";
 import {
-  getAllUsers, updateUser, deleteUser, toggleUserStatus, getUserRides
+  getAllUsers, updateUser, deleteUser, toggleUserStatus, getUserRides, exportUserReportPdf
 } from "../apis/user";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -26,6 +26,7 @@ import {
 import Swal from "sweetalert2";
 import ReviewsModal from "../components/ReviewsModal";
 import AdminBookRideModal from "../components/AdminBookRideModal";
+import { toast } from "sonner";
 import { GoogleMap, useJsApiLoader, Marker, Autocomplete, Circle } from '@react-google-maps/api';
 
 const LIBRARIES = ['places'];
@@ -425,6 +426,29 @@ export default function ManageUsers() {
       ...prev,
       [id]: !prev[id]
     }));
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!viewing || !viewing._id) return;
+    toast.loading("Generating PDF from server...", { id: "pdfGen" });
+    try {
+        const blob = await exportUserReportPdf(viewing._id);
+        if (blob) {
+            const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `User_Report_${viewing.name.replace(/\s+/g, '_')}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode.removeChild(link);
+            toast.success("PDF Downloaded successfully!", { id: "pdfGen" });
+        } else {
+            toast.error("Failed to generate PDF from server.", { id: "pdfGen" });
+        }
+    } catch (err) {
+        console.error("PDF download error:", err);
+        toast.error("Error downloading PDF.", { id: "pdfGen" });
+    }
   };
 
   return (
@@ -1399,7 +1423,15 @@ export default function ManageUsers() {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 bg-white border-t border-gray-200 flex justify-end shrink-0 shadow-xs">
+            <div className="p-4 bg-white border-t border-gray-200 flex justify-end shrink-0 shadow-xs gap-3">
+              <button
+                onClick={handleDownloadPdf}
+                className="flex items-center gap-1.5 px-6 py-2.5 rounded-lg text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors shadow-sm hover:shadow-md"
+                title="Export PDF"
+              >
+                <Download size={14} />
+                <span>Export PDF</span>
+              </button>
               <button
                 onClick={() => { setViewing(null); setUserRidesData(null); }}
                 className="px-6 py-2.5 bg-gray-900 hover:bg-black text-white rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-md"
