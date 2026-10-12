@@ -130,3 +130,58 @@ export const deleteBookingAPI = async (id, type) => {
     const response = await http.delete(`/api/admin/booking/${id}`, { data: { type } });
     return response.data;
 };
+
+// ================= SUBSCRIPTION PLANS =================
+export const createSubscriptionPlanAPI = async (data) => {
+    try {
+        const response = await http.post("/api/admin/subscription-plans", data);
+        return response.data;
+    } catch (error) {
+        return error.response?.data || { success: false, message: "Error connecting to server" };
+    }
+};
+
+export const getSubscriptionPlansAPI = async () => {
+    try {
+        const response = await http.get("/api/admin/subscription-plans");
+        return response.data;
+    } catch (error) {
+        return error.response?.data || { success: false, message: "Error connecting to server" };
+    }
+};
+
+export const updateSubscriptionPlanAPI = async (id, data) => {
+    try {
+        const response = await http.put(`/api/admin/subscription-plans/${id}`, data);
+        return response.data;
+    } catch (error) {
+        return error.response?.data || { success: false, message: "Error connecting to server" };
+    }
+};
+
+export const deleteSubscriptionPlanAPI = async (id) => {
+    try {
+        const response = await http.delete(`/api/admin/subscription-plans/${id}`);
+        return response.data;
+    } catch (error) {
+        return error.response?.data || { success: false, message: "Error connecting to server" };
+    }
+};
+
+export const getPurchasedSubscriptionsAPI = async () => {
+    try {
+        const response = await http.get("/api/admin/purchased-subscriptions");
+        return response.data;
+    } catch (error) {
+        return error.response?.data || { success: false, message: "Error connecting to server" };
+    }
+};
+
+export const assignSubscriptionDriverAPI = async (data) => {
+    try {
+        const response = await http.post("/api/admin/assign-subscription-driver", data);
+        return response.data;
+    } catch (error) {
+        return error.response?.data || { success: false, message: "Error connecting to server" };
+    }
+};

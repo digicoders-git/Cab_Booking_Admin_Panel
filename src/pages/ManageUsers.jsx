@@ -782,17 +782,19 @@ export default function ManageUsers() {
                           <td className="py-4 px-6 text-center">
                             <div className="flex items-center justify-center gap-2">
                               {/* 🚕 Quick Book Ride for this User */}
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setBookRideModal({ isOpen: true, user: u });
-                                }}
-                                className="p-1.5 bg-blue-50 hover:bg-blue-600 rounded-lg transition-colors text-blue-600 hover:text-white group flex items-center gap-1 shadow-xs border border-blue-200"
-                                title={`Book Cab for ${u.name}`}
-                              >
-                                <Car size={15} />
-                                <span className="text-[10px] font-bold hidden sm:inline">Book</span>
-                              </button>
+                              {can('BOOKING_READ') && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setBookRideModal({ isOpen: true, user: u });
+                                  }}
+                                  className="p-1.5 bg-blue-50 hover:bg-blue-600 rounded-lg transition-colors text-blue-600 hover:text-white group flex items-center gap-1 shadow-xs border border-blue-200"
+                                  title={`Book Cab for ${u.name}`}
+                                >
+                                  <Car size={15} />
+                                  <span className="text-[10px] font-bold hidden sm:inline">Book</span>
+                                </button>
+                              )}
 
                               {can('USER_READ') && (
                                 <button
@@ -1165,14 +1167,16 @@ export default function ManageUsers() {
 
                 {/* Customer Actions & Tenure Card */}
                 <div className="flex flex-col gap-2 shrink-0">
-                  <button
-                    onClick={() => {
-                      setBookRideModal({ isOpen: true, user: viewing });
-                    }}
-                    className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95"
-                  >
-                    <Car size={15} /> Book Ride for {viewing.name?.split(' ')[0] || 'User'}
-                  </button>
+                  {can('BOOKING_READ') && (
+                    <button
+                      onClick={() => {
+                        setBookRideModal({ isOpen: true, user: viewing });
+                      }}
+                      className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95"
+                    >
+                      <Car size={15} /> Book Ride for {viewing.name?.split(' ')[0] || 'User'}
+                    </button>
+                  )}
 
                   <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-xl p-3 flex flex-col min-w-[210px] shadow-sm">
                     <div className="flex items-center gap-1.5 mb-1">

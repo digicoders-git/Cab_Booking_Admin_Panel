@@ -6,6 +6,11 @@ import { useAuth } from '../context/AuthContext';
 
 export default function ManageAgentLeads() {
   const { admin } = useAuth();
+  const can = (perm) => {
+    if (admin?.role === "SuperAdmin") return true;
+    return admin?.permissions?.includes(perm);
+  };
+
   const [activeTab, setActiveTab] = useState('Marketplace');
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -244,7 +249,7 @@ export default function ManageAgentLeads() {
                       </td>
                       <td className="py-4 px-6 text-center">
                         <div className="flex items-center justify-center gap-2">
-                          {lead.status === 'Marketplace' && (
+                          {can('BOOKING_READ') && lead.status === 'Marketplace' && (
                             <button
                               onClick={() => handleAcceptLead(lead._id)}
                               className="text-blue-500 hover:bg-blue-50 p-2 rounded-lg transition-colors"
@@ -253,7 +258,7 @@ export default function ManageAgentLeads() {
                               <FaHandshake size={18} />
                             </button>
                           )}
-                          {lead.status === 'Accepted' && lead.assignedAdmin && (
+                          {can('BOOKING_READ') && lead.status === 'Accepted' && lead.assignedAdmin && (
                             <button
                               onClick={() => handleCompleteLead(lead._id)}
                               className="text-green-500 hover:bg-green-50 p-2 rounded-lg transition-colors"
@@ -262,7 +267,7 @@ export default function ManageAgentLeads() {
                               <FaCheckCircle size={18} />
                             </button>
                           )}
-                          {['Marketplace', 'Accepted'].includes(lead.status) && (
+                          {can('BOOKING_CANCEL') && ['Marketplace', 'Accepted'].includes(lead.status) && (
                             <button
                               onClick={() => handleCancelLead(lead._id)}
                               className="text-red-500 hover:bg-red-50 p-2 rounded-lg transition-colors"

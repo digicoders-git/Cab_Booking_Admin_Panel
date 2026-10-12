@@ -3,8 +3,15 @@ import { FaRoute, FaCheckCircle, FaCar, FaTrash, FaSearch, FaFilter } from "reac
 import { Toaster, toast } from "sonner";
 import Swal from 'sweetalert2';
 import { getAllRentalBookingsAdmin, deleteRentalBookingAdmin } from "../apis/rentalPackage";
+import { useAuth } from "../context/AuthContext";
 
 const ManageRentalBookings = () => {
+  const { admin } = useAuth();
+  const hasPermission = (permission) => {
+    if (admin?.role === "SuperAdmin") return true;
+    return admin?.permissions?.includes(permission);
+  };
+
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -158,13 +165,17 @@ const ManageRentalBookings = () => {
                   {new Date(booking.createdAt).toLocaleString()}
                 </td>
                 <td className="p-4">
-                  <button 
-                    onClick={() => handleDelete(booking._id)}
-                    className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition-colors"
-                    title="Delete Booking"
-                  >
-                    <FaTrash />
-                  </button>
+                  {hasPermission("RENTAL_BOOKING_DELETE") ? (
+                    <button 
+                      onClick={() => handleDelete(booking._id)}
+                      className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition-colors"
+                      title="Delete Booking"
+                    >
+                      <FaTrash />
+                    </button>
+                  ) : (
+                    <span className="text-xs text-gray-400">View Only</span>
+                  )}
                 </td>
               </tr>
             ))}

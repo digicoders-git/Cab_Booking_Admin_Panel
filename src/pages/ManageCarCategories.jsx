@@ -585,13 +585,15 @@ export default function ManageCarCategories() {
                   {c.isActive ? <FaToggleOn size={20} /> : <FaToggleOff size={20} />}
                   <span>{c.isActive ? 'Active' : 'Inactive'}</span>
                 </button>
-                <button
-                  onClick={() => startEdit(c)}
-                  className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                >
-                  Edit Details
-                  <FaArrowRight size={12} />
-                </button>
+                {can('CAT_MANAGE') && (
+                  <button
+                    onClick={() => startEdit(c)}
+                    className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                  >
+                    Edit Details
+                    <FaArrowRight size={12} />
+                  </button>
+                )}
               </div>
             </div>
           </div>

@@ -27,6 +27,15 @@ export const deleteBooking = async (id) => {
     }
 };
 
+export const forceCompleteBooking = async (id) => {
+    try {
+        const res = await http.put(`/api/bookings/force-complete/${id}`);
+        return res.data;
+    } catch (err) {
+        return err.response?.data || { success: false, message: "Network Error" };
+    }
+};
+
 export const createBooking = async (bookingData) => {
     try {
         const res = await http.post("/api/bookings/create", bookingData);

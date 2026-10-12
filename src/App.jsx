@@ -17,7 +17,7 @@ const LoadingSpinner = () => (
 );
 
 function App() {
-  const { isLoggedIn, loading } = useAuth();
+  const { isLoggedIn, loading, admin } = useAuth();
 
   if (loading) return <LoadingSpinner />;
 
@@ -32,18 +32,22 @@ function App() {
         {/* Protected */}
         {isLoggedIn ? (
           <Route element={<DashboardLayout />}>
-            {routes.flatMap(route => (route.children ? route.children : route)).map(({ path, component: Component }) => (
+            {routes.flatMap(route => (route.children ? route.children : route)).map(({ path, component: Component, permission }) => (
               <Route
                 key={path}
                 path={path}
                 element={
                   <Suspense fallback={<LoadingSpinner />}>
-                    <Component />
+                    {permission && admin?.role !== "SuperAdmin" && !admin?.permissions?.includes(permission) ? (
+                      <Navigate to="/admin/profile" replace />
+                    ) : (
+                      <Component />
+                    )}
                   </Suspense>
                 }
               />
             ))}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/admin/profile" replace />} />
           </Route>
         ) : (
           <Route path="*" element={<Navigate to="/login" replace />} />

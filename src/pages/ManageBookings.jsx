@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
-import { getAllBookings, updateBookingStatus, deleteBooking } from "../apis/booking";
+import { getAllBookings, updateBookingStatus, deleteBooking, forceCompleteBooking } from "../apis/booking";
 import { useAuth } from "../context/AuthContext";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -188,6 +188,32 @@ export default function ManageBookings() {
       }
   };
 
+  const handleForceComplete = async (id) => {
+      const result = await Swal.fire({
+          title: 'Force Complete Booking?',
+          text: "This will bypass payment, mark the ride as completed, free up the driver, and NO dues will be added to the user's wallet.",
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonColor: '#10B981',
+          cancelButtonColor: '#94A3B8',
+          confirmButtonText: 'Yes, Force Complete'
+      });
+
+      if (result.isConfirmed) {
+          try {
+              const res = await forceCompleteBooking(id);
+              if (res.success) {
+                  Swal.fire('Completed!', res.message, 'success');
+                  fetchData(); // Refresh list
+              } else {
+                  Swal.fire('Error!', res.message, 'error');
+              }
+          } catch (error) {
+              Swal.fire('Error!', 'Failed to force complete booking', 'error');
+          }
+      }
+  };
+
   const handleSelectAll = (e, paginatedData) => {
     if (e.target.checked) {
       const allIds = paginatedData.map(b => b._id);
@@ -275,6 +301,10 @@ export default function ManageBookings() {
     const completed = dateFilteredBookings.filter(b => b.bookingStatus?.toLowerCase() === "completed").length;
     const cancelled = dateFilteredBookings.filter(b => b.bookingStatus?.toLowerCase() === "cancelled").length;
     const expired = dateFilteredBookings.filter(b => b.bookingStatus?.toLowerCase() === "expired").length;
+    const paymentPending = dateFilteredBookings.filter(b => 
+      b.paymentStatus?.toLowerCase() === "pending" && 
+      !["cancelled", "expired"].includes(b.bookingStatus?.toLowerCase())
+    ).length;
 
     const totalRevenue = dateFilteredBookings.reduce((sum, b) => sum + (b.fareEstimate || 0), 0);
     const avgFare = total > 0 ? totalRevenue / total : 0;
@@ -283,7 +313,7 @@ export default function ManageBookings() {
     const onlinePayments = dateFilteredBookings.filter(b => b.paymentMethod === "Online").length;
 
     return {
-      total, pending, ongoing, completed, cancelled, expired,
+      total, pending, ongoing, completed, cancelled, expired, paymentPending,
       totalRevenue, avgFare, cashPayments, cardPayments, onlinePayments
     };
   }, [dateFilteredBookings]);
@@ -415,6 +445,10 @@ export default function ManageBookings() {
     else if (activeTab === "completed") list = list.filter(b => b.bookingStatus?.toLowerCase() === "completed");
     else if (activeTab === "cancelled") list = list.filter(b => b.bookingStatus?.toLowerCase() === "cancelled");
     else if (activeTab === "expired") list = list.filter(b => b.bookingStatus?.toLowerCase() === "expired");
+    else if (activeTab === "payment_pending") list = list.filter(b => 
+      b.paymentStatus?.toLowerCase() === "pending" && 
+      !["cancelled", "expired"].includes(b.bookingStatus?.toLowerCase())
+    );
 
     return list.filter(b => {
       return b._id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -520,7 +554,32 @@ export default function ManageBookings() {
             </div>
           `}
 
-          <div class="border-t-4 border-double pt-4 flex justify-between items-end bg-gray-50/30 p-2 rounded-b-2xl">
+          ${booking.rideRequests && booking.rideRequests.length > 0 ? `
+            <div class="bg-gray-50/80 p-3 rounded-2xl border-2 border-gray-100 mt-4 max-h-[150px] overflow-y-auto">
+               <p class="text-[10px] font-black uppercase text-gray-500 mb-2">Driver Request History</p>
+               <div class="space-y-2">
+                 ${booking.rideRequests.map(req => `
+                    <div class="bg-white p-2 rounded-lg border border-gray-200 flex items-center justify-between shadow-sm">
+                       <div>
+                          <p class="text-[10px] font-black text-gray-800">${req.driver?.name || 'Unknown Driver'}</p>
+                          <p class="text-[9px] font-bold text-gray-400">${new Date(req.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
+                       </div>
+                       <span class="text-[9px] font-black px-2 py-1 rounded-sm uppercase tracking-widest ${
+                          req.status === 'Accepted' ? 'bg-green-100 text-green-700' :
+                          req.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                          req.status === 'Timeout' ? 'bg-orange-100 text-orange-700' :
+                          req.status === 'Cancelled' ? 'bg-gray-100 text-gray-700' :
+                          'bg-blue-100 text-blue-700'
+                       }">
+                          ${req.status}
+                       </span>
+                    </div>
+                 `).join('')}
+               </div>
+            </div>
+          ` : ''}
+
+          <div class="border-t-4 border-double pt-4 flex justify-between items-end bg-gray-50/30 p-2 rounded-b-2xl mt-4">
             <div>
               <p class="text-[10px] font-black uppercase text-gray-400 mb-1">Vehicle Details</p>
               <p class="text-sm font-black uppercase text-blue-600 tracking-tight">${booking.carCategory?.name} • ${booking.rideType}</p>
@@ -631,7 +690,8 @@ export default function ManageBookings() {
                 { id: "ongoing", label: "Ongoing", icon: FaPlayCircle, count: stats.ongoing },
                 { id: "completed", label: "Completed", icon: FaCheckCircle, count: stats.completed },
                 { id: "cancelled", label: "Cancelled", icon: FaTimesCircle, count: stats.cancelled },
-                { id: "expired", label: "Expired", icon: FaHistory, count: stats.expired }
+                { id: "expired", label: "Expired", icon: FaHistory, count: stats.expired },
+                { id: "payment_pending", label: "Payment Pending", icon: DollarSign, count: stats.paymentPending }
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -908,6 +968,16 @@ export default function ManageBookings() {
                             >
                                 <FaEye size={16} className="text-blue-600" />
                             </button>
+                            
+                            {can("BOOKING_UPDATE") && !["Completed", "Cancelled", "Expired"].includes(b.bookingStatus) && (
+                                <button
+                                    onClick={(e) => { e.stopPropagation(); handleForceComplete(b._id); }}
+                                    className="p-1.5 hover:bg-green-50 rounded-lg transition-colors"
+                                    title="Force Complete (Bypass Payment)"
+                                >
+                                    <FaCheckCircle size={16} className="text-green-600" />
+                                </button>
+                            )}
 
                             {can("BOOKING_DELETE") && (
                                 <button
@@ -924,7 +994,7 @@ export default function ManageBookings() {
                     {expandedRows[b._id] && (
                       <tr className="bg-gray-50">
                         <td colSpan="11" className="p-6">
-                          <div className="grid grid-cols-4 gap-6">
+                          <div className="grid grid-cols-5 gap-6">
                              <div className="col-span-1">
                               <h4 className="text-xs font-black text-gray-500 mb-3 uppercase tracking-widest">Waypoints Itinerary</h4>
                               <div className="space-y-3 max-h-[150px] overflow-y-auto pr-2 custom-scrollbar">
@@ -989,7 +1059,7 @@ export default function ManageBookings() {
                             </div>
                             <div>
                               <h4 className="text-xs font-medium text-gray-500 mb-3 uppercase">Ratings & Reviews</h4>
-                              <div className="space-y-3">
+                              <div className="space-y-3 max-h-[150px] overflow-y-auto custom-scrollbar">
                                 <div className="bg-white p-2 rounded border border-gray-100">
                                   <p className="text-[10px] font-black text-blue-600 uppercase mb-1">By Driver (For User)</p>
                                   {b.userRating ? (
@@ -1016,6 +1086,33 @@ export default function ManageBookings() {
                                     <span className="text-[10px] text-gray-400">Not rated yet</span>
                                   )}
                                 </div>
+                              </div>
+                            </div>
+                            {/* NEW: Driver Request History Column */}
+                            <div>
+                              <h4 className="text-xs font-medium text-gray-500 mb-3 uppercase tracking-widest">Driver Requests</h4>
+                              <div className="space-y-2 max-h-[150px] overflow-y-auto pr-1 custom-scrollbar">
+                                {b.rideRequests && b.rideRequests.length > 0 ? (
+                                    b.rideRequests.map((req, rIdx) => (
+                                        <div key={rIdx} className="bg-white p-2 rounded border border-gray-100 flex items-center justify-between">
+                                            <div>
+                                                <p className="text-[10px] font-bold text-gray-900">{req.driver?.name || 'Unknown Driver'}</p>
+                                                <p className="text-[9px] text-gray-500">{new Date(req.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                            </div>
+                                            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-sm uppercase ${
+                                                req.status === 'Accepted' ? 'bg-green-100 text-green-700' :
+                                                req.status === 'Rejected' ? 'bg-red-100 text-red-700' :
+                                                req.status === 'Timeout' ? 'bg-orange-100 text-orange-700' :
+                                                req.status === 'Cancelled' ? 'bg-gray-100 text-gray-700' :
+                                                'bg-blue-100 text-blue-700'
+                                            }`}>
+                                                {req.status}
+                                            </span>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <span className="text-[10px] text-gray-400">No driver requests found</span>
+                                )}
                               </div>
                             </div>
                           </div>

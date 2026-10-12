@@ -2,8 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import http from '../apis/http';
 import { toast } from 'sonner';
 import { FaTrash, FaRoute, FaCar, FaMoneyBillWave, FaMapMarkerAlt } from 'react-icons/fa';
+import { useAuth } from '../context/AuthContext';
 
 const ManageFixedRoutes = () => {
+  const { admin } = useAuth();
+  const hasPermission = (permission) => {
+    if (admin?.role === "SuperAdmin") return true;
+    return admin?.permissions?.includes(permission);
+  };
   const [routes, setRoutes] = useState([]);
   const [carCategories, setCarCategories] = useState([]);
   const [formData, setFormData] = useState({
@@ -113,7 +119,7 @@ const ManageFixedRoutes = () => {
       const res = await http.get('/api/car-categories/all');
       setCarCategories(res.data.categories || []);
     } catch (error) {
-      toast.error('Failed to load categories');
+      console.warn('Failed to load categories:', error);
     }
   };
 
@@ -211,6 +217,7 @@ const ManageFixedRoutes = () => {
       <h1 className="text-2xl font-bold mb-6 text-gray-800">Manage Fixed Packages</h1>
       
       {/* Create Route Form */}
+      {(hasPermission('FIXED_ROUTE_CREATE') || (editingId && hasPermission('FIXED_ROUTE_EDIT'))) && (
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-8">
         <h2 className="text-xl text-indigo-600 font-semibold mb-4 border-b border-gray-100 pb-2">
           {editingId ? 'Edit Package' : 'Create New Package'}
@@ -298,6 +305,7 @@ const ManageFixedRoutes = () => {
           </div>
         </form>
       </div>
+      )}
 
       {/* Routes List - Card Layout */}
       {routes.length === 0 ? (
@@ -396,25 +404,36 @@ const ManageFixedRoutes = () => {
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 mt-4">
-                  <button 
-                    onClick={() => handleToggleStatus(route._id)} 
-                    className={`flex items-center justify-center space-x-1 bg-white border py-2 rounded-lg font-medium text-xs transition-all duration-200 shadow-sm hover:shadow ${route.isActive ? 'text-yellow-600 border-yellow-200 hover:bg-yellow-50' : 'text-green-600 border-green-200 hover:bg-green-50'}`}
-                    title={route.isActive ? 'Deactivate' : 'Activate'}
-                  >
-                    <span>{route.isActive ? 'Off' : 'On'}</span>
-                  </button>
-                  <button 
-                    onClick={() => handleEdit(route)} 
-                    className="flex items-center justify-center space-x-1 bg-white hover:bg-indigo-50 text-indigo-500 border border-gray-200 hover:border-indigo-200 py-2 rounded-lg font-medium text-xs transition-all duration-200 shadow-sm hover:shadow"
-                  >
-                    <span>Edit</span>
-                  </button>
-                  <button 
-                    onClick={() => handleDelete(route._id)} 
-                    className="flex items-center justify-center space-x-1 bg-white hover:bg-red-50 text-red-500 border border-gray-200 hover:border-red-200 py-2 rounded-lg font-medium text-xs transition-all duration-200 shadow-sm hover:shadow"
-                  >
-                    <FaTrash className="text-xs" />
-                  </button>
+                  {hasPermission('FIXED_ROUTE_EDIT') && (
+                    <button 
+                      onClick={() => handleToggleStatus(route._id)} 
+                      className={`flex items-center justify-center space-x-1 bg-white border py-2 rounded-lg font-medium text-xs transition-all duration-200 shadow-sm hover:shadow ${route.isActive ? 'text-yellow-600 border-yellow-200 hover:bg-yellow-50' : 'text-green-600 border-green-200 hover:bg-green-50'}`}
+                      title={route.isActive ? 'Deactivate' : 'Activate'}
+                    >
+                      <span>{route.isActive ? 'Off' : 'On'}</span>
+                    </button>
+                  )}
+                  {hasPermission('FIXED_ROUTE_EDIT') && (
+                    <button 
+                      onClick={() => handleEdit(route)} 
+                      className="flex items-center justify-center space-x-1 bg-white hover:bg-indigo-50 text-indigo-500 border border-gray-200 hover:border-indigo-200 py-2 rounded-lg font-medium text-xs transition-all duration-200 shadow-sm hover:shadow"
+                    >
+                      <span>Edit</span>
+                    </button>
+                  )}
+                  {hasPermission('FIXED_ROUTE_DELETE') && (
+                    <button 
+                      onClick={() => handleDelete(route._id)} 
+                      className="flex items-center justify-center space-x-1 bg-white hover:bg-red-50 text-red-500 border border-gray-200 hover:border-red-200 py-2 rounded-lg font-medium text-xs transition-all duration-200 shadow-sm hover:shadow"
+                    >
+                      <FaTrash className="text-xs" />
+                    </button>
+                  )}
+                  {!hasPermission('FIXED_ROUTE_EDIT') && !hasPermission('FIXED_ROUTE_DELETE') && (
+                    <div className="col-span-3 text-center py-2 text-xs text-gray-400 bg-gray-50 rounded-lg">
+                      View Only
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

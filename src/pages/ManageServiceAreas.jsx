@@ -10,8 +10,15 @@ import {
   getAllServiceAreas, createServiceArea, updateServiceArea, deleteServiceArea 
 } from "../apis/serviceArea";
 import { getAllCarCategories } from "../apis/carCategory";
+import { useAuth } from "../context/AuthContext";
 
 const ManageServiceAreas = () => {
+  const { admin } = useAuth();
+  const hasPermission = (perm) => {
+    if (admin?.role === "SuperAdmin") return true;
+    return admin?.permissions?.includes(perm);
+  };
+
   const [data, setData] = useState([]);
   const [carCategories, setCarCategories] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -285,12 +292,14 @@ const ManageServiceAreas = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Service Areas</h1>
           <p className="text-sm text-gray-500 mt-1">Define operational cities and service coverage radius</p>
         </div>
-        <button
-          onClick={() => { resetForm(); setShowModal(true); }}
-          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-semibold shadow-lg shadow-blue-600/20 flex items-center gap-2 active:scale-95 text-sm"
-        >
-          <Plus size={16} /> New Service City
-        </button>
+        {hasPermission("SERVICE_AREA_CREATE") && (
+          <button
+            onClick={() => { resetForm(); setShowModal(true); }}
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-semibold shadow-lg shadow-blue-600/20 flex items-center gap-2 active:scale-95 text-sm"
+          >
+            <Plus size={16} /> New Service City
+          </button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -451,12 +460,24 @@ const ManageServiceAreas = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => toggleStatus(item)}
-                        className="inline-flex items-center gap-1.5 transition-all"
-                        title={item.isActive ? 'Click to Deactivate' : 'Click to Activate'}
-                      >
-                        {item.isActive ? (
+                      {hasPermission("SERVICE_AREA_EDIT") ? (
+                        <button
+                          onClick={() => toggleStatus(item)}
+                          className="inline-flex items-center gap-1.5 transition-all"
+                          title={item.isActive ? 'Click to Deactivate' : 'Click to Activate'}
+                        >
+                          {item.isActive ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                              <CheckCircle size={12} /> Active
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-500 rounded-full text-xs font-semibold">
+                              <XCircle size={12} /> Inactive
+                            </span>
+                          )}
+                        </button>
+                      ) : (
+                        item.isActive ? (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
                             <CheckCircle size={12} /> Active
                           </span>
@@ -464,25 +485,29 @@ const ManageServiceAreas = () => {
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-500 rounded-full text-xs font-semibold">
                             <XCircle size={12} /> Inactive
                           </span>
-                        )}
-                      </button>
+                        )
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => handleEdit(item)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <FaEdit size={15} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item._id)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <FaTrashAlt size={14} />
-                        </button>
+                        {hasPermission("SERVICE_AREA_EDIT") && (
+                          <button
+                            onClick={() => handleEdit(item)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit"
+                          >
+                            <FaEdit size={15} />
+                          </button>
+                        )}
+                        {hasPermission("SERVICE_AREA_DELETE") && (
+                          <button
+                            onClick={() => handleDelete(item._id)}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete"
+                          >
+                            <FaTrashAlt size={14} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

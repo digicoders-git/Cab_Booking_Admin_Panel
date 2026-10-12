@@ -4,8 +4,14 @@ import { FaEdit, FaTrashAlt, FaChevronLeft, FaChevronRight } from "react-icons/f
 import { Toaster, toast } from "sonner";
 import Swal from "sweetalert2";
 import axios from "axios";
+import { useAuth } from "../context/AuthContext";
 
 const ManageOffers = () => {
+  const { admin } = useAuth();
+  const hasPermission = (permission) => {
+    if (admin?.role === "SuperAdmin") return true;
+    return admin?.permissions?.includes(permission);
+  };
   const [data, setData] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -271,12 +277,14 @@ const ManageOffers = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Manage Offers</h1>
           <p className="text-sm text-gray-500 mt-1">Create and manage promo codes for user discounts</p>
         </div>
-        <button
-          onClick={() => { resetForm(); setShowModal(true); }}
-          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-semibold shadow-lg shadow-blue-600/20 flex items-center gap-2 active:scale-95 text-sm"
-        >
-          <Plus size={16} /> Create Promo Code
-        </button>
+        {hasPermission("OFFER_CREATE") && (
+          <button
+            onClick={() => { resetForm(); setShowModal(true); }}
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-semibold shadow-lg shadow-blue-600/20 flex items-center gap-2 active:scale-95 text-sm"
+          >
+            <Plus size={16} /> Create Promo Code
+          </button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -302,6 +310,7 @@ const ManageOffers = () => {
       </div>
 
       {/* 🎉 First Ride Welcome Discount Configuration Card */}
+      {hasPermission("SETTINGS_MANAGE") && (
       <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-yellow-500/10 border border-amber-300/40 rounded-2xl p-6 mb-8 shadow-sm backdrop-blur-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-amber-200/40">
           <div className="flex items-center gap-3">
@@ -399,6 +408,7 @@ const ManageOffers = () => {
           </div>
         </form>
       </div>
+      )}
 
       {/* Main Table Container */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
@@ -481,12 +491,24 @@ const ManageOffers = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => toggleStatus(item._id, item.isActive)}
-                        className="inline-flex items-center gap-1.5 transition-all"
-                        title={item.isActive ? 'Click to Deactivate' : 'Click to Activate'}
-                      >
-                        {item.isActive ? (
+                      {hasPermission("OFFER_EDIT") ? (
+                        <button
+                          onClick={() => toggleStatus(item._id, item.isActive)}
+                          className="inline-flex items-center gap-1.5 transition-all"
+                          title={item.isActive ? 'Click to Deactivate' : 'Click to Activate'}
+                        >
+                          {item.isActive ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                              <CheckCircle size={12} /> Active
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-500 rounded-full text-xs font-semibold">
+                              <XCircle size={12} /> Inactive
+                            </span>
+                          )}
+                        </button>
+                      ) : (
+                        item.isActive ? (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
                             <CheckCircle size={12} /> Active
                           </span>
@@ -494,25 +516,32 @@ const ManageOffers = () => {
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-500 rounded-full text-xs font-semibold">
                             <XCircle size={12} /> Inactive
                           </span>
-                        )}
-                      </button>
+                        )
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => handleEdit(item)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <FaEdit size={15} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item._id)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <FaTrashAlt size={14} />
-                        </button>
+                        {hasPermission("OFFER_EDIT") && (
+                          <button
+                            onClick={() => handleEdit(item)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit"
+                          >
+                            <FaEdit size={15} />
+                          </button>
+                        )}
+                        {hasPermission("OFFER_DELETE") && (
+                          <button
+                            onClick={() => handleDelete(item._id)}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete"
+                          >
+                            <FaTrashAlt size={14} />
+                          </button>
+                        )}
+                        {!hasPermission("OFFER_EDIT") && !hasPermission("OFFER_DELETE") && (
+                          <span className="text-xs text-gray-400">View Only</span>
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -4,7 +4,14 @@ import http from "../apis/http";
 import { toast } from "sonner";
 import Swal from "sweetalert2";
 import { FaPhone, FaEnvelope, FaUser, FaClock, FaSearch, FaTrash, FaChevronLeft, FaChevronRight, FaUserPlus } from "react-icons/fa";
+import { useAuth } from "../context/AuthContext";
+
 export default function DriverLeads() {
+  const { admin } = useAuth();
+  const hasPermission = (permission) => {
+    if (admin?.role === "SuperAdmin") return true;
+    return admin?.permissions?.includes(permission);
+  };
   const navigate = useNavigate();
   const [leads, setLeads] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -167,20 +174,24 @@ export default function DriverLeads() {
                     </td>
                     <td className="p-4">
                       <div className="flex items-center justify-end gap-2 text-gray-500 text-sm">
-                        <button
-                          onClick={() => navigate("/drivers/manage", { state: { createFromLead: lead } })}
-                          className="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-medium transition"
-                          title="Convert to Driver"
-                        >
-                          <FaUserPlus size={12} /> Convert
-                        </button>
-                        <button
-                          onClick={() => handleDelete(lead._id)}
-                          className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition"
-                          title="Delete Lead"
-                        >
-                          <FaTrash size={14} />
-                        </button>
+                        {hasPermission("DRIVER_CREATE") && (
+                          <button
+                            onClick={() => navigate("/drivers/manage", { state: { createFromLead: lead } })}
+                            className="text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg flex items-center gap-1.5 font-medium transition"
+                            title="Convert to Driver"
+                          >
+                            <FaUserPlus size={12} /> Convert
+                          </button>
+                        )}
+                        {hasPermission("DRIVER_LEADS_DELETE") && (
+                          <button
+                            onClick={() => handleDelete(lead._id)}
+                            className="text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition"
+                            title="Delete Lead"
+                          >
+                            <FaTrash size={14} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

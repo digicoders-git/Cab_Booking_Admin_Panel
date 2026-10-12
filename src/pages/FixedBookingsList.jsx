@@ -3,8 +3,15 @@ import http from '../apis/http';
 import { toast } from 'sonner';
 import { FaCar, FaClock, FaCheckCircle, FaTimesCircle, FaMapMarkerAlt, FaMoneyBillWave, FaTrash, FaUser, FaUserTie, FaPhoneAlt, FaSearch } from 'react-icons/fa';
 import Swal from 'sweetalert2';
+import { useAuth } from '../context/AuthContext';
 
 const FixedBookingsList = () => {
+  const { admin } = useAuth();
+  const hasPermission = (perm) => {
+    if (admin?.role === 'SuperAdmin') return true;
+    return admin?.permissions?.includes(perm);
+  };
+
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -362,13 +369,15 @@ const FixedBookingsList = () => {
                     </td>
 
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <button 
-                        onClick={() => handleDelete(booking._id)}
-                        className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors shadow-sm border border-red-200"
-                        title="Delete Booking"
-                      >
-                        <FaTrash size={14} />
-                      </button>
+                      {hasPermission("FIXED_ROUTE_DELETE") && (
+                        <button 
+                          onClick={() => handleDelete(booking._id)}
+                          className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors shadow-sm border border-red-200"
+                          title="Delete Booking"
+                        >
+                          <FaTrash size={14} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

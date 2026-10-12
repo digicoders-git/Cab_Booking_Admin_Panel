@@ -19,90 +19,139 @@ const PERMISSIONS_GROUPS = [
     {
         title: "Drivers Management",
         permissions: [
-            { id: "DRIVER_READ", label: "View List" },
-            { id: "DRIVER_CREATE", label: "Register New" },
-            { id: "DRIVER_APPROVE", label: "Approve Driver" },
+            { id: "DRIVER_READ", label: "View Drivers List" },
+            { id: "DRIVER_CREATE", label: "Register New Driver" },
+            { id: "DRIVER_APPROVE", label: "Approve Driver KYC" },
             { id: "DRIVER_REJECT", label: "Reject Driver" },
-            { id: "DRIVER_EDIT", label: "Edit Profile" },
-            { id: "DRIVER_STATUS", label: "Status Toggle" },
-            { id: "DRIVER_DELETE", label: "Delete Permanent" },
+            { id: "DRIVER_EDIT", label: "Edit Driver Details" },
+            { id: "DRIVER_STATUS", label: "Toggle Active/Block" },
+            { id: "DRIVER_DELETE", label: "Delete Driver" },
+            { id: "DRIVER_INCENTIVE_READ", label: "View Driver Incentives" },
+            { id: "DRIVER_INCENTIVE_CREATE", label: "Create New Incentive" },
+            { id: "DRIVER_INCENTIVE_DELETE", label: "Delete Incentive" },
+            { id: "DRIVER_LEADS_READ", label: "View Driver Leads" },
+            { id: "DRIVER_LEADS_DELETE", label: "Delete Driver Leads" },
         ]
     },
     {
-        title: "Vendor Management",
+        title: "Vendors & Fleets",
         permissions: [
             { id: "VENDOR_READ", label: "View Vendors" },
-            { id: "VENDOR_CREATE", label: "Register New" },
-            { id: "VENDOR_EDIT", label: "Edit Details" },
-            { id: "VENDOR_COMMISSION", label: "Set Commission" },
-            { id: "VENDOR_STATUS", label: "Status Toggle" },
+            { id: "VENDOR_CREATE", label: "Add Vendor" },
+            { id: "VENDOR_EDIT", label: "Edit Vendor" },
+            { id: "VENDOR_COMMISSION", label: "Set Vendor Commission" },
+            { id: "VENDOR_STATUS", label: "Toggle Vendor Status" },
             { id: "VENDOR_DELETE", label: "Delete Vendor" },
+            { id: "FLEET_READ", label: "View Fleets" },
+            { id: "FLEET_CREATE", label: "Add Fleet" },
+            { id: "FLEET_EDIT", label: "Edit Fleet" },
+            { id: "FLEET_WALLET", label: "Manage Fleet Wallet" },
+            { id: "FLEET_STATUS", label: "Toggle Fleet Status" },
+            { id: "FLEET_DELETE", label: "Delete Fleet" },
         ]
     },
     {
-        title: "Agent Management",
+        title: "Agents & Users",
         permissions: [
             { id: "AGENT_READ", label: "View Agents" },
-            { id: "AGENT_CREATE", label: "Register New" },
-            { id: "AGENT_EDIT", label: "Edit Details" },
-            { id: "AGENT_COMMISSION", label: "Set Commission" },
-            { id: "AGENT_STATUS", label: "Status Toggle" },
+            { id: "AGENT_CREATE", label: "Add Agent" },
+            { id: "AGENT_EDIT", label: "Edit Agent" },
+            { id: "AGENT_COMMISSION", label: "Set Agent Commission" },
+            { id: "AGENT_STATUS", label: "Toggle Agent Status" },
             { id: "AGENT_DELETE", label: "Delete Agent" },
+            { id: "USER_READ", label: "View Customers" },
+            { id: "USER_EDIT", label: "Edit Customer" },
+            { id: "USER_STATUS", label: "Toggle Customer Status" },
+            { id: "USER_DELETE", label: "Delete Customer" },
         ]
     },
     {
-        title: "Fleet Owner (Firm)",
+        title: "Bookings & Wallet Finance",
         permissions: [
-            { id: "FLEET_READ", label: "View Fleets" },
-            { id: "FLEET_CREATE", label: "Register New" },
-            { id: "FLEET_EDIT", label: "Edit Profile" },
-            { id: "FLEET_WALLET", label: "Manage Wallet" },
-            { id: "FLEET_STATUS", label: "Status Toggle" },
-            { id: "FLEET_DELETE", label: "Remove Fleet" },
-        ]
-    },
-    {
-        title: "User (Customer)",
-        permissions: [
-            { id: "USER_READ", label: "View Users" },
-            { id: "USER_EDIT", label: "Update Details" },
-            { id: "USER_STATUS", label: "Status Toggle" },
-            { id: "USER_DELETE", label: "Delete User" },
-        ]
-    },
-    {
-        title: "Bookings & Wallet",
-        permissions: [
-            { id: "BOOKING_READ", label: "View History" },
-            { id: "BOOKING_CANCEL", label: "Force Cancel" },
+            { id: "BOOKING_READ", label: "View All Bookings" },
+            { id: "BOOKING_CANCEL", label: "Force Cancel Booking" },
             { id: "BOOKING_DELETE", label: "Delete Booking" },
-            { id: "PAYOUT_READ", label: "View Payouts" },
-            { id: "PAYOUT_APPROVE", label: "Approve Pay" },
-            { id: "PAYOUT_REJECT", label: "Reject Pay" },
-            { id: "TRANSACTION_READ", label: "Financial Ledger" },
+            { id: "BULK_BOOKING_MANAGE", label: "Manage Bulk Bookings" },
+            { id: "PAYOUT_READ", label: "View Driver Payouts" },
+            { id: "PAYOUT_APPROVE", label: "Approve Payout" },
+            { id: "PAYOUT_REJECT", label: "Reject Payout" },
+            { id: "TRANSACTION_READ", label: "View Financial Ledger" },
         ]
     },
     {
-        title: "Communication / Support",
+        title: "Area Pricing & Surge Zones",
         permissions: [
-            { id: "SUPPORT_READ", label: "View Tickets" },
-            { id: "SUPPORT_REPLY", label: "Post Reply" },
-            { id: "SUPPORT_DELETE", label: "Delete Ticket" },
-            { id: "NEWS_VIEW", label: "View News" },
-            { id: "NEWS_POST", label: "Add/Toggle News" },
-            { id: "NEWS_DELETE", label: "Delete News" },
+            { id: "AREA_PRICING_READ", label: "View Area Surge Rates" },
+            { id: "AREA_PRICING_CREATE", label: "Add New Area Surge Rule" },
+            { id: "AREA_PRICING_EDIT", label: "Update Area Surge Rate" },
+            { id: "AREA_PRICING_DELETE", label: "Delete Area Surge Rule" },
+            { id: "SERVICE_AREA_READ", label: "View Service Geo-Zones" },
+            { id: "SERVICE_AREA_CREATE", label: "Add Service Geo-Zone" },
+            { id: "SERVICE_AREA_EDIT", label: "Update Service Geo-Zone" },
+            { id: "SERVICE_AREA_DELETE", label: "Delete Service Geo-Zone" },
         ]
     },
     {
-        title: "System & Monitoring",
+        title: "Car Categories & Taxes",
         permissions: [
-            { id: "DASHBOARD_READ", label: "Dashboard" },
-            { id: "REPORT_READ", label: "Admin Reports" },
-            { id: "TRACKING_READ", label: "Live Tracking" },
-            { id: "CAT_VIEW", label: "View Car Types" },
-            { id: "CAT_MANAGE", label: "Add/Edit Type" },
-            { id: "STAFF_VIEW", label: "View Staff" },
-            { id: "STAFF_MANAGE", label: "Full Staff Control" },
+            { id: "CAT_VIEW", label: "View Car Categories" },
+            { id: "CAT_MANAGE", label: "Add / Edit Car Categories" },
+            { id: "STATE_TAX_READ", label: "View State Taxes & Tolls" },
+            { id: "STATE_TAX_CREATE", label: "Add State Tax / Toll" },
+            { id: "STATE_TAX_EDIT", label: "Update State Tax / Toll" },
+            { id: "STATE_TAX_DELETE", label: "Delete State Tax / Toll" },
+        ]
+    },
+    {
+        title: "Fixed Routes & Hourly Rentals",
+        permissions: [
+            { id: "FIXED_ROUTE_READ", label: "View Fixed Packages / Routes" },
+            { id: "FIXED_ROUTE_CREATE", label: "Create Fixed Route" },
+            { id: "FIXED_ROUTE_EDIT", label: "Edit Fixed Route / Assign" },
+            { id: "FIXED_ROUTE_DELETE", label: "Delete Fixed Route" },
+            { id: "FIXED_MARKETPLACE_READ", label: "View Fixed Route Marketplace" },
+            { id: "FIXED_BOOKINGS_READ", label: "View Fixed Route Bookings" },
+            { id: "RENTAL_PACKAGE_READ", label: "View Rental Packages" },
+            { id: "RENTAL_PACKAGE_CREATE", label: "Create Rental Package" },
+            { id: "RENTAL_PACKAGE_EDIT", label: "Edit / Toggle Rental Package" },
+            { id: "RENTAL_PACKAGE_DELETE", label: "Delete Rental Package" },
+            { id: "RENTAL_BOOKING_READ", label: "View Rental Bookings History" },
+            { id: "RENTAL_BOOKING_DELETE", label: "Delete Rental Booking" },
+        ]
+    },
+    {
+        title: "Commute Passes (Subscriptions)",
+        permissions: [
+            { id: "SUBSCRIPTION_READ", label: "View Subscriptions & Passes" },
+            { id: "SUBSCRIPTION_CREATE", label: "Create New Commute Plan" },
+            { id: "SUBSCRIPTION_EDIT", label: "Edit Plan / Assign Driver" },
+            { id: "SUBSCRIPTION_DELETE", label: "Delete Commute Plan" },
+        ]
+    },
+    {
+        title: "Marketing & Support",
+        permissions: [
+            { id: "OFFER_READ", label: "View Promo Codes & Offers" },
+            { id: "OFFER_CREATE", label: "Create Promo Code" },
+            { id: "OFFER_EDIT", label: "Update Promo Code" },
+            { id: "OFFER_DELETE", label: "Delete Promo Code" },
+            { id: "NEWS_VIEW", label: "View Announcements" },
+            { id: "NEWS_POST", label: "Add / Toggle Announcements" },
+            { id: "NEWS_DELETE", label: "Delete Announcements" },
+            { id: "SUPPORT_READ", label: "View Support Tickets" },
+            { id: "SUPPORT_REPLY", label: "Reply to Support Ticket" },
+            { id: "SUPPORT_DELETE", label: "Delete Support Ticket" },
+        ]
+    },
+    {
+        title: "System Control & Reports",
+        permissions: [
+            { id: "DASHBOARD_READ", label: "View Admin Dashboard" },
+            { id: "REPORT_READ", label: "View System & City Reports" },
+            { id: "TRACKING_READ", label: "View Live GPS Tracking" },
+            { id: "STAFF_VIEW", label: "View Sub-Admins List" },
+            { id: "STAFF_MANAGE", label: "Create / Edit Sub-Admins" },
+            { id: "SETTINGS_MANAGE", label: "Global App & Advance Settings" },
         ]
     }
 ];

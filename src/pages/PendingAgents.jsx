@@ -2,8 +2,15 @@ import React, { useState, useEffect } from "react";
 import { getPendingAgents, approveAgent, rejectAgent } from "../apis/agent";
 import Swal from "sweetalert2";
 import { CheckCircle, XCircle, RefreshCw, FileText, UserPlus, MapPin, Building, CreditCard, ChevronRight } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 export default function PendingAgents() {
+  const { admin } = useAuth();
+  const can = (perm) => {
+    if (admin?.role === "SuperAdmin") return true;
+    return admin?.permissions?.includes(perm);
+  };
+
   const [agents, setAgents] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -222,12 +229,18 @@ export default function PendingAgents() {
                       </td>
                       <td className="py-5 px-6 align-top">
                         <div className="flex flex-col items-center justify-center gap-2">
-                          <button onClick={() => handleApprove(a)} className="w-full flex items-center justify-center gap-1.5 px-4 py-2 bg-green-50 text-green-700 hover:bg-green-500 hover:text-white border border-green-200 hover:border-green-500 rounded-xl text-sm font-semibold transition-all shadow-sm">
-                            <CheckCircle size={16} /> Approve
-                          </button>
-                          <button onClick={() => handleReject(a)} className="w-full flex items-center justify-center gap-1.5 px-4 py-2 bg-white text-red-600 hover:bg-red-50 border border-gray-200 hover:border-red-200 rounded-xl text-sm font-semibold transition-all shadow-sm">
-                            <XCircle size={16} /> Reject
-                          </button>
+                          {(can("AGENT_STATUS") || can("AGENT_EDIT")) ? (
+                            <>
+                              <button onClick={() => handleApprove(a)} className="w-full flex items-center justify-center gap-1.5 px-4 py-2 bg-green-50 text-green-700 hover:bg-green-500 hover:text-white border border-green-200 hover:border-green-500 rounded-xl text-sm font-semibold transition-all shadow-sm">
+                                <CheckCircle size={16} /> Approve
+                              </button>
+                              <button onClick={() => handleReject(a)} className="w-full flex items-center justify-center gap-1.5 px-4 py-2 bg-white text-red-600 hover:bg-red-50 border border-gray-200 hover:border-red-200 rounded-xl text-sm font-semibold transition-all shadow-sm">
+                                <XCircle size={16} /> Reject
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-xs text-gray-400 italic">View Only</span>
+                          )}
                         </div>
                       </td>
                     </tr>

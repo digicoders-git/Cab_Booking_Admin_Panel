@@ -1674,13 +1674,15 @@ export default function ManageDrivers() {
                           }`}>
                             {d.isOnline ? 'Online' : 'Offline'}
                           </span>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleForceToggleOnline(d._id, d.isOnline); }}
-                            className={`p-1 rounded-lg transition-colors ${d.isOnline ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}
-                            title={d.isOnline ? "Force Offline" : "Force Online"}
-                          >
-                            {d.isOnline ? <FaToggleOn size={20} /> : <FaToggleOff size={20} />}
-                          </button>
+                          {can('DRIVER_STATUS') && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleForceToggleOnline(d._id, d.isOnline); }}
+                              className={`p-1 rounded-lg transition-colors ${d.isOnline ? 'text-green-600 hover:bg-green-50' : 'text-gray-400 hover:bg-gray-100'}`}
+                              title={d.isOnline ? "Force Offline" : "Force Online"}
+                            >
+                              {d.isOnline ? <FaToggleOn size={20} /> : <FaToggleOff size={20} />}
+                            </button>
+                          )}
                         </div>
                       </td>
                       <td className="py-3 px-4 text-center min-w-[100px]">
@@ -1844,7 +1846,7 @@ export default function ManageDrivers() {
                     {expandedRows[d._id] && (
                       <tr className="bg-gray-50">
                         <td colSpan="14" className="p-4">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             {/* Personal Details */}
                             <div className="bg-white p-4 rounded-lg border border-gray-200">
                               <h4 className="text-xs font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-200">Personal Details</h4>
@@ -1983,6 +1985,40 @@ export default function ManageDrivers() {
                                     View All Reviews
                                   </button>
                                 )}
+                              </div>
+                            </div>
+                            
+                            {/* Ride Request Stats */}
+                            <div className="bg-white p-4 rounded-lg border border-gray-200">
+                              <h4 className="text-xs font-semibold text-gray-700 mb-3 pb-2 border-b border-gray-200">Ride Request Stats</h4>
+                              <div className="space-y-3">
+                                <div className="flex justify-between items-center bg-green-50/50 p-2 rounded border border-green-100">
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                                    <span className="text-xs font-bold text-gray-700">Accepted</span>
+                                  </div>
+                                  <span className="text-sm font-black text-green-700">{d.requestStats?.accepted || 0}</span>
+                                </div>
+                                <div className="flex justify-between items-center bg-red-50/50 p-2 rounded border border-red-100">
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                                    <span className="text-xs font-bold text-gray-700">Rejected</span>
+                                  </div>
+                                  <span className="text-sm font-black text-red-700">{d.requestStats?.rejected || 0}</span>
+                                </div>
+                                <div className="flex justify-between items-center bg-orange-50/50 p-2 rounded border border-orange-100">
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                                    <span className="text-xs font-bold text-gray-700">Timeout / Ignored</span>
+                                  </div>
+                                  <span className="text-sm font-black text-orange-700">{d.requestStats?.timeout || 0}</span>
+                                </div>
+                                <div className="pt-2 border-t border-dashed border-gray-200 flex justify-between items-center">
+                                   <span className="text-[10px] font-black uppercase text-gray-400">Total Requests Received</span>
+                                   <span className="text-sm font-black text-blue-700">
+                                      {(d.requestStats?.accepted || 0) + (d.requestStats?.rejected || 0) + (d.requestStats?.timeout || 0)}
+                                   </span>
+                                </div>
                               </div>
                             </div>
                           </div>

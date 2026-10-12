@@ -11,8 +11,15 @@ import {
 } from "../apis/rentalPackage";
 import { getAllCarCategories } from "../apis/carCategory";
 import axios from "axios";
+import { useAuth } from "../context/AuthContext";
 
 const ManageRentalPackages = () => {
+  const { admin } = useAuth();
+  const hasPermission = (permission) => {
+    if (admin?.role === "SuperAdmin") return true;
+    return admin?.permissions?.includes(permission);
+  };
+
   const [data, setData] = useState([]);
   const [carCategories, setCarCategories] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -156,13 +163,16 @@ const ManageRentalPackages = () => {
           <h1 className="text-2xl font-bold text-gray-800">Rental Packages</h1>
           <p className="text-gray-500">Manage time and distance based rental plans</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
-          <Plus size={20} /> Create Package
-        </button>
+        {hasPermission("RENTAL_PACKAGE_CREATE") && (
+          <button onClick={() => setShowModal(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+            <Plus size={20} /> Create Package
+          </button>
+        )}
       </div>
 
-      {/* Configuration Card */}
-      <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border border-blue-300/40 rounded-2xl p-6 mb-8 shadow-sm backdrop-blur-sm">
+      {/* Configuration Card (Only for authorized users) */}
+      {hasPermission("SETTINGS_MANAGE") && (
+        <div className="bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border border-blue-300/40 rounded-2xl p-6 mb-8 shadow-sm backdrop-blur-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-blue-200/40">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/30 text-xl">
@@ -230,6 +240,7 @@ const ManageRentalPackages = () => {
           </div>
         </form>
       </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <table className="w-full text-left border-collapse">
@@ -251,17 +262,30 @@ const ManageRentalPackages = () => {
                 <td className="p-4 text-gray-600">{pkg.carCategory?.name}</td>
                 <td className="p-4 text-gray-600">Base: ₹{pkg.basePrice}<br/>Extra: ₹{pkg.extraKmPrice}/KM, ₹{pkg.extraMinutePrice}/Min</td>
                 <td className="p-4">
-                  <button onClick={() => handleToggle(pkg._id)} className={`px-3 py-1 rounded-full text-xs font-medium ${pkg.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {pkg.isActive ? "Active" : "Inactive"}
-                  </button>
+                  {hasPermission("RENTAL_PACKAGE_EDIT") ? (
+                    <button onClick={() => handleToggle(pkg._id)} className={`px-3 py-1 rounded-full text-xs font-medium ${pkg.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {pkg.isActive ? "Active" : "Inactive"}
+                    </button>
+                  ) : (
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${pkg.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {pkg.isActive ? "Active" : "Inactive"}
+                    </span>
+                  )}
                 </td>
                 <td className="p-4 text-center space-x-2">
-                  <button onClick={() => handleEdit(pkg)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
-                    <Edit2 size={18} />
-                  </button>
-                  <button onClick={() => handleDelete(pkg._id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
-                    <Trash2 size={18} />
-                  </button>
+                  {hasPermission("RENTAL_PACKAGE_EDIT") && (
+                    <button onClick={() => handleEdit(pkg)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
+                      <Edit2 size={18} />
+                    </button>
+                  )}
+                  {hasPermission("RENTAL_PACKAGE_DELETE") && (
+                    <button onClick={() => handleDelete(pkg._id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
+                      <Trash2 size={18} />
+                    </button>
+                  )}
+                  {!hasPermission("RENTAL_PACKAGE_EDIT") && !hasPermission("RENTAL_PACKAGE_DELETE") && (
+                    <span className="text-xs text-gray-400">View Only</span>
+                  )}
                 </td>
               </tr>
             ))}

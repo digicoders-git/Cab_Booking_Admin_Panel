@@ -13,12 +13,20 @@ import {
   FaSearch, 
   FaTimes, 
   FaCompass,
-  FaCheckCircle 
+  FaCheckCircle,
+  FaUserAlt
 } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import { io } from 'socket.io-client';
+import { useAuth } from '../context/AuthContext';
 
 const FixedRouteMarketplace = () => {
+  const { admin } = useAuth();
+  const hasPermission = (perm) => {
+    if (admin?.role === 'SuperAdmin') return true;
+    return admin?.permissions?.includes(perm);
+  };
+
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [_drivers, setDrivers] = useState([]);
@@ -28,6 +36,10 @@ const FixedRouteMarketplace = () => {
   const [selectedAddress, setSelectedAddress] = useState('');
   const [radiusKm, setRadiusKm] = useState('50'); // '5', '10', '25', '50', '100', '200', 'all'
   const searchInputRef = useRef(null);
+  
+  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [assignBookingId, setAssignBookingId] = useState(null);
+  const [driverSearchQuery, setDriverSearchQuery] = useState('');
 
   useEffect(() => {
     fetchMarketplaceBookings();
@@ -182,18 +194,28 @@ const FixedRouteMarketplace = () => {
     }
   };
 
+  const handleAssignPrompt = (bookingId) => {
+    if (_drivers.length === 0) {
+      toast.error('No drivers available to assign.');
+      return;
+    }
+    setAssignBookingId(bookingId);
+    setDriverSearchQuery('');
+    setAssignModalOpen(true);
+  };
+
   const _handleAssignDriver = async (bookingId, driverId) => {
     if (!driverId) return;
-    if (window.confirm('Are you sure you want to assign this package to the selected driver?')) {
-      try {
-        await http.post(`/api/fixed-routes/bookings/${bookingId}/accept-admin`, { driverId });
-        toast.success('Assigned successfully. Commission deducted if cash payment.');
-        fetchMarketplaceBookings();
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to assign booking');
-      }
+    try {
+      await http.post(`/api/fixed-routes/bookings/${bookingId}/accept-admin`, { driverId });
+      toast.success('Assigned successfully. Commission deducted if cash payment.');
+      setAssignModalOpen(false);
+      fetchMarketplaceBookings();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to assign booking');
     }
   };
+
 
   const handleDeleteBooking = async (bookingId) => {
     const result = await Swal.fire({
@@ -438,13 +460,24 @@ const FixedRouteMarketplace = () => {
                   <span className={`px-3 py-1 rounded-full text-xs font-bold tracking-wide uppercase border ${booking.paymentMethod === 'CASH' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-green-50 text-green-600 border-green-200'}`}>
                     {booking.paymentMethod}
                   </span>
-                  <button 
-                    onClick={() => handleDeleteBooking(booking._id)}
-                    className="text-red-400 hover:text-red-600 transition-colors p-1"
-                    title="Delete Booking"
-                  >
-                    <FaTrash />
-                  </button>
+                  {hasPermission("FIXED_ROUTE_EDIT") && (
+                    <button 
+                      onClick={() => handleAssignPrompt(booking._id)}
+                      className="text-indigo-500 hover:text-indigo-700 transition-colors p-1 bg-indigo-50 hover:bg-indigo-100 rounded-full"
+                      title="Assign to Driver"
+                    >
+                      <FaUserAlt size={12} className="m-1" />
+                    </button>
+                  )}
+                  {hasPermission("FIXED_ROUTE_DELETE") && (
+                    <button 
+                      onClick={() => handleDeleteBooking(booking._id)}
+                      className="text-red-400 hover:text-red-600 transition-colors p-1"
+                      title="Delete Booking"
+                    >
+                      <FaTrash />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -588,6 +621,63 @@ const FixedRouteMarketplace = () => {
           </div>
         )}
       </div>
+      
+      {assignModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm transition-all duration-300">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[85vh] animate-in fade-in zoom-in duration-200">
+            <div className="p-5 sm:p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
+              <div>
+                <h2 className="text-xl font-extrabold text-gray-800">Assign Driver</h2>
+                <p className="text-xs text-gray-500 mt-1">Select a driver to handle this package</p>
+              </div>
+              <button onClick={() => setAssignModalOpen(false)} className="text-gray-400 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-full">
+                <FaTimes size={18} />
+              </button>
+            </div>
+            
+            <div className="p-4 sm:p-5 border-b border-gray-100 bg-white">
+              <div className="relative">
+                <FaSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input 
+                  type="text"
+                  placeholder="Search driver by name or phone..."
+                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm transition-all font-medium text-gray-700"
+                  value={driverSearchQuery}
+                  onChange={(e) => setDriverSearchQuery(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3 hide-scrollbar bg-gray-50/30">
+              {_drivers
+                .filter(d => 
+                  d.name?.toLowerCase().includes(driverSearchQuery.toLowerCase()) || 
+                  d.phone?.includes(driverSearchQuery)
+                )
+                .map(d => (
+                  <div key={d._id} className="p-3 mb-2.5 bg-white border border-gray-100 rounded-xl hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer flex justify-between items-center group" onClick={() => _handleAssignDriver(assignBookingId, d._id)}>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-800 text-sm group-hover:text-indigo-700 transition-colors">{d.name}</span>
+                      <span className="text-xs text-gray-500 mt-1">{d.phone}</span>
+                    </div>
+                    <div className={`px-3 py-1.5 rounded-lg text-xs font-bold tracking-wide ${d.walletBalance < 0 ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'}`}>
+                      {d.walletBalance < 0 ? `Due: ₹${Math.abs(d.walletBalance)}` : `Bal: ₹${d.walletBalance}`}
+                    </div>
+                  </div>
+              ))}
+              {_drivers.filter(d => d.name?.toLowerCase().includes(driverSearchQuery.toLowerCase()) || d.phone?.includes(driverSearchQuery)).length === 0 && (
+                <div className="text-center py-12 text-sm font-medium text-gray-500">
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <FaSearch className="text-gray-300 text-xl" />
+                  </div>
+                  No drivers found matching "{driverSearchQuery}"
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -11,6 +11,7 @@ export default function BulkBookingHistory() {
   const { themeColors, theme } = useTheme();
   const { currentFont } = useFont();
   const { admin } = useAuth();
+  const canManage = admin?.role === 'SuperAdmin' || admin?.permissions?.includes('BULK_BOOKING_MANAGE');
 
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -348,7 +349,7 @@ export default function BulkBookingHistory() {
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           {/* Assign Drivers Button (Accepted or Ongoing) */}
-                          {(b.status === 'Accepted' || b.status === 'Ongoing') && (
+                          {canManage && (b.status === 'Accepted' || b.status === 'Ongoing') && (
                             <button 
                               onClick={() => { setSelectedAssignBooking(b); setIsAssignModalOpen(true); }}
                               className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200 transition flex items-center gap-1.5 shadow-2xs"
@@ -365,7 +366,7 @@ export default function BulkBookingHistory() {
                           >
                             <FaEye size={14} />
                           </button>
-                          {(b.status === 'Accepted' || b.status === 'Ongoing') && (
+                          {canManage && (b.status === 'Accepted' || b.status === 'Ongoing') && (
                             <button 
                               onClick={() => handleEndTrip(b._id)}
                               className="p-2 bg-green-50 hover:bg-green-100 text-green-600 rounded-lg transition"
@@ -381,13 +382,15 @@ export default function BulkBookingHistory() {
                           >
                             <FaFilePdf size={14} />
                           </button>
-                          <button 
-                            onClick={() => handleDelete(b._id)}
-                            className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition"
-                            title="Delete Booking"
-                          >
-                            <FaTrash size={14} />
-                          </button>
+                          {canManage && (
+                            <button 
+                              onClick={() => handleDelete(b._id)}
+                              className="p-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition"
+                              title="Delete Booking"
+                            >
+                              <FaTrash size={14} />
+                            </button>
+                          )}
                         </div>
                       </td>
 

@@ -3,9 +3,15 @@ import { Plus, Edit2, Trash2, X, Search, MapPin, Globe, Target, Shield, Zap, Cir
 import { FaEdit, FaTrashAlt, FaToggleOn, FaToggleOff, FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { Toaster, toast } from "sonner";
 import Swal from "sweetalert2";
-import axios from "axios";
+import http from "../apis/http";
+import { useAuth } from "../context/AuthContext";
 
 const ManageAreaPricing = () => {
+  const { admin } = useAuth();
+  const hasPermission = (permission) => {
+    if (admin?.role === "SuperAdmin") return true;
+    return admin?.permissions?.includes(permission);
+  };
   const [data, setData] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -37,7 +43,7 @@ const ManageAreaPricing = () => {
   // --- 1. DATA FETCHING ---
   const fetchData = async () => {
     try {
-      const resp = await axios.get(`${import.meta.env.VITE_API_BASE_URL}/api/area-pricing`);
+      const resp = await http.get("/api/area-pricing");
       if (resp.data.success) {
         setData(resp.data.areas || []);
       }
@@ -125,10 +131,10 @@ const ManageAreaPricing = () => {
       };
 
       if (editId) {
-        await axios.put(`${import.meta.env.VITE_API_BASE_URL}/api/area-pricing/${editId}`, payload);
+        await http.put(`/api/area-pricing/${editId}`, payload);
         toast.success("Area Pricing Updated");
       } else {
-        await axios.post(`${import.meta.env.VITE_API_BASE_URL}/api/area-pricing`, payload);
+        await http.post("/api/area-pricing", payload);
         toast.success("Geo-Pricing Zone Created");
       }
       setShowModal(false);
@@ -198,7 +204,7 @@ const ManageAreaPricing = () => {
     if (!result.isConfirmed) return;
     
     try {
-      await axios.delete(`${import.meta.env.VITE_API_BASE_URL}/api/area-pricing/${id}`);
+      await http.delete(`/api/area-pricing/${id}`);
       Swal.fire({
         icon: 'success',
         title: 'Deleted!',
@@ -233,7 +239,7 @@ const ManageAreaPricing = () => {
     if (!result.isConfirmed) return;
     
     try {
-      await axios.put(`${import.meta.env.VITE_API_BASE_URL}/api/area-pricing/${id}`, { 
+      await http.put(`/api/area-pricing/${id}`, { 
         isActive: !currentStatus 
       });
       
@@ -305,12 +311,14 @@ const ManageAreaPricing = () => {
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Area-Wise Pricing</h1>
           <p className="text-sm text-gray-500 mt-1">Set dynamic fare multipliers for specific locations</p>
         </div>
-        <button
-          onClick={() => { resetForm(); setShowModal(true); }}
-          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-semibold shadow-lg shadow-blue-600/20 flex items-center gap-2 active:scale-95 text-sm"
-        >
-          <Plus size={16} /> New Pricing Zone
-        </button>
+        {hasPermission("AREA_PRICING_CREATE") && (
+          <button
+            onClick={() => { resetForm(); setShowModal(true); }}
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all font-semibold shadow-lg shadow-blue-600/20 flex items-center gap-2 active:scale-95 text-sm"
+          >
+            <Plus size={16} /> New Pricing Zone
+          </button>
+        )}
       </div>
 
       {/* Stats Cards */}
@@ -462,12 +470,24 @@ const ManageAreaPricing = () => {
                       <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-2.5 py-1 rounded-lg">L{item.priority}</span>
                     </td>
                     <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => toggleStatus(item._id, item.isActive)}
-                        className="inline-flex items-center gap-1.5 transition-all"
-                        title={item.isActive ? 'Click to Deactivate' : 'Click to Activate'}
-                      >
-                        {item.isActive ? (
+                      {hasPermission("AREA_PRICING_EDIT") ? (
+                        <button
+                          onClick={() => toggleStatus(item._id, item.isActive)}
+                          className="inline-flex items-center gap-1.5 transition-all"
+                          title={item.isActive ? 'Click to Deactivate' : 'Click to Activate'}
+                        >
+                          {item.isActive ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                              <CheckCircle size={12} /> Active
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-500 rounded-full text-xs font-semibold">
+                              <XCircle size={12} /> Inactive
+                            </span>
+                          )}
+                        </button>
+                      ) : (
+                        item.isActive ? (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
                             <CheckCircle size={12} /> Active
                           </span>
@@ -475,25 +495,32 @@ const ManageAreaPricing = () => {
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-500 rounded-full text-xs font-semibold">
                             <XCircle size={12} /> Inactive
                           </span>
-                        )}
-                      </button>
+                        )
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center justify-center gap-2">
-                        <button
-                          onClick={() => handleEdit(item)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <FaEdit size={15} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(item._id)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <FaTrashAlt size={14} />
-                        </button>
+                        {hasPermission("AREA_PRICING_EDIT") && (
+                          <button
+                            onClick={() => handleEdit(item)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Edit"
+                          >
+                            <FaEdit size={15} />
+                          </button>
+                        )}
+                        {hasPermission("AREA_PRICING_DELETE") && (
+                          <button
+                            onClick={() => handleDelete(item._id)}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete"
+                          >
+                            <FaTrashAlt size={14} />
+                          </button>
+                        )}
+                        {!hasPermission("AREA_PRICING_EDIT") && !hasPermission("AREA_PRICING_DELETE") && (
+                          <span className="text-xs text-gray-400">View Only</span>
+                        )}
                       </div>
                     </td>
                   </tr>

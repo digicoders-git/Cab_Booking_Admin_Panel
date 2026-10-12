@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useFont } from "../context/FontContext";
+import { useAuth } from "../context/AuthContext";
 import { getBulkMarketplace, acceptBulkBooking, deleteBulkBooking } from "../apis/bulkBooking";
 import { FaRoute, FaCar, FaCalendarAlt, FaClock, FaGavel, FaRoad, FaUser, FaPhone, FaSync, FaMapMarkerAlt, FaTrash } from "react-icons/fa";
 import { toast } from "sonner";
@@ -10,6 +11,9 @@ import { io } from 'socket.io-client';
 export default function BulkMarketplace() {
   const { themeColors } = useTheme();
   const { currentFont } = useFont();
+  const { admin } = useAuth();
+  const canManage = admin?.role === "SuperAdmin" || admin?.permissions?.includes("BULK_BOOKING_MANAGE");
+
   const [loading, setLoading] = useState(true);
   const [deals, setDeals] = useState([]);
   const [fetching, setFetching] = useState(false);
@@ -252,6 +256,7 @@ export default function BulkMarketplace() {
               deal={deal} 
               onAccept={handleAccept} 
               onDelete={handleDelete} 
+              canManage={canManage}
             />
           ))}
         </div>
@@ -260,7 +265,7 @@ export default function BulkMarketplace() {
   );
 }
 
-function DealCard({ deal, onAccept, onDelete }) {
+function DealCard({ deal, onAccept, onDelete, canManage }) {
   const { themeColors } = useTheme();
   const timeAgo = (date) => {
     const diff = Math.floor((Date.now() - new Date(date)) / 60000);
@@ -294,7 +299,7 @@ function DealCard({ deal, onAccept, onDelete }) {
             <p className="text-2xl font-bold text-white">₹{(deal.totalPriceWithTax || deal.offeredPrice).toLocaleString()}</p>
           </div>
           {/* Admin Delete Action */}
-          {deal.status !== 'Ongoing' && (
+          {canManage && deal.status !== 'Ongoing' && (
             <button 
               onClick={(e) => { e.stopPropagation(); onDelete(deal._id); }}
               className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white/40 hover:bg-red-500 hover:text-white transition-all shadow-inner"
@@ -422,13 +427,15 @@ function DealCard({ deal, onAccept, onDelete }) {
         )}
 
         {/* Accept Button */}
-        <button
-          onClick={() => onAccept(deal._id, deal.totalPriceWithTax || deal.offeredPrice)}
-          className="w-full mt-auto py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
-        >
-          <FaGavel size={13} />
-          Accept & Lock Deal — ₹{(deal.totalPriceWithTax || deal.offeredPrice).toLocaleString()}
-        </button>
+        {canManage && (
+          <button
+            onClick={() => onAccept(deal._id, deal.totalPriceWithTax || deal.offeredPrice)}
+            className="w-full mt-auto py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2"
+          >
+            <FaGavel size={13} />
+            Accept & Lock Deal — ₹{(deal.totalPriceWithTax || deal.offeredPrice).toLocaleString()}
+          </button>
+        )}
       </div>
     </div>
   );
