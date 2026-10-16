@@ -33,6 +33,7 @@ const ManageRentalPackages = () => {
   const [rentalSettings, setRentalSettings] = useState({
     rentalRequestTimeoutMinutes: 5,
     driverRentalPopupTimerSeconds: 15,
+    driverRentalMaxSearchRadiusKm: 25,
     rentalCommissionPercentage: 10
   });
   const [savingSettings, setSavingSettings] = useState(false);
@@ -44,6 +45,7 @@ const ManageRentalPackages = () => {
       const catRes = await getAllCarCategories();
       if (catRes.success) setCarCategories(catRes.categories || []);
     } catch (err) {
+      console.error(err);
       toast.error("Failed to fetch data");
     }
   };
@@ -55,6 +57,7 @@ const ManageRentalPackages = () => {
         setRentalSettings({
           rentalRequestTimeoutMinutes: resp.data.settings.rentalRequestTimeoutMinutes ?? 5,
           driverRentalPopupTimerSeconds: resp.data.settings.driverRentalPopupTimerSeconds ?? 15,
+          driverRentalMaxSearchRadiusKm: resp.data.settings.driverRentalMaxSearchRadiusKm ?? 25,
           rentalCommissionPercentage: resp.data.settings.rentalCommissionPercentage ?? 10
         });
       }
@@ -92,6 +95,7 @@ const ManageRentalPackages = () => {
         fetchData();
       }
     } catch (err) {
+      console.error(err);
       toast.error("Error updating status");
     }
   };
@@ -109,6 +113,7 @@ const ManageRentalPackages = () => {
           fetchData();
         }
       } catch (err) {
+        console.error(err);
         toast.error("Failed to delete package");
       }
     }
@@ -149,6 +154,7 @@ const ManageRentalPackages = () => {
         toast.error(res.message);
       }
     } catch (err) {
+      console.error(err);
       toast.error("Error saving package");
     } finally {
       setLoading(false);
@@ -185,7 +191,7 @@ const ManageRentalPackages = () => {
           </div>
         </div>
 
-        <form onSubmit={handleSaveSettings} className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 pt-5 items-end">
+        <form onSubmit={handleSaveSettings} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-5 items-end">
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
               Request Auto-Cancel (Minutes)
@@ -216,6 +222,21 @@ const ManageRentalPackages = () => {
 
           <div>
             <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
+              Max Search Radius (KM)
+            </label>
+            <input
+              type="number"
+              min="1"
+              max="200"
+              value={rentalSettings.driverRentalMaxSearchRadiusKm}
+              onChange={(e) => setRentalSettings(prev => ({ ...prev, driverRentalMaxSearchRadiusKm: Number(e.target.value) }))}
+              className="w-full bg-white border border-gray-300 text-gray-800 p-2.5 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g. 25"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">
               Admin Commission (%)
             </label>
             <input
@@ -229,7 +250,7 @@ const ManageRentalPackages = () => {
             />
           </div>
 
-          <div className="md:col-span-3 sm:col-span-2">
+          <div className="lg:col-span-4 sm:col-span-2">
             <button
               type="submit"
               disabled={savingSettings}
