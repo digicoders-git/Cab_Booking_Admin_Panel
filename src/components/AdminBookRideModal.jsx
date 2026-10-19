@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, Car, MapPin, Navigation, User, Phone, Wallet, ShieldCheck, 
   Clock, DollarSign, CheckCircle2, AlertCircle, Loader2, Sparkles,
-  ArrowRight, ArrowLeft, Users, ChevronRight, Calculator, Edit3
+  ArrowRight, ArrowLeft, Users, ChevronRight, Calculator, Edit3,
+  Plus, Trash2
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { createBooking, searchCabs } from '../apis/booking';
@@ -18,6 +19,10 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
   const [pickupCoords, setPickupCoords] = useState({ lat: null, lng: null });
   const [dropAddress, setDropAddress] = useState('');
   const [dropCoords, setDropCoords] = useState({ lat: null, lng: null });
+
+  // Intermediate Stops State
+  const [stops, setStops] = useState([]); // array of { address: '', lat: null, lng: null }
+
   const [distanceKm, setDistanceKm] = useState(0);
   const [estimatedTimeMin, setEstimatedTimeMin] = useState(0);
   const [categories, setCategories] = useState([]);
@@ -78,6 +83,7 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
       setSeatsBooked(1);
       setPickupAddress('');
       setDropAddress('');
+      setStops([]);
       setPickupCoords({ lat: null, lng: null });
       setDropCoords({ lat: null, lng: null });
       setDistanceKm(0);
@@ -120,7 +126,13 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
 
   // 4. Setup Google Places Autocomplete on inputs (Step 1)
   useEffect(() => {
-    if (!isOpen || currentStep !== 1) return;
+    if (!isOpen) {
+      pickupAutocompleteRef.current = null;
+      dropAutocompleteRef.current = null;
+      return;
+    }
+
+    if (currentStep !== 1) return;
 
     const timer = setTimeout(() => {
       if (window.google && window.google.maps && window.google.maps.places) {
@@ -169,7 +181,73 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
     return () => clearTimeout(timer);
   }, [isOpen, currentStep]);
 
-  // 5. Query Realtime Suggestions
+  // Autocomplete for intermediate stops
+  const initStopAutocomplete = (index, inputEl) => {
+    if (!inputEl || inputEl._hasAutocomplete || !window.google?.maps?.places) return;
+    try {
+      const auto = new window.google.maps.places.Autocomplete(inputEl, {
+        componentRestrictions: { country: 'in' },
+        fields: ['formatted_address', 'geometry', 'name']
+      });
+      auto.addListener('place_changed', () => {
+        const place = auto.getPlace();
+        if (place && place.geometry) {
+          const lat = place.geometry.location.lat();
+          const lng = place.geometry.location.lng();
+          const addr = place.formatted_address || place.name || inputEl.value;
+          setStops(prev => {
+            const updated = [...prev];
+            if (updated[index]) {
+              updated[index] = { ...updated[index], address: addr, lat, lng };
+            }
+            return updated;
+          });
+        }
+      });
+      inputEl._hasAutocomplete = true;
+    } catch (e) {
+      console.warn('Error setting up stop autocomplete:', e);
+    }
+  };
+
+  // Intermediate Stop Handlers
+  const handleAddStop = () => {
+    if (rideType === 'Shared') {
+      Swal.fire({
+        title: 'Not Allowed for Shared Rides',
+        text: 'Multiple stops are only allowed for Private Rides. Please switch to Private Ride.',
+        icon: 'info',
+        confirmButtonColor: '#2563EB'
+      });
+      return;
+    }
+    if (stops.length >= 4) {
+      Swal.fire({
+        title: 'Limit Reached',
+        text: 'You can add a maximum of 4 intermediate stops.',
+        icon: 'warning',
+        confirmButtonColor: '#2563EB'
+      });
+      return;
+    }
+    setStops(prev => [...prev, { address: '', lat: null, lng: null }]);
+  };
+
+  const handleRemoveStop = (idx) => {
+    setStops(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleStopChange = (idx, value) => {
+    setStops(prev => {
+      const updated = [...prev];
+      if (updated[idx]) {
+        updated[idx] = { ...updated[idx], address: value, lat: null, lng: null };
+      }
+      return updated;
+    });
+  };
+
+  // Query Realtime Suggestions
   const fetchSuggestions = (query, isPickup) => {
     if (!query || query.length < 2) {
       if (isPickup) setPickupSuggestions([]);
@@ -240,7 +318,8 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
     const dLon = toRad(lon2 - lon1);
     const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return Math.max(1, Math.round(R * c * 10) / 10);
   };
@@ -267,14 +346,71 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
     }
   };
 
-  // Calculate distance and search cabs for Step 2
-  const calculateDistanceAndFares = async (pCoords, dCoords) => {
+  // Calculate distance and search cabs for Step 2 (Handles intermediate stops!)
+  const calculateDistanceAndFares = async (pCoords, dCoords, activeStops = []) => {
     setLoadingFares(true);
     let dist = 5;
     let timeMin = 15;
 
-    // Use Google Distance Matrix if available
-    if (window.google && window.google.maps) {
+    const validStops = activeStops.filter(s => s.address && s.address.trim());
+
+    // If there are intermediate stops, use Google DirectionsService to calculate total driving distance
+    if (validStops.length > 0 && window.google?.maps?.DirectionsService) {
+      try {
+        const directionsService = new window.google.maps.DirectionsService();
+        const waypoints = validStops.map(s => ({
+          location: (s.lat && s.lng) ? { lat: s.lat, lng: s.lng } : s.address,
+          stopover: true
+        }));
+
+        const response = await new Promise((resolve, reject) => {
+          directionsService.route(
+            {
+              origin: { lat: pCoords.lat, lng: pCoords.lng },
+              destination: { lat: dCoords.lat, lng: dCoords.lng },
+              waypoints,
+              travelMode: window.google.maps.TravelMode.DRIVING
+            },
+            (res, status) => {
+              if (status === 'OK') resolve(res);
+              else reject(status);
+            }
+          );
+        });
+
+        if (response.routes?.[0]?.legs) {
+          let totalMeters = 0;
+          let totalSecs = 0;
+          response.routes[0].legs.forEach(leg => {
+            totalMeters += leg.distance.value;
+            totalSecs += leg.duration.value;
+          });
+          dist = Math.round((totalMeters / 1000) * 10) / 10;
+          timeMin = Math.round(totalSecs / 60);
+        }
+      } catch (e) {
+        console.warn("DirectionsService with waypoints failed, using distance calculation:", e);
+        // Fallback distance calculation through stops
+        let totalDist = calculateHaversine(pCoords.lat, pCoords.lng, validStops[0].lat || pCoords.lat, validStops[0].lng || pCoords.lng);
+        for (let i = 0; i < validStops.length - 1; i++) {
+          totalDist += calculateHaversine(
+            validStops[i].lat || pCoords.lat,
+            validStops[i].lng || pCoords.lng,
+            validStops[i+1].lat || dCoords.lat,
+            validStops[i+1].lng || dCoords.lng
+          );
+        }
+        totalDist += calculateHaversine(
+          validStops[validStops.length - 1].lat || dCoords.lat,
+          validStops[validStops.length - 1].lng || dCoords.lng,
+          dCoords.lat,
+          dCoords.lng
+        );
+        dist = Math.round(totalDist * 10) / 10;
+        timeMin = Math.round(dist * 3);
+      }
+    } else if (window.google && window.google.maps) {
+      // Direct Pickup -> Drop using DistanceMatrix
       try {
         const service = new window.google.maps.DistanceMatrixService();
         const response = await new Promise((resolve, reject) => {
@@ -327,14 +463,12 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
       });
 
       if (fareRes.success && fareRes.options && fareRes.options.length > 0) {
-        // Map backend options ensuring fare exists
         const formatted = fareRes.options.map(opt => ({
           ...opt,
           fare: opt.fare ?? opt.privateFare ?? opt.estimatedFare ?? opt.sharedFare ?? 0
         }));
         setFareOptions(formatted);
         
-        // Select first available option or match category
         if (!selectedCategory) {
           if (categories.length > 0) {
             setSelectedCategory(categories[0]);
@@ -362,7 +496,6 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
 
     setLoadingFares(true);
 
-    // Ensure coordinates are resolved
     const geocodePromise = (addr, currentCoords) => {
       return new Promise((resolve) => {
         if (currentCoords.lat && currentCoords.lng) {
@@ -396,8 +529,19 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
       setPickupCoords(pCoords);
       setDropCoords(dCoords);
 
-      // Calculate distance and fares
-      await calculateDistanceAndFares(pCoords, dCoords);
+      // Resolve coordinates for any intermediate stops that don't have lat/lng yet
+      const validStops = stops.filter(s => s.address && s.address.trim());
+      const resolvedStops = await Promise.all(
+        validStops.map(async (s) => {
+          if (s.lat && s.lng) return s;
+          const coords = await geocodePromise(s.address, { lat: null, lng: null });
+          return { ...s, lat: coords.lat, lng: coords.lng };
+        })
+      );
+      setStops(resolvedStops);
+
+      // Calculate distance and fares through all waypoints
+      await calculateDistanceAndFares(pCoords, dCoords, resolvedStops);
 
       // Advance to Step 2
       setCurrentStep(2);
@@ -440,6 +584,15 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
       ? Math.round(Number(rawFare))
       : fallbackFare;
 
+    // Filter valid stops for submission
+    const formattedStops = stops
+      .filter(s => s.address && s.address.trim())
+      .map(s => ({
+        address: s.address.trim(),
+        latitude: s.lat || undefined,
+        longitude: s.lng || undefined
+      }));
+
     const confirmRes = await Swal.fire({
       title: 'Confirm Booking for User?',
       html: `
@@ -448,6 +601,12 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
           <p><strong>Cab Category:</strong> ${selectedCategory.name}</p>
           <p><strong>Ride Type:</strong> ${rideType} ${rideType === 'Shared' ? `(${seatsBooked} seats)` : ''}</p>
           <p><strong>Pickup:</strong> ${pickupAddress.slice(0, 45)}...</p>
+          ${formattedStops.length > 0 ? `
+            <div style="background: #FFFBEB; padding: 6px 10px; border-radius: 8px; border: 1px solid #FDE68A; margin: 6px 0;">
+              <strong>Stops (${formattedStops.length}):</strong>
+              ${formattedStops.map((s, i) => `<br/>&nbsp;&nbsp;• Stop ${i + 1}: ${s.address.slice(0, 40)}`).join('')}
+            </div>
+          ` : ''}
           <p><strong>Drop:</strong> ${dropAddress.slice(0, 45)}...</p>
           <p><strong>Distance:</strong> <strong>${finalDist} km</strong> (~${estimatedTimeMin} mins)</p>
           <p><strong>Calculated Trip Fare:</strong> <span style="color: #2563EB; font-weight: bold; font-size: 16px;">₹${estimatedFare}</span></p>
@@ -467,7 +626,7 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
     setSubmitting(true);
     try {
       const payload = {
-        userId: user._id, // 🔥 ATTACH TO TARGET USER ACCOUNT
+        userId: user._id, // Attach to target user account
         passengerName: user.name,
         passengerPhone: user.phone || '9999999999',
         rideType,
@@ -479,6 +638,7 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
         dropAddress,
         dropLat: finalDropLat,
         dropLng: finalDropLng,
+        stops: formattedStops, // Waypoint intermediate stops!
         distanceKm: finalDist,
         estimatedTimeMin,
         paymentMethod,
@@ -494,6 +654,7 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
           html: `
             <div style="text-align: center; font-size: 13px;">
               <p>Booking ID: <strong>#${(res.booking?._id || 'SUCCESS').slice(-6)}</strong></p>
+              ${formattedStops.length > 0 ? `<p style="font-size: 11px; color: #6B7280; margin-top: 2px;">With ${formattedStops.length} intermediate stop(s)</p>` : ''}
               <p style="color: #10B981; font-weight: bold; margin-top: 6px;">
                 Linked to ${user.name}'s panel & driver matching initiated!
               </p>
@@ -530,7 +691,7 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
             <div>
               <h2 className="text-lg font-bold">Book Ride for User</h2>
               <p className="text-xs text-blue-100">
-                {currentStep === 1 ? 'Step 1 of 2: Set Route & Ride Type' : 'Step 2 of 2: Select Cab & Confirm Price'}
+                {currentStep === 1 ? 'Step 1 of 2: Set Route, Stops & Ride Type' : 'Step 2 of 2: Select Cab & Confirm Price'}
               </p>
             </div>
           </div>
@@ -579,7 +740,7 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
             }`}>
               {currentStep > 1 ? '✓' : '1'}
             </span>
-            <span>1. Route & Locations</span>
+            <span>1. Route, Stops & Locations</span>
           </div>
 
           <div className="flex-1 mx-4 h-0.5 bg-gray-200">
@@ -598,7 +759,7 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
           </div>
         </div>
 
-        {/* ================= STEP 1: ROUTE & SCHEDULE ================= */}
+        {/* ================= STEP 1: ROUTE, STOPS & SCHEDULE ================= */}
         {currentStep === 1 && (
           <form onSubmit={handleProceedToStep2} className="p-6 space-y-5 overflow-y-auto max-h-[70vh]">
             
@@ -619,7 +780,12 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setRideType('Shared')}
+                  onClick={() => {
+                    setRideType('Shared');
+                    if (stops.length > 0) {
+                      setStops([]); // Clear stops if switching to shared ride
+                    }
+                  }}
                   className={`py-2.5 px-4 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all border ${
                     rideType === 'Shared'
                       ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200'
@@ -651,10 +817,10 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
               )}
             </div>
 
-            {/* Locations */}
+            {/* Locations (Pickup, Add Stops, Drop) */}
             <div className="space-y-4 bg-gray-50/80 p-4 rounded-xl border border-gray-200">
               
-              {/* Pickup */}
+              {/* Pickup Location */}
               <div className="relative">
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
@@ -698,7 +864,7 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
                   required
                 />
 
-                {/* In-Modal Custom Suggestion Dropdown for Pickup */}
+                {/* Suggestions Dropdown for Pickup */}
                 {showPickupSuggestions && pickupSuggestions.length > 0 && (
                   <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-52 overflow-y-auto divide-y divide-gray-100">
                     {pickupSuggestions.map((place, idx) => (
@@ -718,7 +884,67 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
                 )}
               </div>
 
-              {/* Drop */}
+              {/* Intermediate Stops (Waypoints) */}
+              {stops.length > 0 && (
+                <div className="space-y-3 pl-3 border-l-2 border-dashed border-amber-300 my-2">
+                  {stops.map((stop, idx) => (
+                    <div 
+                      key={idx} 
+                      className="bg-white p-3 rounded-xl border border-amber-200 shadow-2xs space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-150"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                          <span className="w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px] font-black">
+                            {idx + 1}
+                          </span>
+                          Stop {idx + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveStop(idx)}
+                          className="text-xs font-semibold text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-0.5 rounded-md flex items-center gap-1 transition-colors"
+                          title="Remove this stop"
+                        >
+                          <Trash2 size={12} /> Remove
+                        </button>
+                      </div>
+                      <input
+                        ref={(el) => initStopAutocomplete(idx, el)}
+                        type="text"
+                        value={stop.address}
+                        onChange={(e) => handleStopChange(idx, e.target.value)}
+                        placeholder={`Enter stop ${idx + 1} address (e.g. Market, Metro Station)...`}
+                        className="w-full bg-amber-50/20 border border-gray-300 rounded-lg px-3 py-2 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
+                        required
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add Stop Button Bar */}
+              {rideType === 'Private' ? (
+                <div className="flex items-center justify-between pt-1">
+                  <div className="text-[11px] text-gray-500">
+                    {stops.length > 0 ? `${stops.length} stop(s) added` : 'Need a stop in between?'}
+                  </div>
+                  {stops.length < 4 && (
+                    <button
+                      type="button"
+                      onClick={handleAddStop}
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-2xs transition-all hover:scale-105 active:scale-95"
+                    >
+                      <Plus size={13} /> + Add Stop
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="text-[11px] text-gray-400 italic">
+                  * Intermediate stops are only available for Private rides.
+                </div>
+              )}
+
+              {/* Drop Destination */}
               <div className="relative">
                 <label className="block text-xs font-bold text-gray-700 mb-1.5 flex items-center gap-1.5">
                   <MapPin size={14} className="text-red-600" /> Destination / Drop Location *
@@ -741,7 +967,7 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
                   required
                 />
 
-                {/* In-Modal Custom Suggestion Dropdown for Drop */}
+                {/* Suggestions Dropdown for Drop */}
                 {showDropSuggestions && dropSuggestions.length > 0 && (
                   <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-52 overflow-y-auto divide-y divide-gray-100">
                     {dropSuggestions.map((place, idx) => (
@@ -765,7 +991,7 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
             {/* Info Tip */}
             <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl text-xs text-blue-900 flex items-center gap-2.5">
               <Sparkles size={16} className="text-blue-600 shrink-0" />
-              <span>Locations bharne ke baad Next dabayein — agle step me Google Maps se exact distance count hokar har cab ka final price dikhega.</span>
+              <span>Locations aur stops bharne ke baad Next dabayein — agle step me Google Maps se total distance count hokar har cab ka final price dikhega.</span>
             </div>
 
             {/* Action Buttons */}
@@ -785,7 +1011,7 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
                 {loadingFares ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    Calculating Route...
+                    Calculating Route & Stops...
                   </>
                 ) : (
                   <>
@@ -802,7 +1028,7 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
         {/* ================= STEP 2: CHOOSE CAB & PRICES ================= */}
         {currentStep === 2 && (
           <form onSubmit={handleBookingSubmit} className="p-6 space-y-5 overflow-y-auto max-h-[70vh]">
-            
+
             {/* Route Summary Card */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4">
               <div className="flex items-start justify-between gap-3">
@@ -811,6 +1037,15 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
                     <span className="w-2.5 h-2.5 rounded-full bg-green-500 mt-1 shrink-0" />
                     <span className="text-gray-800 font-medium line-clamp-1"><strong>Pickup:</strong> {pickupAddress}</span>
                   </div>
+
+                  {/* Render Stops in Summary */}
+                  {stops.filter(s => s.address).map((stop, sIdx) => (
+                    <div key={sIdx} className="flex items-start gap-2 pl-2 border-l border-dashed border-amber-400">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 mt-1 shrink-0" />
+                      <span className="text-amber-900 font-medium line-clamp-1"><strong>Stop {sIdx + 1}:</strong> {stop.address}</span>
+                    </div>
+                  ))}
+
                   <div className="flex items-start gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-red-500 mt-1 shrink-0" />
                     <span className="text-gray-800 font-medium line-clamp-1"><strong>Drop:</strong> {dropAddress}</span>
@@ -827,9 +1062,14 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
               </div>
 
               {/* Distance & Time Pill */}
-              <div className="mt-3 pt-2.5 border-t border-blue-200/60 flex items-center justify-between text-xs text-blue-900 font-semibold">
+              <div className="mt-3 pt-2.5 border-t border-blue-200/60 flex flex-wrap items-center justify-between gap-2 text-xs text-blue-900 font-semibold">
                 <span className="flex items-center gap-1.5">
                   <Navigation size={13} className="text-blue-600" /> Route Distance: <strong>{distanceKm} km</strong>
+                  {stops.filter(s => s.address).length > 0 && (
+                    <span className="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-md font-bold">
+                      +{stops.filter(s => s.address).length} Stop(s)
+                    </span>
+                  )}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Clock size={13} className="text-blue-600" /> Est. Time: <strong>~{estimatedTimeMin} mins</strong>
@@ -856,22 +1096,21 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
                     String(selectedCategory._id || selectedCategory.carCategoryId) === catId ||
                     selectedCategory.name?.trim().toLowerCase() === cat.name?.trim().toLowerCase()
                   );
-                  
-                  // Look up calculated fare
-                  const matchedOption = fareOptions.find(o => 
+
+                  const matchedOpt = fareOptions.find(o => 
                     String(o.carCategoryId || o._id) === catId ||
                     o.name?.trim().toLowerCase() === cat.name?.trim().toLowerCase()
                   );
+
                   const baseRate = Number(cat.baseFare) || 50;
                   const numSeats = Number(seatsBooked) || 1;
-                  const dist = Number(distanceKm) > 0 ? Number(distanceKm) : 5;
-                  const perKm = rideType === 'Shared' 
+                  const perKmRate = rideType === 'Shared' 
                     ? (Number(cat.sharedRatePerSeatPerKm) || Number(cat.sharedRatePerKm) || 8) * numSeats
                     : (Number(cat.privateRatePerKm) || 12);
-                  const fallbackFare = Math.round(baseRate + (dist * perKm));
+                  const fallbackFare = Math.round(baseRate + (distanceKm * perKmRate));
 
-                  const rawFare = matchedOption?.fare ?? matchedOption?.privateFare ?? matchedOption?.estimatedFare ?? matchedOption?.sharedFare;
-                  const calculatedFare = (rawFare !== undefined && rawFare !== null && !isNaN(rawFare) && Number(rawFare) > 0)
+                  const rawFare = matchedOpt?.fare ?? matchedOpt?.privateFare ?? matchedOpt?.estimatedFare ?? matchedOpt?.sharedFare;
+                  const displayedFare = (rawFare !== undefined && rawFare !== null && !isNaN(rawFare) && Number(rawFare) > 0)
                     ? Math.round(Number(rawFare))
                     : fallbackFare;
 
@@ -880,24 +1119,28 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
                       key={catId}
                       onClick={() => setSelectedCategory(cat)}
                       className={`p-3.5 rounded-xl border-2 cursor-pointer transition-all flex flex-col justify-between ${
-                        isSelected
-                          ? 'border-blue-600 bg-blue-50/90 shadow-md ring-2 ring-blue-500/20'
-                          : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50'
+                        isSelected 
+                          ? 'border-blue-600 bg-blue-50/60 shadow-md ring-2 ring-blue-200' 
+                          : 'border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-xs text-gray-900">{cat.name}</span>
-                        {isSelected && <CheckCircle2 size={16} className="text-blue-600 fill-blue-50" />}
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-bold text-gray-900">{cat.name}</span>
+                        {isSelected ? (
+                          <CheckCircle2 size={16} className="text-blue-600" />
+                        ) : (
+                          <div className="w-4 h-4 rounded-full border border-gray-300" />
+                        )}
                       </div>
 
-                      <div className="mt-3">
-                        <div className="flex items-baseline justify-between">
-                          <span className="text-xl font-black text-blue-700">₹{calculatedFare}</span>
-                          <span className="text-[10px] text-gray-500 font-medium">
-                            {cat.seatCapacity ? `${cat.seatCapacity} seats` : 'Standard'}
-                          </span>
+                      <div className="space-y-1">
+                        <div className="text-base font-black text-gray-900">
+                          ₹{displayedFare}
                         </div>
-                        <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">Calculated trip fare</p>
+                        <div className="flex items-center justify-between text-[10px] text-gray-500">
+                          <span>Seats: {cat.seatCapacity || 4}</span>
+                          <span>₹{(cat.privateRatePerKm || 12)}/km</span>
+                        </div>
                       </div>
                     </div>
                   );
@@ -905,12 +1148,42 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
               </div>
             </div>
 
-            {/* Step 2 Action Buttons */}
+            {/* Payment Method Selector */}
+            <div>
+              <label className="block text-xs font-bold text-gray-800 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <Wallet size={14} className="text-gray-500" /> Payment Collection Method
+              </label>
+              <div className="grid grid-cols-3 gap-2.5">
+                {[
+                  { id: 'Cash', label: 'Cash to Driver', desc: 'Passenger pays driver' },
+                  { id: 'Wallet', label: 'User Wallet', desc: `Bal: ₹${user.walletBalance || 0}` },
+                  { id: 'Online', label: 'Online / Gateway', desc: 'Prepaid' }
+                ].map((pm) => (
+                  <button
+                    key={pm.id}
+                    type="button"
+                    onClick={() => setPaymentMethod(pm.id)}
+                    className={`p-2.5 rounded-xl border text-left transition-all ${
+                      paymentMethod === pm.id
+                        ? 'border-blue-600 bg-blue-50/60 shadow-xs ring-1 ring-blue-300'
+                        : 'border-gray-200 bg-white hover:bg-gray-50'
+                    }`}
+                  >
+                    <p className={`text-xs font-bold ${paymentMethod === pm.id ? 'text-blue-900' : 'text-gray-900'}`}>
+                      {pm.label}
+                    </p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">{pm.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Action Buttons */}
             <div className="pt-4 border-t border-gray-200 flex items-center justify-between gap-3">
               <button
                 type="button"
                 onClick={() => setCurrentStep(1)}
-                className="px-4 py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+                className="px-4 py-2.5 border border-gray-300 rounded-xl text-sm font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-1.5 transition-colors"
               >
                 <ArrowLeft size={16} /> Back to Route
               </button>
@@ -918,17 +1191,17 @@ const AdminBookRideModal = ({ isOpen, onClose, user, onBookingSuccess }) => {
               <button
                 type="submit"
                 disabled={submitting || !selectedCategory}
-                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-200 flex items-center gap-2 transition-all disabled:opacity-50"
+                className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-sm font-bold shadow-md shadow-blue-300 flex items-center gap-2 transition-all disabled:opacity-50"
               >
                 {submitting ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    Booking Cab...
+                    Dispatching Cab...
                   </>
                 ) : (
                   <>
-                    <Sparkles size={16} />
-                    Confirm & Dispatch Cab
+                    <CheckCircle2 size={16} />
+                    Confirm & Book Ride Now
                   </>
                 )}
               </button>

@@ -351,9 +351,9 @@ export default function CreateBulkBooking() {
         const minimumKmRequired = minKmPerDay * formData.days;
         const chargeableKm = Math.max(actualKm, minimumKmRequired);
         const totalDriverAllowance = driverAllowancePerDay * formData.days;
-        return ((chargeableKm * car.price) + totalDriverAllowance) * car.quantity * areaMultiplier;
+        return Math.round(((chargeableKm * car.price) + totalDriverAllowance) * car.quantity * (areaMultiplier || 1));
     } else {
-        return car.price * car.quantity * actualKm * areaMultiplier;
+        return Math.round(car.price * car.quantity * actualKm * (areaMultiplier || 1));
     }
   };
 
@@ -902,7 +902,7 @@ export default function CreateBulkBooking() {
                             <img src={`${BASE_URL}/uploads/${cat.image}`} alt={cat.name} className="w-16 h-12 object-contain bg-white rounded-xl p-1 shadow-sm" />
                             <div>
                               <p className="text-sm font-black text-gray-800">{cat.name}</p>
-                              <p className="text-[10px] text-blue-600 font-bold">₹{(cat.bulkBookingBasePrice || cat.privateRatePerKm || 0) * areaMultiplier}/km</p>
+                              <p className="text-[10px] text-blue-600 font-bold">₹{Number(((cat.bulkBookingBasePrice || cat.privateRatePerKm || 0) * (areaMultiplier || 1)).toFixed(2))}/km</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-3">

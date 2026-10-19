@@ -120,6 +120,7 @@ export default function ManageCarCategories() {
     minKmPerDay: "250",
     driverAllowancePerDay: "300",
     enableWaterfallUpgrade: true,
+    sortOrder: "0",
     image: null
   });
 
@@ -221,7 +222,7 @@ export default function ManageCarCategories() {
         toast.success(editingCategory ? "Category Updated" : "Category Created");
         setIsModalOpen(false);
         setEditingCategory(null);
-        setFormData({ name: "", seatCapacity: "4", baseFare: "0", privateRatePerKm: "0", sharedRatePerSeatPerKm: "0", avgSpeedKmH: "30", seatLayout: ["Front", "Back-Left", "Back-Middle", "Back-Right"], bulkBookingBasePrice: "0", freeWaitingMin: "3", waitingChargePerMin: "0", ratePerMinute: "0", trafficBufferMin: "10", minKmPerDay: "250", driverAllowancePerDay: "300", enableWaterfallUpgrade: true, image: null });
+        setFormData({ name: "", seatCapacity: "4", baseFare: "0", privateRatePerKm: "0", sharedRatePerSeatPerKm: "0", avgSpeedKmH: "30", seatLayout: ["Front", "Back-Left", "Back-Middle", "Back-Right"], bulkBookingBasePrice: "0", freeWaitingMin: "3", waitingChargePerMin: "0", ratePerMinute: "0", trafficBufferMin: "10", minKmPerDay: "250", driverAllowancePerDay: "300", enableWaterfallUpgrade: true, sortOrder: "0", image: null });
         fetchData();
       } else {
         toast.error(res.message);
@@ -276,6 +277,7 @@ export default function ManageCarCategories() {
       minKmPerDay: c.minKmPerDay || "250",
       driverAllowancePerDay: c.driverAllowancePerDay || "300",
       enableWaterfallUpgrade: c.enableWaterfallUpgrade !== false, // defaults to true
+      sortOrder: c.sortOrder ?? "0",
       image: null
     });
     setIsModalOpen(true);
@@ -514,10 +516,13 @@ export default function ManageCarCategories() {
                   </>
                 )}
               </div>
-              <div className="absolute bottom-4 left-4">
+              <div className="absolute bottom-4 left-4 flex items-center gap-2">
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${c.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
                   }`}>
                   {c.isActive ? 'Active' : 'Inactive'}
+                </span>
+                <span className="px-2.5 py-1 rounded-full text-xs font-black bg-blue-600 text-white shadow-sm flex items-center gap-1">
+                  #{c.sortOrder ?? 0}
                 </span>
               </div>
             </div>
@@ -620,16 +625,30 @@ export default function ManageCarCategories() {
               {/* Basic Info */}
               <div className="space-y-4">
                 <h3 className="text-sm font-medium text-gray-900">Basic Information</h3>
-                <div className="space-y-2">
-                  <label className="text-sm text-gray-600">Category Name *</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                    placeholder="e.g., Economy Sedan"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="sm:col-span-2 space-y-1">
+                    <label className="text-sm text-gray-600 font-semibold">Category Name *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      required
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                      placeholder="e.g., Economy Sedan"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-sm text-gray-600 font-semibold">Display Index (Order) *</label>
+                    <input
+                      type="number"
+                      value={formData.sortOrder}
+                      onChange={(e) => setFormData({ ...formData, sortOrder: e.target.value })}
+                      className="w-full px-4 py-2 border border-blue-300 bg-blue-50/50 font-bold text-blue-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                      placeholder="e.g. 1, 2, 3"
+                      min="0"
+                    />
+                    <p className="text-[10px] text-gray-400">1 = Sabse pehle dikhega</p>
+                  </div>
                 </div>
               </div>
 

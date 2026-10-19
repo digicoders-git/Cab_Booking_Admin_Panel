@@ -3,7 +3,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useFont } from '../context/FontContext';
 import { useAuth } from '../context/AuthContext';
 import { getAllBulkBookingsHistory, deleteBulkBooking, endBulkBooking } from '../apis/bulkBooking';
-import { FaHistory, FaSearch, FaSyncAlt, FaCar, FaTrash, FaEye, FaFilePdf, FaCheckCircle, FaCalendarAlt, FaClock, FaUserPlus } from 'react-icons/fa';
+import { FaHistory, FaSearch, FaSyncAlt, FaCar, FaTrash, FaEye, FaFilePdf, FaCheckCircle, FaCalendarAlt, FaClock, FaUserPlus, FaTimes } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import AssignBulkDriversModal from '../components/AssignBulkDriversModal';
 
@@ -117,22 +117,44 @@ export default function BulkBookingHistory() {
   };
 
   const filteredBookings = useMemo(() => {
-    const q = (searchQuery || '').trim().toLowerCase();
+    const rawQ = (searchQuery || '').trim().toLowerCase();
+    const cleanQ = rawQ.startsWith('#') ? rawQ.slice(1) : rawQ;
     const currentAdminId = String(admin?._id || admin?.id || admin?.adminId || '');
 
     return bookings.filter(b => {
       const bId = String(b._id || '').toLowerCase();
+      const shortId = b._id ? String(b._id).slice(-8).toLowerCase() : '';
+      const short6Id = b._id ? String(b._id).slice(-6).toLowerCase() : '';
       const pickupAddr = String(b.pickup?.address || '').toLowerCase();
       const dropAddr = String(b.drop?.address || '').toLowerCase();
       const creatorName = String(b.createdBy?.name || '').toLowerCase();
+      const creatorPhone = String(b.createdBy?.phone || '').toLowerCase();
+      const customerName = String(b.customerName || '').toLowerCase();
+      const customerPhone = String(b.customerPhone || '').toLowerCase();
       const fleetName = String(b.assignedFleet?.companyName || '').toLowerCase();
+      const notes = String(b.notes || '').toLowerCase();
 
-      const matchSearch = !q || 
-                          bId.includes(q) || 
-                          pickupAddr.includes(q) || 
-                          dropAddr.includes(q) ||
-                          creatorName.includes(q) ||
-                          fleetName.includes(q);
+      // Check assigned drivers
+      const driverMatch = (b.assignedDrivers || []).some(ad => {
+        const dName = String(ad.driver?.name || '').toLowerCase();
+        const dPhone = String(ad.driver?.phone || '').toLowerCase();
+        const cNum = String(ad.car?.vehicleNumber || ad.driver?.carDetails?.carNumber || '').toLowerCase();
+        return dName.includes(cleanQ) || dPhone.includes(cleanQ) || cNum.includes(cleanQ);
+      });
+
+      const matchSearch = !rawQ || 
+                          bId.includes(cleanQ) || 
+                          shortId.includes(cleanQ) || 
+                          short6Id.includes(cleanQ) ||
+                          pickupAddr.includes(rawQ) || 
+                          dropAddr.includes(rawQ) ||
+                          creatorName.includes(rawQ) ||
+                          creatorPhone.includes(cleanQ) ||
+                          customerName.includes(rawQ) ||
+                          customerPhone.includes(cleanQ) ||
+                          fleetName.includes(rawQ) ||
+                          notes.includes(rawQ) ||
+                          driverMatch;
       
       const matchStatus = statusFilter === 'all' || b.status === statusFilter;
       
@@ -160,15 +182,40 @@ export default function BulkBookingHistory() {
               <FaHistory className="text-blue-500" /> Bulk Booking History
             </h1>
             <p className="text-sm mt-1" style={{ color: theme === 'dark' ? '#9ca3af' : '#64748b' }}>
-              View and manage all bulk bookings across the system.
+              View, search and manage all bulk bookings across the system.
             </p>
           </div>
-          <button 
-            onClick={fetchBookings} 
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-xl shadow-md hover:bg-blue-600 transition"
-          >
-            <FaSyncAlt className={loading ? 'animate-spin' : ''} /> Refresh Data
-          </button>
+          
+          <div className="flex items-center gap-3">
+            {/* Quick Header Search Bar */}
+            <div className="relative w-full sm:w-72">
+              <FaSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />
+              <input
+                type="text"
+                placeholder="Quick search Booking ID..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-8 py-2 text-xs sm:text-sm rounded-xl border outline-none transition-all shadow-xs"
+                style={{ backgroundColor: theme === 'dark' ? '#1f2937' : '#ffffff', borderColor: theme === 'dark' ? '#374151' : '#e2e8f0', color: themeColors.text }}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+                  title="Clear"
+                >
+                  <FaTimes size={12} />
+                </button>
+              )}
+            </div>
+
+            <button 
+              onClick={fetchBookings} 
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-xl shadow-md hover:bg-blue-600 transition shrink-0 text-sm font-semibold"
+            >
+              <FaSyncAlt className={loading ? 'animate-spin' : ''} /> Refresh Data
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -187,33 +234,52 @@ export default function BulkBookingHistory() {
           </button>
         </div>
 
-        {/* Filters & Search */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-col sm:flex-row gap-4" style={{ backgroundColor: themeColors.surface, borderColor: theme === 'dark' ? '#374151' : '#e5e7eb' }}>
-          <div className="relative flex-1">
-            <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+        {/* Prominent Filters & Search Bar */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-col sm:flex-row items-center gap-4" style={{ backgroundColor: themeColors.surface, borderColor: theme === 'dark' ? '#374151' : '#e5e7eb' }}>
+          <div className="relative flex-1 w-full">
+            <FaSearch className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-blue-500" />
             <input 
               type="text"
-              placeholder="Search by ID, location, creator, or fleet..."
+              placeholder="🔍 Search by Booking ID (e.g. #110a1b67 or ID), Route, Customer, Driver, Fleet..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none"
+              className="w-full pl-10 pr-10 py-2.5 rounded-xl border focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all outline-none font-medium text-sm shadow-xs"
               style={{ backgroundColor: theme === 'dark' ? '#1f2937' : '#f8fafc', borderColor: theme === 'dark' ? '#374151' : '#e2e8f0', color: themeColors.text }}
             />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                title="Clear Search"
+              >
+                <FaTimes size={14} />
+              </button>
+            )}
           </div>
-          <select
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-            className="px-4 py-2.5 rounded-xl border outline-none cursor-pointer min-w-[150px]"
-            style={{ backgroundColor: theme === 'dark' ? '#1f2937' : '#f8fafc', borderColor: theme === 'dark' ? '#374151' : '#e2e8f0', color: themeColors.text }}
-          >
-            <option value="all">All Status</option>
-            <option value="PendingPayment">Pending Payment</option>
-            <option value="Marketplace">Marketplace (Open)</option>
-            <option value="Accepted">Accepted</option>
-            <option value="Ongoing">Ongoing</option>
-            <option value="Completed">Completed</option>
-            <option value="Cancelled">Cancelled</option>
-          </select>
+          
+          <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
+            {searchQuery && (
+              <span className="px-3 py-1.5 bg-blue-50 text-blue-700 text-xs font-bold rounded-xl border border-blue-200 whitespace-nowrap shadow-xs flex items-center gap-1.5">
+                <span>Found:</span>
+                <span className="font-extrabold">{filteredBookings.length}</span>
+                <span>{filteredBookings.length === 1 ? 'Booking' : 'Bookings'}</span>
+              </span>
+            )}
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              className="px-4 py-2.5 rounded-xl border outline-none cursor-pointer min-w-[160px] text-sm font-semibold"
+              style={{ backgroundColor: theme === 'dark' ? '#1f2937' : '#f8fafc', borderColor: theme === 'dark' ? '#374151' : '#e2e8f0', color: themeColors.text }}
+            >
+              <option value="all">All Status</option>
+              <option value="PendingPayment">Pending Payment</option>
+              <option value="Marketplace">Marketplace (Open)</option>
+              <option value="Accepted">Accepted</option>
+              <option value="Ongoing">Ongoing</option>
+              <option value="Completed">Completed</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
         </div>
 
         {/* Bookings Table */}
@@ -242,8 +308,24 @@ export default function BulkBookingHistory() {
                   </tr>
                 ) : filteredBookings.length === 0 ? (
                   <tr>
-                    <td colSpan="7" className="px-6 py-8 text-center text-gray-500">
-                      No bulk bookings found matching your criteria.
+                    <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center mb-3">
+                          <FaSearch size={18} />
+                        </div>
+                        <p className="text-sm font-bold text-gray-800">No bulk bookings match your search</p>
+                        <p className="text-xs text-gray-500 mt-1 max-w-sm">
+                          {searchQuery ? `No records found for "${searchQuery}". Check Booking ID, location or customer name.` : 'No bulk bookings available under this filter.'}
+                        </p>
+                        {searchQuery && (
+                          <button
+                            onClick={() => setSearchQuery("")}
+                            className="mt-3 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-100 transition-colors"
+                          >
+                            Clear Search
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ) : (
@@ -334,8 +416,8 @@ export default function BulkBookingHistory() {
 
                       {/* Finances */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <p className="text-sm font-bold text-gray-800">₹{(b.totalPriceWithTax || b.offeredPrice)?.toLocaleString('en-IN')}</p>
-                        <p className="text-[10px] text-gray-500 mt-1">Base: ₹{b.offeredPrice?.toLocaleString('en-IN')}</p>
+                        <p className="text-sm font-bold text-gray-800">₹{Math.round(b.totalPriceWithTax || b.offeredPrice || 0).toLocaleString('en-IN')}</p>
+                        <p className="text-[10px] text-gray-500 mt-1">Base: ₹{Math.round(b.offeredPrice || 0).toLocaleString('en-IN')}</p>
                       </td>
 
                       {/* Status */}

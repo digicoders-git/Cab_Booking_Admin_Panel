@@ -28,8 +28,13 @@ export const getFullReport = async () => {
     return response.data;
 };
 
-export const getCityWiseReportAPI = async (city) => {
-    const response = await http.get(`/api/admin/city-wise-report`, { params: { city } });
+export const getCityWiseReportAPI = async (city, filters = {}) => {
+    const params = { city };
+    if (filters.startDate) params.startDate = filters.startDate;
+    if (filters.endDate) params.endDate = filters.endDate;
+    if (filters.startTime) params.startTime = filters.startTime;
+    if (filters.endTime) params.endTime = filters.endTime;
+    const response = await http.get(`/api/admin/city-wise-report`, { params });
     return response.data;
 };
 

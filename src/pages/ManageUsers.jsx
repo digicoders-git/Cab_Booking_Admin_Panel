@@ -37,8 +37,8 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
   const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
   return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 };
 
@@ -432,22 +432,22 @@ export default function ManageUsers() {
     if (!viewing || !viewing._id) return;
     toast.loading("Generating PDF from server...", { id: "pdfGen" });
     try {
-        const blob = await exportUserReportPdf(viewing._id);
-        if (blob) {
-            const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `User_Report_${viewing.name.replace(/\s+/g, '_')}.pdf`);
-            document.body.appendChild(link);
-            link.click();
-            link.parentNode.removeChild(link);
-            toast.success("PDF Downloaded successfully!", { id: "pdfGen" });
-        } else {
-            toast.error("Failed to generate PDF from server.", { id: "pdfGen" });
-        }
+      const blob = await exportUserReportPdf(viewing._id);
+      if (blob) {
+        const url = window.URL.createObjectURL(new Blob([blob], { type: 'application/pdf' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `User_Report_${viewing.name.replace(/\s+/g, '_')}.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+        toast.success("PDF Downloaded successfully!", { id: "pdfGen" });
+      } else {
+        toast.error("Failed to generate PDF from server.", { id: "pdfGen" });
+      }
     } catch (err) {
-        console.error("PDF download error:", err);
-        toast.error("Error downloading PDF.", { id: "pdfGen" });
+      console.error("PDF download error:", err);
+      toast.error("Error downloading PDF.", { id: "pdfGen" });
     }
   };
 
@@ -553,7 +553,7 @@ export default function ManageUsers() {
                       </button>
                     )}
                   </div>
-                  
+
                   <div className="flex items-center gap-1">
                     <span className="text-xs text-gray-500 whitespace-nowrap">Radius (km):</span>
                     <input
@@ -607,8 +607,8 @@ export default function ManageUsers() {
 
                 {!fetching && filteredUsers.map(u => (
                   u.firstLocation?.latitude && u.firstLocation?.longitude ? (
-                    <Marker 
-                      key={u._id} 
+                    <Marker
+                      key={u._id}
                       position={{ lat: u.firstLocation.latitude, lng: u.firstLocation.longitude }}
                       title={`${u.name} - ${u.phone || 'No phone'}`}
                     />
@@ -627,7 +627,7 @@ export default function ManageUsers() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-200">
-                    {['User','Contact','Joined','Location','Rating','Wallet','Status','Actions'].map((h) => (
+                    {['User', 'Contact', 'Joined', 'Location', 'Rating', 'Wallet', 'Status', 'Actions'].map((h) => (
                       <th key={h} className="py-4 px-6 text-left">
                         <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
                       </th>
@@ -700,7 +700,7 @@ export default function ManageUsers() {
                         >
                           <td className="py-4 px-6">
                             <div className="flex items-center gap-3">
-                              <div 
+                              <div
                                 className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center overflow-hidden border border-gray-100 cursor-pointer hover:opacity-80 transition-opacity"
                                 onClick={(e) => { e.stopPropagation(); handleOpenUserDetails(u); }}
                                 title="Click to view Account & Rides"
@@ -854,7 +854,7 @@ export default function ManageUsers() {
                                       </span>
                                     </div>
                                     {u.totalRatings > 0 && (
-                                      <button 
+                                      <button
                                         onClick={(e) => { e.stopPropagation(); setReviewModal({ isOpen: true, targetId: u._id }); }}
                                         className="mt-3 w-full py-1.5 bg-blue-50 text-blue-600 text-xs font-bold rounded-lg hover:bg-blue-100 transition-colors"
                                       >
@@ -944,157 +944,157 @@ export default function ManageUsers() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Chart 1: User Status Distribution */}
-          {(selectedChart === 'all' || selectedChart === 'distribution') && (
-            <ChartCard title="User Status Distribution" subtitle="Active vs Inactive users" icon={PieChartIcon}>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={statusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={80}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  >
-                    {statusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="flex justify-center gap-6 mt-4">
-                {statusData.map((item, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                    <span className="text-sm text-gray-600">{item.name}: {item.value}</span>
-                  </div>
-                ))}
-              </div>
-            </ChartCard>
-          )}
+            {/* Chart 1: User Status Distribution */}
+            {(selectedChart === 'all' || selectedChart === 'distribution') && (
+              <ChartCard title="User Status Distribution" subtitle="Active vs Inactive users" icon={PieChartIcon}>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={statusData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={80}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {statusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex justify-center gap-6 mt-4">
+                  {statusData.map((item, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
+                      <span className="text-sm text-gray-600">{item.name}: {item.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </ChartCard>
+            )}
 
-          {/* Chart 2: User Metrics */}
-          {(selectedChart === 'all' || selectedChart === 'metrics') && (
-            <ChartCard title="User Metrics" subtitle="Key user indicators" icon={BarChart3}>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={metricsData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                    {metricsData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartCard>
-          )}
+            {/* Chart 2: User Metrics */}
+            {(selectedChart === 'all' || selectedChart === 'metrics') && (
+              <ChartCard title="User Metrics" subtitle="Key user indicators" icon={BarChart3}>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={metricsData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                      {metricsData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            )}
 
-          {/* Chart 3: User Growth Trend */}
-          {(selectedChart === 'all' || selectedChart === 'growth') && (
-            <ChartCard title="User Growth Trend" subtitle="Monthly user acquisition" icon={TrendingUp}>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={growthData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="users" stroke={CHART_COLORS.blue} strokeWidth={3} dot={{ r: 6 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </ChartCard>
-          )}
+            {/* Chart 3: User Growth Trend */}
+            {(selectedChart === 'all' || selectedChart === 'growth') && (
+              <ChartCard title="User Growth Trend" subtitle="Monthly user acquisition" icon={TrendingUp}>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={growthData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="users" stroke={CHART_COLORS.blue} strokeWidth={3} dot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            )}
 
-          {/* Chart 4: Registration Timeline */}
-          {(selectedChart === 'all' || selectedChart === 'activity') && (
-            <ChartCard title="Registration Timeline" subtitle="Days since registration" icon={Clock}>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={registrationData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Area type="monotone" dataKey="days" stroke={CHART_COLORS.purple} fill={CHART_COLORS.purple} fillOpacity={0.2} />
-                </AreaChart>
-              </ResponsiveContainer>
-            </ChartCard>
-          )}
+            {/* Chart 4: Registration Timeline */}
+            {(selectedChart === 'all' || selectedChart === 'activity') && (
+              <ChartCard title="Registration Timeline" subtitle="Days since registration" icon={Clock}>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={registrationData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Area type="monotone" dataKey="days" stroke={CHART_COLORS.purple} fill={CHART_COLORS.purple} fillOpacity={0.2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            )}
 
-          {/* Chart 5: User Health Radar */}
-          {(selectedChart === 'all' || selectedChart === 'metrics') && (
-            <ChartCard title="User Health Radar" subtitle="Multi-metric analysis" icon={Gauge}>
-              <ResponsiveContainer width="100%" height={300}>
-                <RadarChart outerRadius={90} data={healthData}>
-                  <PolarGrid stroke="#E5E7EB" />
-                  <PolarAngleAxis dataKey="metric" />
-                  <PolarRadiusAxis angle={30} />
-                  <Radar name="Health" dataKey="value" stroke={CHART_COLORS.purple} fill={CHART_COLORS.purple} fillOpacity={0.3} />
-                  <Tooltip />
-                </RadarChart>
-              </ResponsiveContainer>
-            </ChartCard>
-          )}
+            {/* Chart 5: User Health Radar */}
+            {(selectedChart === 'all' || selectedChart === 'metrics') && (
+              <ChartCard title="User Health Radar" subtitle="Multi-metric analysis" icon={Gauge}>
+                <ResponsiveContainer width="100%" height={300}>
+                  <RadarChart outerRadius={90} data={healthData}>
+                    <PolarGrid stroke="#E5E7EB" />
+                    <PolarAngleAxis dataKey="metric" />
+                    <PolarRadiusAxis angle={30} />
+                    <Radar name="Health" dataKey="value" stroke={CHART_COLORS.purple} fill={CHART_COLORS.purple} fillOpacity={0.3} />
+                    <Tooltip />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            )}
 
-          {/* Chart 6: Activity Timeline */}
-          {(selectedChart === 'all' || selectedChart === 'activity') && (
-            <ChartCard title="Weekly Activity" subtitle="Active vs New users" icon={Activity}>
-              <ResponsiveContainer width="100%" height={300}>
-                <ComposedChart data={activityData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                  <XAxis dataKey="day" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="active" fill={CHART_COLORS.blue} name="Active Users" />
-                  <Line type="monotone" dataKey="new" stroke={CHART_COLORS.orange} name="New Users" strokeWidth={2} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </ChartCard>
-          )}
+            {/* Chart 6: Activity Timeline */}
+            {(selectedChart === 'all' || selectedChart === 'activity') && (
+              <ChartCard title="Weekly Activity" subtitle="Active vs New users" icon={Activity}>
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={activityData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                    <XAxis dataKey="day" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="active" fill={CHART_COLORS.blue} name="Active Users" />
+                    <Line type="monotone" dataKey="new" stroke={CHART_COLORS.orange} name="New Users" strokeWidth={2} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            )}
 
-          {/* Chart 7: Top Users Funnel */}
-          {(selectedChart === 'all' || selectedChart === 'metrics') && (
-            <ChartCard title="Top Users by Activity" subtitle="Most active users" icon={Target}>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={topUsers} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                  <XAxis type="number" />
-                  <YAxis type="category" dataKey="name" width={80} />
-                  <Tooltip />
-                  <Bar dataKey="value" radius={[0, 8, 8, 0]}>
-                    {topUsers.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartCard>
-          )}
+            {/* Chart 7: Top Users Funnel */}
+            {(selectedChart === 'all' || selectedChart === 'metrics') && (
+              <ChartCard title="Top Users by Activity" subtitle="Most active users" icon={Target}>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={topUsers} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                    <XAxis type="number" />
+                    <YAxis type="category" dataKey="name" width={80} />
+                    <Tooltip />
+                    <Bar dataKey="value" radius={[0, 8, 8, 0]}>
+                      {topUsers.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            )}
 
-          {/* Chart 8: Radial Progress */}
-          {(selectedChart === 'all' || selectedChart === 'metrics') && (
-            <ChartCard title="Progress Indicators" subtitle="Key metrics progress" icon={Activity}>
-              <ResponsiveContainer width="100%" height={300}>
-                <RadialBarChart cx="50%" cy="50%" innerRadius="20%" outerRadius="80%" barSize={20} data={radialData}>
-                  <RadialBar
-                    minAngle={15}
-                    label={{ position: 'insideStart', fill: '#fff', fontSize: 12 }}
-                    background
-                    dataKey="value"
-                  />
-                  <Legend />
-                  <Tooltip />
-                </RadialBarChart>
-              </ResponsiveContainer>
-            </ChartCard>
-          )}
-        </div>
+            {/* Chart 8: Radial Progress */}
+            {(selectedChart === 'all' || selectedChart === 'metrics') && (
+              <ChartCard title="Progress Indicators" subtitle="Key metrics progress" icon={Activity}>
+                <ResponsiveContainer width="100%" height={300}>
+                  <RadialBarChart cx="50%" cy="50%" innerRadius="20%" outerRadius="80%" barSize={20} data={radialData}>
+                    <RadialBar
+                      minAngle={15}
+                      label={{ position: 'insideStart', fill: '#fff', fontSize: 12 }}
+                      background
+                      dataKey="value"
+                    />
+                    <Legend />
+                    <Tooltip />
+                  </RadialBarChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            )}
+          </div>
 
         )}
 
@@ -1140,9 +1140,8 @@ export default function ManageUsers() {
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
                       <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">{viewing.name || 'User'}</h2>
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                        viewing.isActive ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
-                      }`}>
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${viewing.isActive ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-red-500/20 text-red-300 border border-red-500/30'
+                        }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${viewing.isActive ? 'bg-emerald-400' : 'bg-red-400'}`} />
                         {viewing.isActive ? 'Active' : 'Inactive'}
                       </span>
@@ -1237,25 +1236,22 @@ export default function ManageUsers() {
                 <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-lg border border-gray-200/80 shadow-xs">
                   <button
                     onClick={() => setRideActiveTab('all')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                      rideActiveTab === 'all' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${rideActiveTab === 'all' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                      }`}
                   >
                     All Rides ({userRidesData?.rides?.length || 0})
                   </button>
                   <button
                     onClick={() => setRideActiveTab('city')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                      rideActiveTab === 'city' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${rideActiveTab === 'city' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                      }`}
                   >
                     City Rides ({userRidesData?.regularRides?.length || 0})
                   </button>
                   <button
                     onClick={() => setRideActiveTab('package')}
-                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
-                      rideActiveTab === 'package' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-                    }`}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${rideActiveTab === 'package' ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                      }`}
                   >
                     Package Rides ({userRidesData?.fixedRides?.length || 0})
                   </button>
@@ -1307,7 +1303,7 @@ export default function ManageUsers() {
 
                 if (rideSearch.trim()) {
                   const q = rideSearch.toLowerCase();
-                  ridesToShow = ridesToShow.filter(r => 
+                  ridesToShow = ridesToShow.filter(r =>
                     r.pickup?.toLowerCase().includes(q) ||
                     r.drop?.toLowerCase().includes(q) ||
                     r.bookingId?.toLowerCase().includes(q) ||
@@ -1345,9 +1341,8 @@ export default function ManageUsers() {
                               <span className="font-mono font-bold text-xs text-gray-900 bg-gray-100 px-2 py-0.5 rounded-md">
                                 #{ride.bookingId}
                               </span>
-                              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
-                                isPackage ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-blue-50 text-blue-700 border border-blue-200'
-                              }`}>
+                              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${isPackage ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-blue-50 text-blue-700 border border-blue-200'
+                                }`}>
                                 {ride.type}
                               </span>
                               <span className="text-xs font-semibold text-gray-500">
@@ -1361,11 +1356,10 @@ export default function ManageUsers() {
                                 {new Date(ride.date || ride.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                                 {ride.pickupTime ? ` (${ride.pickupTime})` : ` at ${new Date(ride.date || ride.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`}
                               </span>
-                              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                                isCompleted ? 'bg-green-100 text-green-700 border border-green-200' :
-                                isCancelled ? 'bg-red-100 text-red-700 border border-red-200' :
-                                'bg-amber-100 text-amber-700 border border-amber-200'
-                              }`}>
+                              <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${isCompleted ? 'bg-green-100 text-green-700 border border-green-200' :
+                                  isCancelled ? 'bg-red-100 text-red-700 border border-red-200' :
+                                    'bg-amber-100 text-amber-700 border border-amber-200'
+                                }`}>
                                 {ride.status}
                               </span>
                             </div>

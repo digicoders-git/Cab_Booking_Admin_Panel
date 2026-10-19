@@ -22,7 +22,7 @@ import {
   Download, Filter, TrendingUp, Activity, DollarSign,
   PieChart as PieChartIcon, BarChart3, LineChart as LineChartIcon,
   Target, Gauge, Zap, Shield, MoreVertical, DownloadCloud, Printer,
-  Clock, Calendar, Users, MapPin, Phone, Mail, Trash2
+  Clock, Calendar, Users, MapPin, Phone, Mail, Trash2, Search, X
 } from 'lucide-react';
 import Swal from "sweetalert2";
 
@@ -450,11 +450,36 @@ export default function ManageBookings() {
       !["cancelled", "expired"].includes(b.bookingStatus?.toLowerCase())
     );
 
+    const q = (searchQuery || "").trim().toLowerCase();
+    if (!q) return list;
+
+    // Remove leading '#' if user typed e.g. #6A97C5EB
+    const cleanQ = q.startsWith('#') ? q.slice(1) : q;
+
     return list.filter(b => {
-      return b._id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        b.user?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        b.passengerDetails?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        b.passengerDetails?.phone?.includes(searchQuery);
+      const id = (b._id || "").toLowerCase();
+      const shortId = (b._id ? b._id.slice(-8) : "").toLowerCase();
+      const passengerName = (b.passengerDetails?.name || "").toLowerCase();
+      const passengerPhone = (b.passengerDetails?.phone || "").toLowerCase();
+      const userName = (b.user?.name || "").toLowerCase();
+      const userPhone = (b.user?.phone || "").toLowerCase();
+      const agentName = (b.agent?.name || "").toLowerCase();
+      const pickup = (b.pickup?.address || "").toLowerCase();
+      const drop = (b.drop?.address || "").toLowerCase();
+      const driverName = (b.assignedDriver?.name || "").toLowerCase();
+
+      return (
+        id.includes(cleanQ) ||
+        shortId.includes(cleanQ) ||
+        passengerName.includes(q) ||
+        userName.includes(q) ||
+        agentName.includes(q) ||
+        passengerPhone.includes(q) ||
+        userPhone.includes(q) ||
+        pickup.includes(q) ||
+        drop.includes(q) ||
+        driverName.includes(q)
+      );
     });
   }, [dateFilteredBookings, activeTab, searchQuery]);
 
@@ -609,49 +634,48 @@ export default function ManageBookings() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className=" mt-8 z-50">
-        <div className="px-4 sm:px-8 py-4">
-          <div className="flex items-center justify-between">
+      <div className="mt-6 z-50">
+        <div className="px-4 sm:px-8 py-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center space-x-4">
               <div>
-                <h1 className="text-base sm:text-2xl font-bold text-gray-900">Booking Command Center</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">Booking Command Center</h1>
+                <p className="text-xs text-gray-500 mt-0.5">Search by Booking ID, Passenger Name or Filter by Status</p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center gap-3">
+              {/* Quick Search in Header */}
+              <div className="relative w-full sm:w-80">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                <input
+                  type="text"
+                  placeholder="Search Booking ID, Passenger..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-9 py-2 text-xs sm:text-sm bg-white border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                    title="Clear search"
+                  >
+                    <X size={15} />
+                  </button>
+                )}
+              </div>
+
               {/* Refresh */}
               <button
                 onClick={fetchData}
-                className="p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                title="Refresh Bookings"
+                className="p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 shadow-sm transition-all shrink-0"
               >
-                <FaSyncAlt size={18} className={fetching ? 'animate-spin' : ''} />
+                <FaSyncAlt size={16} className={fetching ? 'animate-spin' : ''} />
               </button>
             </div>
           </div>
-
-          {/* Filters */}
-          {showFilters && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-lg grid grid-cols-1 md:grid-cols-4 gap-4">
-              <input
-                type="text"
-                placeholder="Search bookings..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg col-span-2"
-              />
-              <select className="px-3 py-2 border border-gray-300 rounded-lg">
-                <option>All Ride Types</option>
-                <option>Private Only</option>
-                <option>Shared Only</option>
-              </select>
-              <select className="px-3 py-2 border border-gray-300 rounded-lg">
-                <option>Sort By</option>
-                <option>Newest First</option>
-                <option>Highest Fare</option>
-                <option>Oldest First</option>
-              </select>
-            </div>
-          )}
         </div>
       </div>
 
@@ -741,6 +765,44 @@ export default function ManageBookings() {
                    <Trash2 size={14} /> Delete Selected ({selectedBookings.length})
                  </button>
                )}
+            </div>
+          </div>
+
+          {/* Prominent Search Bar Bar */}
+          <div className="px-6 py-3.5 bg-gradient-to-r from-gray-50 via-blue-50/20 to-gray-50 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="relative flex-1 max-w-xl">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                <Search size={16} className="text-blue-600" />
+              </div>
+              <input
+                type="text"
+                placeholder="🔍 Search by Booking ID (e.g. #6A97C5EB or ID), Passenger Name, Phone..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-10 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm transition-all"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Clear search"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-3 text-xs font-semibold">
+              {searchQuery && (
+                <span className="px-2.5 py-1 bg-blue-100 text-blue-700 rounded-lg border border-blue-200 shadow-xs flex items-center gap-1.5">
+                  <span>Found:</span>
+                  <span className="font-extrabold">{filteredBookings.length}</span>
+                  <span>{filteredBookings.length === 1 ? 'Booking' : 'Bookings'}</span>
+                </span>
+              )}
+              <span className="text-gray-500">
+                Showing {filteredBookings.length === 0 ? 0 : (currentPage - 1) * rowsPerPage + 1}–{Math.min(currentPage * rowsPerPage, filteredBookings.length)} of {filteredBookings.length}
+              </span>
             </div>
           </div>
 
@@ -1121,6 +1183,29 @@ export default function ManageBookings() {
                     )}
                   </React.Fragment>
                 ))}
+                {paginatedData.length === 0 && (
+                  <tr>
+                    <td colSpan={11} className="py-12 text-center text-gray-500">
+                      <div className="flex flex-col items-center justify-center">
+                        <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center mb-3">
+                          <FaSearch size={20} />
+                        </div>
+                        <p className="text-base font-semibold text-gray-800">No bookings match your search</p>
+                        <p className="text-xs text-gray-500 mt-1 max-w-sm">
+                          {searchQuery ? `No results found for "${searchQuery}". Check the Booking ID or Passenger Name and try again.` : 'No bookings available under this filter.'}
+                        </p>
+                        {searchQuery && (
+                          <button
+                            onClick={() => setSearchQuery("")}
+                            className="mt-3 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-semibold hover:bg-blue-100 transition-colors"
+                          >
+                            Clear Search
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
             )}

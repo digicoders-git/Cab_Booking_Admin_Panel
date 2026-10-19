@@ -560,7 +560,7 @@ export const generateTransactionsPDF = ({ transactions = [], timeframe = 'monthl
   doc.save(filename);
 };
 
-export const generateCityReportPDF = (reportData) => {
+export const generateCityReportPDF = (reportData, filters = {}) => {
   if (!reportData || !reportData.bookings) return;
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   
@@ -583,7 +583,10 @@ export const generateCityReportPDF = (reportData) => {
   doc.setFontSize(9.5);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(219, 234, 254);
-  doc.text(`CITY-WISE BOOKING REPORT: ${reportData.city.toUpperCase()}`, 14, 18);
+  const filterDesc = filters.startDate 
+    ? `Filter: ${filters.startDate}${filters.startTime ? ' ' + filters.startTime : ''} to ${filters.endDate || 'Now'}${filters.endTime ? ' ' + filters.endTime : ''}`
+    : 'Filter: All Time';
+  doc.text(`CITY-WISE BOOKING REPORT: ${reportData.city.toUpperCase()} • ${filterDesc}`, 14, 18);
 
   // Meta Info
   const now = new Date();
@@ -620,7 +623,7 @@ export const generateCityReportPDF = (reportData) => {
   });
 
   const tableData = reportData.bookings.map((b) => [
-    new Date(b.createdAt).toLocaleDateString(),
+    new Date(b.createdAt).toLocaleString("en-IN", { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
     b.customerName,
     b.rideType,
     b.pickupAddress?.substring(0, 40) + (b.pickupAddress?.length > 40 ? '...' : ''),
@@ -630,7 +633,7 @@ export const generateCityReportPDF = (reportData) => {
 
   autoTable(doc, {
     startY: startY + 24,
-    head: [["Date", "Customer", "Type", "Pickup Address", "Status", "Fare"]],
+    head: [["Date & Time", "Customer", "Type", "Pickup Address", "Status", "Fare"]],
     body: tableData,
     theme: "grid",
     headStyles: { fillColor: [248, 250, 252], textColor: [71, 85, 105], fontStyle: "bold", fontSize: 8, halign: 'center' },

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, Car, User, Phone, CheckCircle2, AlertCircle, Loader2, Sparkles, 
-  Clock, MapPin, Shield, Check, RefreshCw, AlertTriangle
+  Clock, MapPin, Shield, Check, RefreshCw, AlertTriangle, Search
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { assignDriverToBulk } from '../apis/bulkBooking';
@@ -12,6 +12,7 @@ export default function AssignBulkDriversModal({ isOpen, onClose, booking, onAss
   const [loadingDrivers, setLoadingDrivers] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [filterByCategory, setFilterByCategory] = useState(true);
+  const [driverSearchQuery, setDriverSearchQuery] = useState("");
 
   // Helper to determine if a driver matches a slot's car category
   const doesDriverMatchSlotCategory = (driver, slot) => {
@@ -297,7 +298,7 @@ export default function AssignBulkDriversModal({ isOpen, onClose, booking, onAss
         {/* Slots Content Area */}
         <div className="p-6 space-y-4 overflow-y-auto max-h-[60vh]">
           
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1 border-b border-gray-100">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-gray-100">
             <div>
               <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
                 <Shield size={14} className="text-blue-600" />
@@ -308,18 +309,40 @@ export default function AssignBulkDriversModal({ isOpen, onClose, booking, onAss
               </p>
             </div>
             
-            {/* Global Category Filter Toggle */}
-            <label className="inline-flex items-center gap-2 cursor-pointer bg-blue-50/70 hover:bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg transition-colors select-none">
-              <input 
-                type="checkbox"
-                checked={filterByCategory}
-                onChange={(e) => setFilterByCategory(e.target.checked)}
-                className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
-              />
-              <span className="text-[11px] font-bold text-blue-900">
-                Category Filter (Active)
-              </span>
-            </label>
+            <div className="flex items-center gap-3">
+              {/* Driver Quick Search Input in Modal */}
+              <div className="relative w-48 sm:w-60">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={13} />
+                <input
+                  type="text"
+                  placeholder="Filter driver by name/phone/car..."
+                  value={driverSearchQuery}
+                  onChange={(e) => setDriverSearchQuery(e.target.value)}
+                  className="w-full pl-8 pr-7 py-1 text-xs bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium placeholder-gray-400"
+                />
+                {driverSearchQuery && (
+                  <button
+                    onClick={() => setDriverSearchQuery("")}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+
+              {/* Global Category Filter Toggle */}
+              <label className="inline-flex items-center gap-2 cursor-pointer bg-blue-50/70 hover:bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg transition-colors select-none shrink-0">
+                <input 
+                  type="checkbox"
+                  checked={filterByCategory}
+                  onChange={(e) => setFilterByCategory(e.target.checked)}
+                  className="w-3.5 h-3.5 text-blue-600 rounded border-gray-300 focus:ring-blue-500 cursor-pointer"
+                />
+                <span className="text-[11px] font-bold text-blue-900">
+                  Category Filter (Active)
+                </span>
+              </label>
+            </div>
           </div>
 
           {loadingDrivers ? (
@@ -342,6 +365,18 @@ export default function AssignBulkDriversModal({ isOpen, onClose, booking, onAss
                 let availableDriversForSlot = (shouldFilter && matchingDrivers.length > 0)
                   ? matchingDrivers
                   : drivers;
+
+                // Filter by driverSearchQuery if typed
+                const dQ = (driverSearchQuery || '').trim().toLowerCase();
+                if (dQ) {
+                  availableDriversForSlot = availableDriversForSlot.filter(d => {
+                    const name = (d.name || '').toLowerCase();
+                    const phone = (d.phone || '').toLowerCase();
+                    const carNum = (d.carDetails?.carNumber || '').toLowerCase();
+                    const carModel = (d.carDetails?.carModel || '').toLowerCase();
+                    return name.includes(dQ) || phone.includes(dQ) || carNum.includes(dQ) || carModel.includes(dQ);
+                  });
+                }
 
                 // Make sure currently assigned driver is always in the list even if not matching
                 if (currentAssignment.driverId && !availableDriversForSlot.some(d => d._id?.toString() === currentAssignment.driverId.toString())) {

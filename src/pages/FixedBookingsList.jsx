@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import http from '../apis/http';
 import { toast } from 'sonner';
-import { FaCar, FaClock, FaCheckCircle, FaTimesCircle, FaMapMarkerAlt, FaMoneyBillWave, FaTrash, FaUser, FaUserTie, FaPhoneAlt, FaSearch } from 'react-icons/fa';
+import { FaCar, FaClock, FaCheckCircle, FaTimesCircle, FaMapMarkerAlt, FaMoneyBillWave, FaTrash, FaUser, FaUserTie, FaPhoneAlt, FaSearch, FaFileInvoiceDollar } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import { useAuth } from '../context/AuthContext';
 
@@ -59,6 +59,14 @@ const FixedBookingsList = () => {
         toast.error("Failed to delete booking");
       }
     }
+  };
+
+  const handleDownloadReceipt = (id) => {
+    const token = localStorage.getItem("admin-token") || localStorage.getItem("token");
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const url = `${baseUrl}/api/fixed-routes/bookings/${id}/receipt?token=${token}`;
+    window.open(url, '_blank');
+    toast.success("Downloading Tax Invoice Receipt...");
   };
 
   const getStatusBadge = (status) => {
@@ -363,21 +371,30 @@ const FixedBookingsList = () => {
                     </td>
 
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-gray-800 font-bold">₹{(booking.totalWithTax || booking.price)?.toLocaleString('en-IN')}</p>
+                      <p className="text-gray-800 font-bold">₹{(booking.finalPrice || booking.totalWithTax || booking.price)?.toLocaleString('en-IN')}</p>
                       <p className="text-gray-400 text-[10px] font-semibold mt-0.5">Base: ₹{booking.price}</p>
                       <p className="text-indigo-600 text-xs font-semibold mt-0.5">Comm: ₹{booking.adminCommission}</p>
                     </td>
 
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {hasPermission("FIXED_ROUTE_DELETE") && (
+                      <div className="flex items-center gap-2">
                         <button 
-                          onClick={() => handleDelete(booking._id)}
-                          className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors shadow-sm border border-red-200"
-                          title="Delete Booking"
+                          onClick={() => handleDownloadReceipt(booking._id)}
+                          className="p-2 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors shadow-sm border border-blue-200"
+                          title="Download Tax Invoice Receipt (PDF)"
                         >
-                          <FaTrash size={14} />
+                          <FaFileInvoiceDollar size={14} />
                         </button>
-                      )}
+                        {hasPermission("FIXED_ROUTE_DELETE") && (
+                          <button 
+                            onClick={() => handleDelete(booking._id)}
+                            className="p-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors shadow-sm border border-red-200"
+                            title="Delete Booking"
+                          >
+                            <FaTrash size={14} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
