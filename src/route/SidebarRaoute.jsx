@@ -2,7 +2,7 @@ import { lazy } from "react";
 import {
   FaTachometerAlt, FaTruck, FaUserTie, FaCar, FaUsers,
   FaBell, FaUserShield, FaWallet, FaRoute, FaCarSide,
-  FaAddressCard, FaSitemap, FaMap, FaStore, FaMapMarkerAlt, FaGlobe, FaTag, FaPlus, FaBriefcase, FaMoneyBillWave, FaHistory, FaInbox, FaMapPin
+  FaAddressCard, FaSitemap, FaMap, FaStore, FaMapMarkerAlt, FaGlobe, FaTag, FaPlus, FaBriefcase, FaMoneyBillWave, FaHistory, FaInbox, FaMapPin, FaEnvelope
 } from "react-icons/fa";
 
 const Dashboard = lazy(() => import("../pages/Dashboard"));
@@ -40,6 +40,7 @@ const ManageRentalPackages = lazy(() => import("../pages/ManageRentalPackages"))
 const ManageRentalBookings = lazy(() => import("../pages/ManageRentalBookings"));
 const ManageSubscriptions = lazy(() => import("../pages/ManageSubscriptions"));
 const PurchasedSubscriptions = lazy(() => import("../pages/PurchasedSubscriptions"));
+const ManageContactMessages = lazy(() => import("../pages/ManageContactMessages"));
 
 const routes = [
   { path: "/dashboard", component: Dashboard, name: "Dashboard", icon: FaTachometerAlt, permission: "DASHBOARD_READ" },
@@ -77,6 +78,7 @@ const routes = [
   { path: "/admin/profile", component: AdminProfile, name: "Profile", icon: FaUserShield },
   { path: "/reports", component: Reports, name: "Main Reports", icon: FaTachometerAlt, permission: "REPORT_READ" },
   { path: "/reports/city", component: CityWiseReport, name: "City Reports", icon: FaMapPin, permission: "REPORT_READ" },
+  { path: "/contact-messages", component: ManageContactMessages, name: "Contact Messages", icon: FaEnvelope },
 ];
 
 export default routes;

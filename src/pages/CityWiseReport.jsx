@@ -172,9 +172,9 @@ const CityWiseReport = () => {
         if (!report?.bookings) return [];
         return report.bookings.filter(b => {
             const matchesStatus = statusFilter === 'ALL' || 
-                (statusFilter === 'Completed' && b.status === 'Completed') ||
-                (statusFilter === 'Cancelled' && ['Cancelled', 'Expired'].includes(b.status)) ||
-                (statusFilter === 'Pending' && !['Completed', 'Cancelled', 'Expired'].includes(b.status));
+                (statusFilter === 'Completed' && ['Completed', 'Active'].includes(b.status)) ||
+                (statusFilter === 'Cancelled' && ['Cancelled', 'Expired', 'Inactive'].includes(b.status)) ||
+                (statusFilter === 'Pending' && !['Completed', 'Active', 'Cancelled', 'Expired', 'Inactive'].includes(b.status));
 
             const q = tableSearch.toLowerCase().trim();
             const matchesSearch = !q || 
@@ -195,10 +195,10 @@ const CityWiseReport = () => {
         let cancelledRides = 0;
 
         filteredBookings.forEach(b => {
-            if (b.status === 'Completed') {
+            if (['Completed', 'Active'].includes(b.status)) {
                 completedRides++;
                 totalRevenue += (b.fare || 0);
-            } else if (['Cancelled', 'Expired'].includes(b.status)) {
+            } else if (['Cancelled', 'Expired', 'Inactive'].includes(b.status)) {
                 cancelledRides++;
             }
         });
@@ -512,9 +512,12 @@ const CityWiseReport = () => {
                                                 </td>
                                                 <td className="px-6 py-3.5 whitespace-nowrap">
                                                     <span className={`px-2.5 py-1 rounded-md text-xs font-medium border ${
-                                                        booking.rideType?.includes('Normal') ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                                        booking.rideType?.includes('Shared') ? 'bg-cyan-50 text-cyan-700 border-cyan-200' :
+                                                        booking.rideType?.includes('Private') || booking.rideType?.includes('Normal') ? 'bg-blue-50 text-blue-700 border-blue-200' :
                                                         booking.rideType?.includes('Bulk') ? 'bg-purple-50 text-purple-700 border-purple-200' :
                                                         booking.rideType?.includes('Fixed') ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                                        booking.rideType?.includes('Rental') ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                                        booking.rideType?.includes('Subscription') ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
                                                         'bg-teal-50 text-teal-700 border-teal-200'
                                                     }`}>
                                                         {booking.rideType}
@@ -525,8 +528,8 @@ const CityWiseReport = () => {
                                                 </td>
                                                 <td className="px-6 py-3.5 whitespace-nowrap">
                                                     <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                                                        booking.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                                                        ['Cancelled', 'Expired'].includes(booking.status) ? 'bg-red-100 text-red-800' :
+                                                        ['Completed', 'Active'].includes(booking.status) ? 'bg-green-100 text-green-800' :
+                                                        ['Cancelled', 'Expired', 'Inactive'].includes(booking.status) ? 'bg-red-100 text-red-800' :
                                                         'bg-yellow-100 text-yellow-800'
                                                     }`}>
                                                         {booking.status}

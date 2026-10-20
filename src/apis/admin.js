@@ -190,3 +190,32 @@ export const assignSubscriptionDriverAPI = async (data) => {
         return error.response?.data || { success: false, message: "Error connecting to server" };
     }
 };
+
+// --- Contact Messages APIs ---
+export const getContactMessagesAPI = async () => {
+    try {
+        const response = await http.get("/api/contact");
+        return response.data;
+    } catch (error) {
+        return error.response?.data || { success: false, message: "Error connecting to server" };
+    }
+};
+
+export const createContactMessageAPI = async (data) => {
+    try {
+        const response = await http.post("/api/contact", data);
+        return response.data;
+    } catch (error) {
+        return error.response?.data || { success: false, message: "Error connecting to server" };
+    }
+};
+
+export const deleteContactMessageAPI = async (id) => {
+    try {
+        const response = await http.delete(`/api/contact/${id}`);
+        return response.data;
+    } catch (error) {
+        return error.response?.data || { success: false, message: "Error connecting to server" };
+    }
+};
+
