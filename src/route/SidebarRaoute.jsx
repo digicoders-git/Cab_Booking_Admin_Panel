@@ -78,7 +78,7 @@ const routes = [
   { path: "/admin/profile", component: AdminProfile, name: "Profile", icon: FaUserShield },
   { path: "/reports", component: Reports, name: "Main Reports", icon: FaTachometerAlt, permission: "REPORT_READ" },
   { path: "/reports/city", component: CityWiseReport, name: "City Reports", icon: FaMapPin, permission: "REPORT_READ" },
-  { path: "/contact-messages", component: ManageContactMessages, name: "Contact Messages", icon: FaEnvelope },
+  // { path: "/contact-messages", component: ManageContactMessages, name: "Contact Messages", icon: FaEnvelope },
 ];
 
 export default routes;
