@@ -132,6 +132,7 @@ const ManageRentalBookings = () => {
               <option value="Started">Started</option>
               <option value="Completed">Completed</option>
               <option value="Cancelled">Cancelled</option>
+              <option value="Expired">Expired</option>
             </select>
           </div>
         </div>
@@ -172,7 +173,9 @@ const ManageRentalBookings = () => {
                   <span className={`px-2 py-1 rounded text-xs font-semibold ${
                     booking.status === 'Completed' ? 'bg-green-100 text-green-700' :
                     booking.status === 'Started' ? 'bg-blue-100 text-blue-700' :
+                    booking.status === 'Accepted' ? 'bg-indigo-100 text-indigo-700' :
                     booking.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
+                    booking.status === 'Expired' ? 'bg-purple-100 text-purple-700' :
                     'bg-yellow-100 text-yellow-700'
                   }`}>
                     {booking.status}
@@ -237,6 +240,7 @@ const ManageRentalBookings = () => {
                       selectedBooking.status === 'Started' ? 'bg-amber-400 text-gray-900' :
                       selectedBooking.status === 'Accepted' ? 'bg-blue-400 text-white' :
                       selectedBooking.status === 'Cancelled' ? 'bg-red-500 text-white' :
+                      selectedBooking.status === 'Expired' ? 'bg-purple-600 text-white' :
                       'bg-yellow-400 text-gray-900'
                     }`}>
                       {selectedBooking.status}
