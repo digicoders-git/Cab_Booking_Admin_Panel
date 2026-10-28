@@ -208,7 +208,12 @@ export default function ManageAgentLeads() {
                       </td>
                       <td className="py-4 px-6 min-w-[200px]">
                         <p className="text-xs text-green-600 truncate mb-1">Pick: {lead.pickup?.address}</p>
-                        <p className="text-xs text-red-600 truncate">Drop: {lead.drop?.address}</p>
+                        <p className="text-xs text-red-600 truncate mb-1">Drop: {lead.drop?.address}</p>
+                        {lead.pickupDateTime && (
+                          <p className="text-[10px] text-blue-600 font-semibold">
+                            Pickup: {new Date(lead.pickupDateTime).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        )}
                       </td>
                       <td className="py-4 px-6">
                         <div className="mb-1">

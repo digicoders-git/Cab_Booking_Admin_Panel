@@ -389,9 +389,9 @@ export default function CreateBulkBooking() {
           latitude: formData.dropCoords.lat,
           longitude: formData.dropCoords.lng
         },
-        pickupDateTime: `${formData.date}T${formData.time || "10:00"}`,
+        pickupDateTime: `${formData.date}T${formData.time || "10:00"}:00+05:30`,
         tripType: formData.tripType,
-        returnDateTime: formData.tripType === 'RoundTrip' ? `${formData.returnDate}T${formData.time || "10:00"}` : null,
+        returnDateTime: formData.tripType === 'RoundTrip' ? `${formData.returnDate}T${formData.time || "10:00"}:00+05:30` : null,
         numberOfDays: formData.days,
         totalDistance: formData.distance,
         carsRequired: selectedCars.map((c) => ({ category: c.id, quantity: c.quantity })),
