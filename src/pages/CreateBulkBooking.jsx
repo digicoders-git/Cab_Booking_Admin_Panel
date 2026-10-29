@@ -67,7 +67,8 @@ export default function CreateBulkBooking() {
 
   const fetchAppSettings = async () => {
     try {
-      const res = await fetch(`${BASE_URL}/api/settings`);
+      const endpoint = `${BASE_URL.replace(/\/api\/?$/, '')}/api/settings`;
+      const res = await fetch(endpoint);
       const data = await res.json();
       if (data.success && data.settings) {
         const oneWayOn = data.settings.isBulkOneWayEnabled !== false;
