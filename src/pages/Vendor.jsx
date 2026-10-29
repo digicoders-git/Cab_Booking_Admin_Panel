@@ -13,7 +13,7 @@ import {
   FaArrowUp, FaArrowDown, FaCalendarAlt, FaClock, FaTrophy,
   FaCrown, FaMedal, FaHistory, FaCreditCard, FaUniversity,
   FaFileInvoice, FaDownload, FaFilter, FaEye as FaEyeIcon,
-  FaInfoCircle, FaExclamationTriangle
+  FaInfoCircle, FaExclamationTriangle, FaCar
 } from "react-icons/fa";
 import {
   createVendor,
@@ -23,7 +23,8 @@ import {
   deleteVendor,
   toggleVendorStatus,
   updateVendorCommission,
-  getCommissionHistory
+  getCommissionHistory,
+  getVendorVehiclesAndDrivers
 } from "../apis/vendor.js";
 import { getDashboardStats } from "../apis/admin.js";
 import Highcharts from 'highcharts';
@@ -182,7 +183,7 @@ const Modal = ({ isOpen, onClose, title, children, themeColors, size = "2xl", he
 };
 
 // Vendor Detail Modal
-const VendorDetailModal = ({ vendor, isOpen, onClose, themeColors, IMAGE_BASE_URL }) => {
+const VendorDetailModal = ({ vendor, isOpen, onClose, onOpenVehicles, themeColors, IMAGE_BASE_URL }) => {
   const [lightboxImg, setLightboxImg] = React.useState(null);
   if (!vendor) return null;
 
@@ -240,6 +241,25 @@ const VendorDetailModal = ({ vendor, isOpen, onClose, themeColors, IMAGE_BASE_UR
             </div>
           </div>
 
+          {/* Quick Action: View Approved Cars & Drivers */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border border-blue-500/20 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div>
+              <h4 className="font-bold text-sm" style={{ color: themeColors.text }}>Vendor's Fleet & Drivers</h4>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Approved Cars: <strong className="text-indigo-600">{vendor.approvedCarsCount ?? 0}</strong> • Approved Drivers: <strong className="text-green-600">{vendor.approvedDriversCount ?? 0}</strong>
+              </p>
+            </div>
+            {onOpenVehicles && (
+              <button
+                type="button"
+                onClick={() => { onClose(); onOpenVehicles(vendor); }}
+                className="px-4 py-2 rounded-xl text-white font-medium text-xs flex items-center gap-2 shadow-md bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-95 cursor-pointer whitespace-nowrap"
+              >
+                <FaCar size={13} /> View Approved Cars & Drivers
+              </button>
+            )}
+          </div>
+
           {/* Documents with Lightbox */}
           <div>
             <h3 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: themeColors.primary }}>
@@ -278,7 +298,8 @@ const VendorDetailModal = ({ vendor, isOpen, onClose, themeColors, IMAGE_BASE_UR
               ['Password', vendor.password], ['Assigned Area', vendor.assignedArea],
               ['Address', vendor.address || 'N/A'], ['Commission', `${vendor.commissionPercentage}%`],
               ['Wallet Balance', `₹${(vendor.walletBalance || 0).toLocaleString()}`], ['Total Earnings', `₹${(vendor.totalEarnings || 0).toLocaleString()}`],
-              ['Total Drivers', vendor.totalDrivers || 0], ['Status', vendor.isActive ? 'Active' : 'Inactive'],
+              ['Approved Cars', `${vendor.approvedCarsCount ?? 0} (of ${vendor.totalCarsCount ?? 0})`],
+              ['Approved Drivers', `${vendor.approvedDriversCount ?? 0} (of ${vendor.totalDriversCount ?? (vendor.totalDrivers || 0)})`],
             ].map(([label, val]) => (
               <div key={label} className="p-3 rounded-xl" style={{ backgroundColor: `${themeColors.primary}10` }}>
                 <p className="text-[10px] font-semibold mb-0.5" style={{ color: themeColors.textSecondary }}>{label}</p>
@@ -303,6 +324,438 @@ const VendorDetailModal = ({ vendor, isOpen, onClose, themeColors, IMAGE_BASE_UR
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+        </div>
+      </Modal>
+    </>
+  );
+};
+
+// Vendor Vehicles & Drivers Detail Modal
+const VendorVehiclesAndDriversModal = ({ isOpen, onClose, vendor, assets, loading, initialTab = "approvedCars", themeColors, IMAGE_BASE_URL }) => {
+  const [activeTab, setActiveTab] = React.useState(initialTab);
+  const [search, setSearch] = React.useState("");
+  const [lightboxImg, setLightboxImg] = React.useState(null);
+
+  React.useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab]);
+
+  if (!isOpen || !vendor) return null;
+
+  const counts = assets?.counts || {
+    approvedCars: vendor.approvedCarsCount || 0,
+    totalCars: vendor.totalCarsCount || 0,
+    approvedDrivers: vendor.approvedDriversCount || 0,
+    totalDrivers: vendor.totalDriversCount || vendor.totalDrivers || 0,
+    pendingCars: Math.max(0, (vendor.totalCarsCount || 0) - (vendor.approvedCarsCount || 0)),
+    pendingDrivers: Math.max(0, (vendor.totalDriversCount || vendor.totalDrivers || 0) - (vendor.approvedDriversCount || 0))
+  };
+
+  const allCars = assets?.cars || [];
+  const allDrivers = assets?.drivers || [];
+
+  const approvedCars = allCars.filter(c => c.isApproved);
+  const approvedDrivers = allDrivers.filter(d => d.isApproved);
+
+  const filterList = (list) => {
+    if (!search.trim()) return list;
+    const q = search.toLowerCase();
+    return list.filter(item => 
+      (item.name && item.name.toLowerCase().includes(q)) ||
+      (item.phone && item.phone.toLowerCase().includes(q)) ||
+      (item.carNumber && item.carNumber.toLowerCase().includes(q)) ||
+      (item.carModel && item.carModel.toLowerCase().includes(q)) ||
+      (item.carBrand && item.carBrand.toLowerCase().includes(q)) ||
+      (item.driverName && item.driverName.toLowerCase().includes(q)) ||
+      (item.category && item.category.toLowerCase().includes(q))
+    );
+  };
+
+  return (
+    <>
+      {lightboxImg && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm"
+          onClick={() => setLightboxImg(null)}>
+          <button className="absolute top-4 right-4 w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white cursor-pointer"
+            onClick={() => setLightboxImg(null)}>
+            <FaTimes size={18} />
+          </button>
+          <img src={lightboxImg} alt="document preview"
+            className="max-w-full max-h-[85vh] rounded-2xl shadow-2xl object-contain"
+            onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
+
+      <Modal isOpen={isOpen} onClose={onClose} title={`${vendor.name} (${vendor.companyName}) - Approved Cars & Drivers`} themeColors={themeColors} size="full"
+        headerGradient="bg-gradient-to-r from-blue-700 via-indigo-600 to-indigo-800">
+        <div className="space-y-6">
+          {/* Top Summary Header Banner */}
+          <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border border-blue-500/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl overflow-hidden bg-blue-600 text-white flex items-center justify-center font-bold text-xl shadow-md flex-shrink-0">
+                {vendor.image ? (
+                  <img src={`${IMAGE_BASE_URL}${vendor.image}`} alt={vendor.name} className="w-full h-full object-cover" />
+                ) : (
+                  vendor.name?.charAt(0).toUpperCase()
+                )}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-bold" style={{ color: themeColors.text }}>{vendor.name}</h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                    📍 {vendor.assignedArea}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5">{vendor.companyName} • 📞 {vendor.phone} • ✉️ {vendor.email}</p>
+              </div>
+            </div>
+
+            {/* Quick Stat Badges */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="bg-white dark:bg-white/5 p-3 rounded-xl border border-green-200 dark:border-green-900/30 shadow-sm">
+                <span className="text-[10px] uppercase font-bold text-green-600 block">Approved Cars</span>
+                <span className="text-lg font-extrabold text-green-600 flex items-center gap-1.5">
+                  <FaCar size={14} /> {counts.approvedCars}
+                </span>
+                <span className="text-[10px] text-gray-400">of {counts.totalCars} Total</span>
+              </div>
+              <div className="bg-white dark:bg-white/5 p-3 rounded-xl border border-emerald-200 dark:border-emerald-900/30 shadow-sm">
+                <span className="text-[10px] uppercase font-bold text-emerald-600 block">Approved Drivers</span>
+                <span className="text-lg font-extrabold text-emerald-600 flex items-center gap-1.5">
+                  <FaCheckCircle size={14} /> {counts.approvedDrivers}
+                </span>
+                <span className="text-[10px] text-gray-400">of {counts.totalDrivers} Total</span>
+              </div>
+              <div className="bg-white dark:bg-white/5 p-3 rounded-xl border border-amber-200 dark:border-amber-900/30 shadow-sm">
+                <span className="text-[10px] uppercase font-bold text-amber-600 block">Pending Cars</span>
+                <span className="text-lg font-extrabold text-amber-600 flex items-center gap-1.5">
+                  <FaClock size={14} /> {counts.pendingCars || 0}
+                </span>
+                <span className="text-[10px] text-gray-400">Awaiting Admin</span>
+              </div>
+              <div className="bg-white dark:bg-white/5 p-3 rounded-xl border border-amber-200 dark:border-amber-900/30 shadow-sm">
+                <span className="text-[10px] uppercase font-bold text-amber-600 block">Pending Drivers</span>
+                <span className="text-lg font-extrabold text-amber-600 flex items-center gap-1.5">
+                  <FaClock size={14} /> {counts.pendingDrivers || 0}
+                </span>
+                <span className="text-[10px] text-gray-400">Awaiting Admin</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Sub Header: Navigation Tabs & Search */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3" style={{ borderColor: themeColors.border }}>
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+              <button
+                type="button"
+                onClick={() => setActiveTab("approvedCars")}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  activeTab === "approvedCars"
+                    ? "bg-green-600 text-white shadow-md shadow-green-600/20"
+                    : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
+                }`}
+              >
+                <FaCar size={13} />
+                <span>Approved Cars ({counts.approvedCars})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("approvedDrivers")}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  activeTab === "approvedDrivers"
+                    ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/20"
+                    : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
+                }`}
+              >
+                <FaCheckCircle size={13} />
+                <span>Approved Drivers ({counts.approvedDrivers})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("allCars")}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  activeTab === "allCars"
+                    ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
+                    : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
+                }`}
+              >
+                <FaCar size={13} />
+                <span>All Cars ({counts.totalCars})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab("allDrivers")}
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+                  activeTab === "allDrivers"
+                    ? "bg-purple-600 text-white shadow-md shadow-purple-600/20"
+                    : "bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 hover:bg-gray-200"
+                }`}
+              >
+                <FaUsers size={13} />
+                <span>All Drivers ({counts.totalDrivers})</span>
+              </button>
+            </div>
+
+            <div className="relative min-w-[220px]">
+              <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={12} />
+              <input
+                type="text"
+                placeholder="Search plate, name, phone..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 rounded-xl border text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                style={{ backgroundColor: themeColors.background, borderColor: themeColors.border, color: themeColors.text }}
+              />
+            </div>
+          </div>
+
+          {/* Tab Content Display */}
+          {loading ? (
+            <div className="py-16 text-center">
+              <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-indigo-600 mx-auto"></div>
+              <p className="mt-3 text-xs text-gray-500">Loading Vendor's Approved Cars & Drivers...</p>
+            </div>
+          ) : (
+            <div>
+              {/* TAB 1: APPROVED CARS or ALL CARS */}
+              {(activeTab === "approvedCars" || activeTab === "allCars") && (
+                <div>
+                  {(() => {
+                    const listToDisplay = filterList(activeTab === "approvedCars" ? approvedCars : allCars);
+                    if (listToDisplay.length === 0) {
+                      return (
+                        <div className="py-12 text-center bg-gray-50 dark:bg-white/[0.02] rounded-2xl border border-dashed" style={{ borderColor: themeColors.border }}>
+                          <FaCar className="text-4xl text-gray-300 mx-auto mb-2" />
+                          <h4 className="font-semibold text-sm" style={{ color: themeColors.text }}>
+                            {activeTab === "approvedCars" ? "No Approved Cars Found" : "No Cars Found"}
+                          </h4>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {activeTab === "approvedCars"
+                              ? "Is vendor ke pass abhi tak koi approved car registered nahi hai."
+                              : "No cars registered under this vendor."}
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {listToDisplay.map((car, idx) => (
+                          <div
+                            key={car._id || idx}
+                            className="p-4 rounded-2xl border transition-all duration-200 hover:shadow-lg relative flex flex-col justify-between"
+                            style={{ backgroundColor: themeColors.background, borderColor: themeColors.border }}
+                          >
+                            <div>
+                              {/* Top Bar: Car Plate & Status */}
+                              <div className="flex items-start justify-between gap-2 mb-3">
+                                <div>
+                                  <div className="inline-block px-3 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 font-mono font-extrabold text-xs tracking-wider text-amber-900 dark:text-amber-300 shadow-sm">
+                                    🚗 {car.carNumber || "N/A"}
+                                  </div>
+                                  <h4 className="text-sm font-bold mt-2" style={{ color: themeColors.text }}>
+                                    {car.carBrand || ""} {car.carModel || "Vehicle"}
+                                  </h4>
+                                </div>
+                                <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1 ${
+                                  car.isApproved
+                                    ? "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400"
+                                    : "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400"
+                                }`}>
+                                  {car.isApproved ? <><FaCheckCircle size={10} /> Approved</> : <><FaClock size={10} /> Pending</>}
+                                </span>
+                              </div>
+
+                              {/* Details Grid */}
+                              <div className="grid grid-cols-2 gap-2 text-xs mb-3 bg-black/[0.02] dark:bg-white/[0.02] p-2.5 rounded-xl">
+                                <div>
+                                  <span className="text-[10px] text-gray-400 font-semibold block">Category</span>
+                                  <span className="font-bold text-indigo-600">{car.category || "Standard"}</span>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] text-gray-400 font-semibold block">Color / Year</span>
+                                  <span className="font-medium" style={{ color: themeColors.text }}>{car.carColor || "N/A"} • {car.manufacturingYear || "N/A"}</span>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] text-gray-400 font-semibold block">Driver Name</span>
+                                  <span className="font-semibold" style={{ color: themeColors.text }}>{car.driverName || "Fleet Pool"}</span>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] text-gray-400 font-semibold block">Driver Phone</span>
+                                  <span className="font-mono text-gray-600 dark:text-gray-300">{car.driverPhone || "N/A"}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Documents Attached */}
+                            <div className="pt-2 border-t" style={{ borderColor: themeColors.border }}>
+                              <span className="text-[10px] font-bold uppercase text-gray-400 block mb-1.5">Documents:</span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {car.documents?.rc ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setLightboxImg(`${IMAGE_BASE_URL}${car.documents.rc}`)}
+                                    className="px-2 py-1 rounded-md text-[10px] font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <FaEye size={9} /> RC
+                                  </button>
+                                ) : <span className="text-[10px] text-gray-300">RC (N/A)</span>}
+
+                                {car.documents?.insurance ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setLightboxImg(`${IMAGE_BASE_URL}${car.documents.insurance}`)}
+                                    className="px-2 py-1 rounded-md text-[10px] font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <FaEye size={9} /> Insurance
+                                  </button>
+                                ) : null}
+
+                                {car.documents?.permit ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setLightboxImg(`${IMAGE_BASE_URL}${car.documents.permit}`)}
+                                    className="px-2 py-1 rounded-md text-[10px] font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <FaEye size={9} /> Permit
+                                  </button>
+                                ) : null}
+
+                                {car.documents?.puc ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setLightboxImg(`${IMAGE_BASE_URL}${car.documents.puc}`)}
+                                    className="px-2 py-1 rounded-md text-[10px] font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <FaEye size={9} /> PUC
+                                  </button>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
+              {/* TAB 2: APPROVED DRIVERS or ALL DRIVERS */}
+              {(activeTab === "approvedDrivers" || activeTab === "allDrivers") && (
+                <div>
+                  {(() => {
+                    const listToDisplay = filterList(activeTab === "approvedDrivers" ? approvedDrivers : allDrivers);
+                    if (listToDisplay.length === 0) {
+                      return (
+                        <div className="py-12 text-center bg-gray-50 dark:bg-white/[0.02] rounded-2xl border border-dashed" style={{ borderColor: themeColors.border }}>
+                          <FaUsers className="text-4xl text-gray-300 mx-auto mb-2" />
+                          <h4 className="font-semibold text-sm" style={{ color: themeColors.text }}>
+                            {activeTab === "approvedDrivers" ? "No Approved Drivers Found" : "No Drivers Found"}
+                          </h4>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {activeTab === "approvedDrivers"
+                              ? "Is vendor ke pass abhi tak koi approved driver registered nahi hai."
+                              : "No drivers registered under this vendor."}
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {listToDisplay.map((driver, idx) => (
+                          <div
+                            key={driver._id || idx}
+                            className="p-4 rounded-2xl border transition-all duration-200 hover:shadow-lg relative flex flex-col justify-between"
+                            style={{ backgroundColor: themeColors.background, borderColor: themeColors.border }}
+                          >
+                            <div>
+                              {/* Header: Driver Photo & Status */}
+                              <div className="flex items-start justify-between gap-3 mb-3">
+                                <div className="flex items-center gap-3">
+                                  <div
+                                    className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-base shadow flex-shrink-0 cursor-pointer"
+                                    onClick={() => driver.image && setLightboxImg(`${IMAGE_BASE_URL}${driver.image}`)}
+                                  >
+                                    {driver.image ? (
+                                      <img src={`${IMAGE_BASE_URL}${driver.image}`} alt={driver.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      driver.name?.charAt(0).toUpperCase()
+                                    )}
+                                  </div>
+                                  <div>
+                                    <h4 className="text-sm font-bold" style={{ color: themeColors.text }}>{driver.name}</h4>
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                      <span className="text-xs font-mono font-medium text-gray-600 dark:text-gray-300">
+                                        📞 {driver.phone}
+                                      </span>
+                                    </div>
+                                    <span className="text-[10px] text-gray-400 block">{driver.email}</span>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-col items-end gap-1">
+                                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 ${
+                                    driver.isApproved
+                                      ? "bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-400"
+                                      : "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400"
+                                  }`}>
+                                    {driver.isApproved ? <><FaCheckCircle size={9} /> Approved</> : <><FaClock size={9} /> Pending</>}
+                                  </span>
+                                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                                    driver.isActive ? "bg-emerald-50 text-emerald-600" : "bg-gray-100 text-gray-500"
+                                  }`}>
+                                    {driver.isActive ? "Active" : "Inactive"}
+                                  </span>
+                                </div>
+                              </div>
+
+                              {/* Details Grid */}
+                              <div className="grid grid-cols-2 gap-2 text-xs mb-3 bg-black/[0.02] dark:bg-white/[0.02] p-2.5 rounded-xl">
+                                <div>
+                                  <span className="text-[10px] text-gray-400 font-semibold block">License No</span>
+                                  <span className="font-mono text-gray-700 dark:text-gray-300">{driver.licenseNumber || "N/A"}</span>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] text-gray-400 font-semibold block">Rating & Trips</span>
+                                  <span className="font-semibold text-amber-600 flex items-center gap-1">
+                                    ⭐ {driver.rating || 0} • {driver.totalTrips || 0} trips
+                                  </span>
+                                </div>
+                                <div className="col-span-2">
+                                  <span className="text-[10px] text-gray-400 font-semibold block">Associated Car</span>
+                                  {driver.car ? (
+                                    <div className="flex items-center gap-1.5 mt-0.5 font-medium text-xs text-indigo-700 dark:text-indigo-400">
+                                      <FaCar size={11} />
+                                      <span>{driver.car.carBrand} {driver.car.carModel}</span>
+                                      <span className="font-mono px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/30 text-[10px] font-bold">
+                                        {driver.car.carNumber}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-400 italic text-[11px]">No vehicle linked directly</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Driver Source and ID */}
+                            <div className="pt-2 border-t flex items-center justify-between text-[10px] text-gray-400" style={{ borderColor: themeColors.border }}>
+                              <span>Source: <strong className="text-gray-600 dark:text-gray-300">{driver.source}</strong></span>
+                              <span>Wallet: <strong className="text-green-600 font-semibold">₹{driver.walletBalance}</strong></span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -337,6 +790,32 @@ export default function VendorManagement() {
   const [showCommissionModal, setShowCommissionModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showVehiclesModal, setShowVehiclesModal] = useState(false);
+  const [vendorAssets, setVendorAssets] = useState(null);
+  const [assetsLoading, setAssetsLoading] = useState(false);
+  const [assetsInitialTab, setAssetsInitialTab] = useState("approvedCars");
+
+  const handleOpenVehiclesDriversModal = async (vendor, initialTab = "approvedCars") => {
+    setSelectedVendor(vendor);
+    setAssetsInitialTab(initialTab);
+    setShowVehiclesModal(true);
+    try {
+      setAssetsLoading(true);
+      const res = await getVendorVehiclesAndDrivers(vendor._id);
+      setVendorAssets(res);
+    } catch (err) {
+      console.error("Error loading vendor assets:", err);
+      Swal.fire({
+        icon: "error",
+        title: "Error",
+        text: err.response?.data?.message || err.message || "Failed to load vehicles and drivers",
+        background: themeColors.surface,
+        color: themeColors.text
+      });
+    } finally {
+      setAssetsLoading(false);
+    }
+  };
   const [createImage, setCreateImage] = useState(null);
   const [createAadhar, setCreateAadhar] = useState(null);
   const [createPan, setCreatePan] = useState(null);
@@ -695,7 +1174,10 @@ export default function VendorManagement() {
     total: vendors.length,
     active: vendors.filter(v => v.isActive).length,
     inactive: vendors.filter(v => !v.isActive).length,
-    totalDrivers: vendors.reduce((sum, v) => sum + (v.totalDrivers || 0), 0),
+    totalDrivers: vendors.reduce((sum, v) => sum + (v.totalDriversCount ?? (v.totalDrivers || 0)), 0),
+    totalApprovedDrivers: vendors.reduce((sum, v) => sum + (v.approvedDriversCount || 0), 0),
+    totalCars: vendors.reduce((sum, v) => sum + (v.totalCarsCount || 0), 0),
+    totalApprovedCars: vendors.reduce((sum, v) => sum + (v.approvedCarsCount || 0), 0),
     totalCommission: vendors.reduce((sum, v) => sum + (v.totalEarnings || 0) * (v.commissionPercentage || 25) / 100, 0)
   }), [vendors]);
 
@@ -856,8 +1338,8 @@ export default function VendorManagement() {
       <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
         {loading && vendors.length === 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            {[...Array(4)].map((_, i) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+            {[...Array(5)].map((_, i) => (
               <div key={i} className="rounded-2xl p-6 shadow-lg border animate-pulse"
                 style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
                 <div className="flex items-center justify-between mb-4">
@@ -870,10 +1352,11 @@ export default function VendorManagement() {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
             <StatCard icon={FaBuilding} label="Total Vendors" value={stats.total} color="#3b82f6" trend={8} themeColors={themeColors} />
             <StatCard icon={FaCheckCircle} label="Active Vendors" value={stats.active} color="#10b981" trend={5} themeColors={themeColors} />
-            <StatCard icon={FaUsers} label="Total Drivers" value={stats.totalDrivers} color="#8b5cf6" trend={12} themeColors={themeColors} />
+            <StatCard icon={FaUsers} label="Total Drivers" value={`${stats.totalDrivers} (${stats.totalApprovedDrivers} Approved)`} color="#8b5cf6" trend={12} themeColors={themeColors} />
+            <StatCard icon={FaCar} label="Total Cars" value={`${stats.totalCars} (${stats.totalApprovedCars} Approved)`} color="#06b6d4" trend={10} themeColors={themeColors} />
             <StatCard icon={FaMoneyBillWave} label="Total Commission" value={`₹${stats.totalCommission.toLocaleString()}`} color="#f59e0b" trend={15} themeColors={themeColors} />
           </div>
         )}
@@ -918,7 +1401,7 @@ export default function VendorManagement() {
               <table className="w-full">
                 <thead className="border-b" style={{ borderColor: themeColors.border }}>
                   <tr>
-                    {['Vendor','Contact','Password','Area','Commission','Drivers','Earnings','Status','Actions'].map((h) => (
+                    {['Vendor','Contact','Password','Area','Commission','Drivers','Cars','Earnings','Status','Actions'].map((h) => (
                       <th key={h} className="px-6 py-4 text-left">
                         <div className="h-3 bg-gray-200 rounded w-16 animate-pulse" />
                       </th>
@@ -941,6 +1424,7 @@ export default function VendorManagement() {
                       <td className="px-6 py-4"><div className="h-6 bg-gray-100 rounded w-16" /></td>
                       <td className="px-6 py-4"><div className="h-6 bg-gray-100 rounded-lg w-20" /></td>
                       <td className="px-6 py-4"><div className="h-5 bg-gray-200 rounded w-10" /></td>
+                      <td className="px-6 py-4"><div className="h-3 bg-gray-200 rounded w-8" /></td>
                       <td className="px-6 py-4"><div className="h-3 bg-gray-200 rounded w-8" /></td>
                       <td className="px-6 py-4"><div className="h-3 bg-gray-200 rounded w-16" /></td>
                       <td className="px-6 py-4"><div className="h-6 bg-gray-100 rounded-full w-16" /></td>
@@ -967,6 +1451,7 @@ export default function VendorManagement() {
                     <th className="hidden sm:table-cell px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider min-w-[150px]" style={{ color: themeColors.textSecondary }}>Area</th>
                     <th className="hidden md:table-cell px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Commission</th>
                     <th className="hidden md:table-cell px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Drivers</th>
+                    <th className="hidden md:table-cell px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Cars</th>
                     <th className="px-4 md:px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Earnings</th>
                     <th className="px-4 md:px-6 py-4 text-left text-[13px] font-bold uppercase tracking-wider min-w-[140px]" style={{ color: themeColors.textSecondary }}>Status</th>
                     <th className="px-4 md:px-6 py-4 text-right text-[13px] font-bold uppercase tracking-wider" style={{ color: themeColors.textSecondary }}>Actions</th>
@@ -1014,16 +1499,50 @@ export default function VendorManagement() {
                           {can('VENDOR_COMMISSION') && (
                             <button
                               onClick={() => handleOpenCommissionModal(vendor)}
-                              className="p-1.5 rounded-lg transition-all hover:bg-black/5 dark:hover:bg-white/5"
+                              className="p-1.5 rounded-lg transition-all hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer"
                             >
                               <FaEdit size={12} style={{ color: themeColors.textSecondary }} />
                             </button>
                           )}
                         </div>
                       </td>
+
+                      {/* Drivers Column with Approved & Total Count */}
                       <td className="hidden md:table-cell px-6 py-4">
-                        <div className="text-sm font-bold" style={{ color: themeColors.text }}>{vendor.totalDrivers || 0}</div>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenVehiclesDriversModal(vendor, 'approvedDrivers')}
+                          className="text-left group cursor-pointer focus:outline-none"
+                          title="Click to view Approved Drivers"
+                        >
+                          <div className="flex items-center gap-1.5 font-bold text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800/40 group-hover:border-emerald-400 transition-all w-fit">
+                            <FaCheckCircle size={11} className="text-emerald-500" />
+                            <span>{vendor.approvedDriversCount ?? 0} Approved</span>
+                          </div>
+                          <div className="text-[11px] text-gray-500 mt-1 pl-1 font-medium group-hover:text-blue-600 transition-colors">
+                            {vendor.totalDriversCount ?? (vendor.totalDrivers || 0)} Total Drivers
+                          </div>
+                        </button>
                       </td>
+
+                      {/* Cars Column with Approved & Total Count */}
+                      <td className="hidden md:table-cell px-6 py-4">
+                        <button
+                          type="button"
+                          onClick={() => handleOpenVehiclesDriversModal(vendor, 'approvedCars')}
+                          className="text-left group cursor-pointer focus:outline-none"
+                          title="Click to view Approved Cars"
+                        >
+                          <div className="flex items-center gap-1.5 font-bold text-xs text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-800/40 group-hover:border-indigo-400 transition-all w-fit">
+                            <FaCar size={12} className="text-indigo-500" />
+                            <span>{vendor.approvedCarsCount ?? 0} Approved</span>
+                          </div>
+                          <div className="text-[11px] text-gray-500 mt-1 pl-1 font-medium group-hover:text-indigo-600 transition-colors">
+                            {vendor.totalCarsCount ?? 0} Total Cars
+                          </div>
+                        </button>
+                      </td>
+
                       <td className="px-4 md:px-6 py-4">
                         <div className="text-xs md:text-sm font-bold text-green-600">₹{(vendor.totalEarnings || 0).toLocaleString()}</div>
                       </td>
@@ -1038,7 +1557,7 @@ export default function VendorManagement() {
                           {can('VENDOR_STATUS') && (
                             <button
                               onClick={() => handleToggleStatus(vendor._id)}
-                              className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5"
+                              className="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer"
                             >
                               {vendor.isActive ? <FaToggleOn size={20} className="text-green-500" /> : <FaToggleOff size={20} className="text-gray-400" />}
                             </button>
@@ -1049,9 +1568,19 @@ export default function VendorManagement() {
                         <div className="flex items-center justify-end gap-1.5">
                           {can('VENDOR_READ') && (
                             <button
+                              type="button"
+                              onClick={() => handleOpenVehiclesDriversModal(vendor)}
+                              className="p-2.5 rounded-xl transition-all hover:bg-indigo-50 dark:hover:bg-indigo-500/10 text-indigo-600 cursor-pointer"
+                              title="View Approved Cars & Drivers"
+                            >
+                              <FaCar size={18} />
+                            </button>
+                          )}
+                          {can('VENDOR_READ') && (
+                            <button
                               onClick={() => handleViewVendor(vendor)}
-                              className="p-2.5 rounded-xl transition-all hover:bg-blue-50 dark:hover:bg-blue-500/10 text-blue-600"
-                              title="View Details"
+                              className="p-2.5 rounded-xl transition-all hover:bg-blue-50 dark:hover:bg-blue-500/10 text-blue-600 cursor-pointer"
+                              title="View Vendor Details"
                             >
                               <FaEyeIcon size={18} />
                             </button>
@@ -1059,7 +1588,7 @@ export default function VendorManagement() {
                           {can('VENDOR_EDIT') && (
                             <button
                               onClick={() => handleEditVendor(vendor)}
-                              className="p-2.5 rounded-xl transition-all hover:bg-amber-50 dark:hover:bg-amber-500/10 text-amber-600"
+                              className="p-2.5 rounded-xl transition-all hover:bg-amber-50 dark:hover:bg-amber-500/10 text-amber-600 cursor-pointer"
                               title="Edit Vendor"
                             >
                               <FaEdit size={18} />
@@ -1068,7 +1597,7 @@ export default function VendorManagement() {
                           {can('VENDOR_DELETE') && (
                             <button
                               onClick={() => handleDeleteVendor(vendor._id, vendor.name)}
-                              className="p-2.5 rounded-xl transition-all hover:bg-red-50 dark:hover:bg-red-500/10 text-red-600"
+                              className="p-2.5 rounded-xl transition-all hover:bg-red-50 dark:hover:bg-red-500/10 text-red-600 cursor-pointer"
                               title="Delete Vendor"
                             >
                               <FaTrash size={18} />
@@ -1578,6 +2107,19 @@ export default function VendorManagement() {
         vendor={selectedVendor}
         isOpen={showDetailModal}
         onClose={() => setShowDetailModal(false)}
+        onOpenVehicles={handleOpenVehiclesDriversModal}
+        themeColors={themeColors}
+        IMAGE_BASE_URL={IMAGE_BASE_URL}
+      />
+
+      {/* Vendor Approved Cars & Drivers Modal */}
+      <VendorVehiclesAndDriversModal
+        isOpen={showVehiclesModal}
+        onClose={() => setShowVehiclesModal(false)}
+        vendor={selectedVendor}
+        assets={vendorAssets}
+        loading={assetsLoading}
+        initialTab={assetsInitialTab}
         themeColors={themeColors}
         IMAGE_BASE_URL={IMAGE_BASE_URL}
       />

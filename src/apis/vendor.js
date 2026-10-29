@@ -35,6 +35,15 @@ export const getVendorById = async (id) => {
 };
 
 /** 
+ * Get Vendor's Cars and Drivers (Approved & All) (Admin only)
+ * @param {string} id - Vendor ID
+ */
+export const getVendorVehiclesAndDrivers = async (id) => {
+  const response = await http.get(`/api/vendors/${id}/vehicles-and-drivers`);
+  return response.data;
+};
+
+/** 
  * Update Vendor Information (Admin only)
  * @param {string} id - Vendor ID
  * @param {Object} data - Updated information

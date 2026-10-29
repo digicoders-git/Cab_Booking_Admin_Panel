@@ -66,6 +66,7 @@ export default function AdminProfile() {
 
   const [appSettings, setAppSettings] = useState({
     isShareRideEnabled: true,
+    isBulkOneWayEnabled: true,
     enableDriverIncentive: false,
     driverJoiningBonus: 0,
     driverReferralBonus: 0
@@ -729,6 +730,30 @@ export default function AdminProfile() {
                           </label>
                           <span className="text-sm font-bold" style={{ color: appSettings.isShareRideEnabled ? '#16A34A' : '#DC2626' }}>
                             {appSettings.isShareRideEnabled ? "ON" : "OFF"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Bulk Booking One-Way Setting */}
+                      <hr className="border-t my-4" style={{ borderColor }} />
+
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <label className="block text-sm font-medium mb-1" style={{ color: textMain }}>Enable Bulk Booking One-Way Option</label>
+                          <p className="text-xs" style={{ color: textDim }}>Toggle whether customers, agents, and admin can choose "One Way" in Bulk Bookings. If OFF, only Round Trip is allowed.</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={appSettings.isBulkOneWayEnabled ?? true}
+                              onChange={(e) => handleAppSettingChange('isBulkOneWayEnabled', e.target.checked)}
+                              className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-green-300 dark:peer-focus:ring-green-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-green-600"></div>
+                          </label>
+                          <span className="text-sm font-bold" style={{ color: (appSettings.isBulkOneWayEnabled ?? true) ? '#16A34A' : '#DC2626' }}>
+                            {(appSettings.isBulkOneWayEnabled ?? true) ? "ON" : "OFF"}
                           </span>
                         </div>
                       </div>

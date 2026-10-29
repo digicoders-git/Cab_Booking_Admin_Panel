@@ -191,7 +191,7 @@ const ManageIncentives = () => {
                             <h3 className={`font-bold text-lg ${isExpired ? 'text-gray-500' : 'text-indigo-900'}`}>{inc.title}</h3>
                           </div>
                           <span className={`text-[10px] uppercase font-black px-2 py-0.5 rounded-full ${isExpired ? 'bg-gray-200 text-gray-500' : 'bg-indigo-200 text-indigo-700'}`}>
-                            {inc.targetType} Rides Only
+                            {inc.targetType === 'All' ? 'All Booking Types' : `${inc.targetType} Rides Only`}
                           </span>
                         </div>
                         {hasPermission('DRIVER_INCENTIVE_DELETE') && (
