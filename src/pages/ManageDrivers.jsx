@@ -1118,19 +1118,17 @@ export default function ManageDrivers() {
       if (editForm.bankName) formData.append("bankName", editForm.bankName);
 
       // Car details
-      if (editForm.carNumber || editForm.vehicleType) {
-        if (editForm.carNumber) formData.append("carNumber", editForm.carNumber);
-        if (editForm.vehicleType) formData.append("vehicleType", editForm.vehicleType);
-        if (editForm.carModel) formData.append("carModel", editForm.carModel);
-        if (editForm.carBrand) formData.append("carBrand", editForm.carBrand);
-        if (editForm.carType) formData.append("carType", editForm.carType);
-        if (editForm.carColor) formData.append("carColor", editForm.carColor);
-        if (editForm.manufacturingYear) formData.append("manufacturingYear", editForm.manufacturingYear);
-        if (editForm.seatCapacity) formData.append("seatCapacity", editForm.seatCapacity);
-        if (editForm.insuranceExpiry) formData.append("insuranceExpiry", editForm.insuranceExpiry);
-        if (editForm.permitExpiry) formData.append("permitExpiry", editForm.permitExpiry);
-        if (editForm.pucExpiry) formData.append("pucExpiry", editForm.pucExpiry);
-      }
+      if (editForm.vehicleType) formData.append("vehicleType", editForm.vehicleType);
+      if (editForm.carNumber) formData.append("carNumber", editForm.carNumber);
+      if (editForm.carModel) formData.append("carModel", editForm.carModel);
+      if (editForm.carBrand) formData.append("carBrand", editForm.carBrand);
+      if (editForm.carType) formData.append("carType", editForm.carType);
+      if (editForm.carColor) formData.append("carColor", editForm.carColor);
+      if (editForm.manufacturingYear) formData.append("manufacturingYear", editForm.manufacturingYear);
+      if (editForm.seatCapacity) formData.append("seatCapacity", editForm.seatCapacity);
+      if (editForm.insuranceExpiry) formData.append("insuranceExpiry", editForm.insuranceExpiry);
+      if (editForm.permitExpiry) formData.append("permitExpiry", editForm.permitExpiry);
+      if (editForm.pucExpiry) formData.append("pucExpiry", editForm.pucExpiry);
 
       // Profile image
       if (imageFile) formData.append("image", imageFile);
