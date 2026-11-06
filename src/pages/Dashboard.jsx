@@ -23,6 +23,17 @@ import { getDashboardStats as fetchStatsAPI } from '../apis/admin';
 const BASE = import.meta.env.VITE_API_BASE_URL || '';
 const IMAGE_BASE_URL = BASE.replace(/\/api\/?$/, '').replace(/\/$/, '') + '/uploads/';
 
+const formatAmount = (val) => {
+   if (val === undefined || val === null || isNaN(val)) return '0';
+   const num = Number(val);
+   if (Number.isInteger(num)) return num.toString();
+   const fixed = num.toFixed(2);
+   if (fixed.endsWith('.00')) {
+      return Number(fixed).toString();
+   }
+   return fixed;
+};
+
 const AdminDashboard = () => {
    const { admin } = useAuth();
    const navigate = useNavigate();
@@ -253,8 +264,8 @@ const AdminDashboard = () => {
 
    // Revenue breakdown
    const revenueData = [
-      { name: 'Admin Wallet', amount: adminWallet },
-      { name: 'Total Earnings', amount: totalEarnings }
+      { name: 'Admin Wallet', amount: Number(Number(adminWallet || 0).toFixed(2)) },
+      { name: 'Total Earnings', amount: Number(Number(totalEarnings || 0).toFixed(2)) }
    ];
 
    // Performance metrics
@@ -325,7 +336,7 @@ const AdminDashboard = () => {
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Admin Net Wallet</p>
-                        <p className="text-2xl font-bold text-gray-800">₹{adminWallet}</p>
+                        <p className="text-2xl font-bold text-gray-800">₹{formatAmount(adminWallet)}</p>
                      </div>
                      <div className="bg-cyan-100 p-3 rounded-lg">
                         <DollarSign className="text-cyan-600" size={24} />
@@ -342,7 +353,7 @@ const AdminDashboard = () => {
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Total Earnings</p>
-                        <p className="text-2xl font-bold text-gray-800">₹{totalEarnings}</p>
+                        <p className="text-2xl font-bold text-gray-800">₹{formatAmount(totalEarnings)}</p>
                      </div>
                      <div className="bg-purple-100 p-3 rounded-lg">
                         <CreditCard className="text-purple-600" size={24} />
@@ -356,7 +367,7 @@ const AdminDashboard = () => {
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Today's Revenue</p>
-                        <p className="text-2xl font-bold text-gray-800">₹{todayRevenue}</p>
+                        <p className="text-2xl font-bold text-gray-800">₹{formatAmount(todayRevenue)}</p>
                      </div>
                      <div className="bg-emerald-100 p-3 rounded-lg">
                         <TrendingUp className="text-emerald-600" size={24} />
@@ -370,7 +381,7 @@ const AdminDashboard = () => {
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Partner Liabilities</p>
-                        <p className="text-2xl font-bold text-gray-800">₹{partnerLiabilities}</p>
+                        <p className="text-2xl font-bold text-gray-800">₹{formatAmount(partnerLiabilities)}</p>
                      </div>
                      <div className="bg-red-100 p-3 rounded-lg">
                         <ArrowDownCircle className="text-red-600" size={24} />
@@ -384,7 +395,7 @@ const AdminDashboard = () => {
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Platform Liquidity</p>
-                        <p className="text-2xl font-bold text-gray-800">₹{totalSystemCash}</p>
+                        <p className="text-2xl font-bold text-gray-800">₹{formatAmount(totalSystemCash)}</p>
                      </div>
                      <div className="bg-blue-100 p-3 rounded-lg">
                         <Shield className="text-blue-600" size={24} />
@@ -527,7 +538,7 @@ const AdminDashboard = () => {
 
                <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-emerald-500">
                   <div className="flex items-center justify-between">
-                     <div><p className="text-sm text-gray-500">Avg. Fare</p><p className="text-2xl font-bold text-gray-800">₹{averageFare}</p></div>
+                     <div><p className="text-sm text-gray-500">Avg. Fare</p><p className="text-2xl font-bold text-gray-800">₹{formatAmount(averageFare)}</p></div>
                      <div className="bg-emerald-100 p-3 rounded-lg"><DollarSign className="text-emerald-600" size={24} /></div>
                   </div>
                   <div className="mt-2 text-[10px] text-gray-400">Average revenue per ride</div>
@@ -625,7 +636,7 @@ const AdminDashboard = () => {
                   <div className="flex items-center justify-between">
                      <div>
                         <p className="text-sm text-gray-500">Avg. Ride Fare</p>
-                        <p className="text-2xl font-bold text-gray-800">₹{averageFare}</p>
+                        <p className="text-2xl font-bold text-gray-800">₹{formatAmount(averageFare)}</p>
                      </div>
                      <div className="bg-emerald-100 p-3 rounded-lg">
                         <DollarSign className="text-emerald-600" size={24} />
@@ -641,21 +652,21 @@ const AdminDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 border-emerald-500">
                   <div className="flex items-center justify-between">
-                     <div><p className="text-sm text-gray-500">Today's Revenue</p><p className="text-2xl font-bold text-gray-800">₹{todayRevenue}</p></div>
+                     <div><p className="text-sm text-gray-500">Today's Revenue</p><p className="text-2xl font-bold text-gray-800">₹{formatAmount(todayRevenue)}</p></div>
                      <div className="bg-emerald-100 p-3 rounded-lg"><TrendingUp className="text-emerald-600" size={24} /></div>
                   </div>
                   <div className="mt-2 text-[10px] text-gray-400">Total cash flow today</div>
                </div>
                <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 min-h-[140px] flex flex-col justify-center border-blue-500">
                   <div className="flex items-center justify-between">
-                     <div><p className="text-sm text-gray-500">Today's Profit</p><p className="text-2xl font-bold text-gray-800">₹{todayProfit}</p></div>
+                     <div><p className="text-sm text-gray-500">Today's Profit</p><p className="text-2xl font-bold text-gray-800">₹{formatAmount(todayProfit)}</p></div>
                      <div className="bg-blue-100 p-3 rounded-lg"><DollarSign className="text-blue-600" size={24} /></div>
                   </div>
                   <div className="mt-2 text-[10px] text-gray-400">Admin commission today</div>
                </div>
                <div className="bg-white rounded-xl shadow-sm p-5 border-l-4 min-h-[140px] flex flex-col justify-center border-purple-500">
                   <div className="flex items-center justify-between">
-                     <div><p className="text-sm text-gray-500">Avg. Fare</p><p className="text-2xl font-bold text-gray-800">₹{averageFare}</p></div>
+                     <div><p className="text-sm text-gray-500">Avg. Fare</p><p className="text-2xl font-bold text-gray-800">₹{formatAmount(averageFare)}</p></div>
                      <div className="bg-purple-100 p-3 rounded-lg"><Activity className="text-purple-600" size={24} /></div>
                   </div>
                   <div className="mt-2 text-[10px] text-gray-400">Avg value per booking</div>
@@ -719,7 +730,7 @@ const AdminDashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                <div className="bg-white rounded-xl shadow-sm p-4 border-l-4 min-h-[140px] flex flex-col justify-center border-green-600">
                   <div className="flex items-center justify-between">
-                     <div><p className="text-sm text-gray-500">Total Payouts</p><p className="text-xl font-bold text-gray-800">₹{totalPayouts}</p></div>
+                     <div><p className="text-sm text-gray-500">Total Payouts</p><p className="text-xl font-bold text-gray-800">₹{formatAmount(totalPayouts)}</p></div>
                      <div className="bg-green-50 p-3 rounded-lg"><CreditCard className="text-green-600" size={24} /></div>
                   </div>
                   <div className="mt-2 text-[10px] text-gray-400">Total amount paid</div>
@@ -928,7 +939,7 @@ const AdminDashboard = () => {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="date" />
                         <YAxis />
-                        <Tooltip />
+                        <Tooltip formatter={(val, name) => name === 'earnings' ? [`₹${formatAmount(val)}`, 'Earnings'] : [val, 'Count']} />
                         <Legend />
                         <Line
                            type="monotone"
@@ -964,7 +975,7 @@ const AdminDashboard = () => {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="name" />
                         <YAxis />
-                        <Tooltip />
+                        <Tooltip formatter={(val) => [`₹${formatAmount(val)}`, 'Amount']} />
                         <Area
                            type="monotone"
                            dataKey="amount"
@@ -1222,7 +1233,7 @@ const AdminDashboard = () => {
                                  </span>
                               </td>
                               <td className="py-3 px-4 font-medium">
-                                 ₹{booking.fareEstimate}
+                                 ₹{formatAmount(booking.fareEstimate)}
                               </td>
                               <td className="py-3 px-4">
                                  <span className="text-sm font-mono bg-gray-100 px-2 py-1 rounded">
